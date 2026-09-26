@@ -56,6 +56,8 @@ export interface GameState {
   mapId: MapId;
   tick: number;
   status: GameStatus;
+  /** False when the game started with dev overrides; such games never submit records. */
+  ranked: boolean;
   gold: number;
   lives: number;
   /** Number of waves started so far (1-based index of the current wave). */

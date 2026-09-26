@@ -34,7 +34,13 @@ const REJECT_MESSAGES: Record<RejectReason, string> = {
 
 async function main(): Promise<void> {
   const params = parseUrlParams(location.search);
-  const initial = createInitialState({ seed: params.seed, mapId: params.map, gold: params.gold, startWave: params.wave });
+  const initial = createInitialState({
+    seed: params.seed,
+    mapId: params.map,
+    gold: params.gold,
+    startWave: params.wave,
+    ranked: !params.usesDevParams,
+  });
   const store = createGameStore(initial, params.tower ?? "archer");
   const runner = new GameRunner(initial, {
     speed: params.speed,

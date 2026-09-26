@@ -11,6 +11,8 @@ export interface InitialStateOptions {
   gold?: number;
   /** 1-based wave to start at. The game begins right before that wave spawns. */
   startWave?: number;
+  /** Set false to opt out of records; any gold or startWave override forces false. */
+  ranked?: boolean;
 }
 
 export function createInitialState(opts: InitialStateOptions): GameState {
@@ -23,6 +25,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     mapId,
     tick: 0,
     status: "playing",
+    ranked: isRanked(opts),
     gold: opts.gold ?? GAME.startGold,
     lives: GAME.lives,
     wave: startWave - 1,
@@ -38,6 +41,10 @@ export function createInitialState(opts: InitialStateOptions): GameState {
       damageByTower: { archer: 0, cannon: 0, aura: 0 },
     },
   };
+}
+
+function isRanked(opts: InitialStateOptions): boolean {
+  return (opts.ranked ?? true) && opts.gold === undefined && opts.startWave === undefined;
 }
 
 function resolveMapId(id: string | undefined): MapId {

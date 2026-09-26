@@ -29,6 +29,8 @@ export interface ScenarioOptions {
   bot?: boolean;
   /** 1-based wave to start at (requires waves). */
   startWave?: number;
+  /** Explicitly mark the game as not eligible for records. */
+  ranked?: boolean;
 }
 
 export interface Cell {
@@ -66,11 +68,13 @@ export class Scenario {
   private readonly wavesOn: boolean;
   private readonly goldAfterSetup: number | undefined;
   private readonly startWave: number | undefined;
+  private readonly rankedOption: boolean | undefined;
 
   constructor(opts: ScenarioOptions) {
     this.current = createInitialState({ seed: opts.seed });
     this.goldAfterSetup = opts.gold;
     this.startWave = opts.startWave;
+    this.rankedOption = opts.ranked;
     this.wavesOn = opts.waves ?? false;
     this.bot = opts.bot ? createBot("trivial") : undefined;
   }
@@ -156,6 +160,10 @@ export class Scenario {
     return this.state().lives;
   }
 
+  ranked(): boolean {
+    return this.state().ranked;
+  }
+
   private findEnemy(index: number): Enemy | undefined {
     const id = this.enemyIds[index];
     if (id === undefined) throw new Error(`scenario has no enemy #${index}`);
@@ -177,8 +185,8 @@ export class Scenario {
     if (this.materialized) return;
     this.materialized = true;
     const setupCost = this.pendingTowers.reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
-    const startGold = this.goldAfterSetup ?? this.current.gold;
-    this.current = createInitialState({ seed: this.current.seed, gold: startGold + setupCost, startWave: this.startWave });
+    const gold = this.goldAfterSetup === undefined && setupCost === 0 ? undefined : (this.goldAfterSetup ?? this.current.gold) + setupCost;
+    this.current = createInitialState({ seed: this.current.seed, gold, startWave: this.startWave, ranked: this.rankedOption });
     if (!this.wavesOn) this.current = { ...this.current, nextWaveTick: WAVES_OFF };
     if (this.pendingTowers.length > 0) this.placeTowers();
     if (this.pendingEnemies.length > 0) this.spawnEnemies();

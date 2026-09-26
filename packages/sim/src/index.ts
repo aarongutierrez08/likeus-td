@@ -4,6 +4,7 @@ export { createInitialState, type InitialStateOptions } from "./state";
 export { step, cloneState } from "./step";
 export { applyCommand, validateBuild, validateCommand, type RejectReason } from "./commands";
 export { hashState } from "./hash";
+export { canSubmitRecord } from "./records";
 export { dumpState } from "./dump";
 export { createBot, type Bot, type BotMode } from "./bot/index";
 export { getMap, isInside, isPathCell, isBuildable, pathCells, distanceToPath } from "./grid";

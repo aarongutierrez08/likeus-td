@@ -19,6 +19,9 @@ export function Hud(props: { store: GameStore }) {
         <span>
           Tick {s().tick} ({seconds()}s)
         </span>
+        <Show when={!s().ranked}>
+          <span class="dev">sin récords</span>
+        </Show>
         <span class="status" classList={{ won: s().status === "won", lost: s().status === "lost" }}>
           {s().status === "playing" ? (props.store.paused() ? "pausa" : "") : s().status === "won" ? "VICTORIA" : "DERROTA"}
         </span>
