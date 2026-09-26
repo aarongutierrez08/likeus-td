@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createBot } from "../src/bot";
-import { hashState } from "../src/hash";
-import { createInitialState } from "../src/state";
-import { step } from "../src/step";
-import type { GameState } from "../src/types";
+import { createBot, createInitialState, hashState, step, type GameState } from "../src/index";
 
 function play(seed: number, ticks: number): { states: GameState[]; hashes: string[] } {
   const bot = createBot("trivial");
@@ -26,7 +22,8 @@ describe("determinism", () => {
       expect(JSON.stringify(first.states[i])).toBe(JSON.stringify(second.states[i]));
       expect(first.hashes[i]).toBe(second.hashes[i]);
     }
-    expect(first.states[first.states.length - 1]!.enemies.length + first.states[first.states.length - 1]!.towers.length).toBeGreaterThan(0);
+    const last = first.states[first.states.length - 1]!;
+    expect(last.enemies.length + last.towers.length).toBeGreaterThan(0);
   });
 
   it("different seeds diverge", () => {

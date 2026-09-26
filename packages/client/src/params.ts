@@ -1,3 +1,5 @@
+import { TOWER_KINDS, type TowerKind } from "@td/sim";
+
 export interface UrlParams {
   seed: number;
   map: string;
@@ -7,6 +9,8 @@ export interface UrlParams {
   tick: number;
   dump: boolean;
   bot: boolean;
+  /** Tower preselected in the shop; unknown ids are ignored. */
+  tower: TowerKind | undefined;
 }
 
 function intParam(params: URLSearchParams, name: string): number | undefined {
@@ -23,7 +27,12 @@ function floatParam(params: URLSearchParams, name: string): number | undefined {
   return Number.isNaN(n) ? undefined : n;
 }
 
-/** ?seed=&map=&speed=&gold=&wave=&tick=&dump=1&bot=1 */
+function towerParam(params: URLSearchParams): TowerKind | undefined {
+  const raw = params.get("tower");
+  return TOWER_KINDS.find((kind) => kind === raw);
+}
+
+/** ?seed=&map=&speed=&gold=&wave=&tick=&dump=1&bot=1&tower=archer|cannon|aura */
 export function parseUrlParams(search: string): UrlParams {
   const params = new URLSearchParams(search);
   return {
@@ -35,5 +44,6 @@ export function parseUrlParams(search: string): UrlParams {
     tick: intParam(params, "tick") ?? 0,
     dump: params.get("dump") === "1",
     bot: params.get("bot") === "1",
+    tower: towerParam(params),
   };
 }

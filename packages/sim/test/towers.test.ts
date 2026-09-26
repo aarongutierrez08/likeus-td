@@ -1,54 +1,72 @@
 import { describe, expect, it } from "vitest";
-import { FP } from "../src/constants";
-import { TOWERS } from "../src/balance/towers";
-import { step } from "../src/step";
-import { addEnemy, buildCmd, runTicks, sandbox } from "./helpers";
+import { ENEMIES, TOWERS } from "../src/index";
+import { scenario } from "./helpers/scenario";
+
+const hp = 100;
 
 describe("towers", () => {
   it("archer hits the enemy furthest along the path within range", () => {
-    const state = sandbox({ gold: 1000 });
-    const behind = addEnemy(state, "normal", 100, 3 * FP);
-    const ahead = addEnemy(state, "normal", 100, 5 * FP);
-    const far = addEnemy(state, "normal", 100, 15 * FP);
-    const next = step(state, [buildCmd(state, "archer", 4, 2)]);
-    const byId = new Map(next.enemies.map((e) => [e.id, e]));
-    expect(byId.get(ahead.id)!.hp).toBe(100 - TOWERS.archer.damage);
-    expect(byId.get(behind.id)!.hp).toBe(100);
-    expect(byId.get(far.id)!.hp).toBe(100);
-    expect(next.towers[0]!.damageDealt).toBe(TOWERS.archer.damage);
+    const game = scenario({ seed: 1 })
+      .tower("archer", { x: 4, y: 2 })
+      .enemy("normal", { x: 3, y: 1, hp })
+      .enemy("normal", { x: 5, y: 1, hp })
+      .enemy("normal", { x: 15, y: 1, hp })
+      .run(1);
+    expect(game.enemy(0).hp).toBe(hp);
+    expect(game.enemy(1).hp).toBe(hp - TOWERS.archer.damage);
+    expect(game.enemy(2).hp).toBe(hp);
+    expect(game.tower(0).damageDealt).toBe(TOWERS.archer.damage);
+  });
+
+  it("on equal progress the lowest id is targeted", () => {
+    const game = scenario({ seed: 1 })
+      .tower("archer", { x: 5, y: 2 })
+      .enemy("normal", { x: 5, y: 1, hp })
+      .enemy("normal", { x: 5, y: 1, hp })
+      .run(1);
+    expect(game.enemy(0).hp).toBe(hp - TOWERS.archer.damage);
+    expect(game.enemy(1).hp).toBe(hp);
+  });
+
+  it("an enemy exactly at range is hit and one unit further is not", () => {
+    const halfCell = 500;
+    const movedBeforeShot = ENEMIES.normal.speed;
+    const game = scenario({ seed: 1 })
+      .tower("archer", { x: 2, y: 3 })
+      .enemy("normal", { x: 3, y: 1, hp, offset: halfCell - movedBeforeShot })
+      .enemy("normal", { x: 3, y: 1, hp, offset: halfCell + 1 - movedBeforeShot })
+      .run(1);
+    expect(game.enemy(0).hp).toBe(hp - TOWERS.archer.damage);
+    expect(game.enemy(1).hp).toBe(hp);
   });
 
   it("archer fires once per cooldown period", () => {
-    const state = sandbox({ gold: 1000 });
-    addEnemy(state, "tank", 100000, 4 * FP);
-    const ticks = TOWERS.archer.cooldown * 3;
-    const after = runTicks(state, ticks, [buildCmd(state, "archer", 4, 2)]);
-    expect(after.towers[0]!.damageDealt).toBe(TOWERS.archer.damage * 3);
+    const game = scenario({ seed: 1 })
+      .tower("archer", { x: 4, y: 2 })
+      .enemy("tank", { x: 4, y: 1, hp: 100000 })
+      .run(TOWERS.archer.cooldown * 3);
+    expect(game.tower(0).damageDealt).toBe(TOWERS.archer.damage * 3);
   });
 
   it("enemies outside the range are not attacked", () => {
-    const state = sandbox({ gold: 1000 });
-    addEnemy(state, "tank", 1000, 10 * FP);
-    const after = runTicks(state, 5, [buildCmd(state, "archer", 0, 0)]);
-    expect(after.enemies[0]!.hp).toBe(1000);
+    const game = scenario({ seed: 1 }).tower("archer", { x: 0, y: 0 }).enemy("tank", { x: 10, y: 1, hp: 1000 }).run(5);
+    expect(game.enemy(0).hp).toBe(1000);
   });
 
   it("cannon splash damages every enemy near the target", () => {
-    const state = sandbox({ gold: 1000 });
-    const target = addEnemy(state, "tank", 1000, 5 * FP);
-    const close = addEnemy(state, "tank", 1000, 5 * FP - TOWERS.cannon.splash);
-    const outside = addEnemy(state, "tank", 1000, 5 * FP - TOWERS.cannon.splash - 1);
-    const next = step(state, [buildCmd(state, "cannon", 5, 3)]);
-    const byId = new Map(next.enemies.map((e) => [e.id, e]));
-    expect(byId.get(target.id)!.hp).toBe(1000 - TOWERS.cannon.damage);
-    expect(byId.get(close.id)!.hp).toBe(1000 - TOWERS.cannon.damage);
-    expect(byId.get(outside.id)!.hp).toBe(1000);
+    const game = scenario({ seed: 1 })
+      .tower("cannon", { x: 5, y: 3 })
+      .enemy("tank", { x: 5, y: 1, hp: 1000 })
+      .enemy("tank", { x: 5, y: 1, hp: 1000, offset: -TOWERS.cannon.splash })
+      .enemy("tank", { x: 5, y: 1, hp: 1000, offset: -TOWERS.cannon.splash - 1 })
+      .run(1);
+    expect(game.enemy(0).hp).toBe(1000 - TOWERS.cannon.damage);
+    expect(game.enemy(1).hp).toBe(1000 - TOWERS.cannon.damage);
+    expect(game.enemy(2).hp).toBe(1000);
   });
 
   it("aura towers never attack", () => {
-    const state = sandbox({ gold: 1000 });
-    addEnemy(state, "normal", 100, 5 * FP);
-    const after = runTicks(state, 20, [buildCmd(state, "aura", 5, 2)]);
-    expect(after.enemies[0]!.hp).toBe(100);
+    const game = scenario({ seed: 1 }).tower("aura", { x: 5, y: 2 }).enemy("normal", { x: 5, y: 1, hp }).run(20);
+    expect(game.enemy(0).hp).toBe(hp);
   });
 });

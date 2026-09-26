@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { GAME } from "../src/balance/game";
-import { WAVES } from "../src/balance/waves";
-import { createBot } from "../src/bot";
-import { createInitialState } from "../src/state";
-import { step } from "../src/step";
-import { runTicks } from "./helpers";
+import { GAME, WAVES } from "../src/index";
+import { scenario } from "./helpers/scenario";
 
 const enemiesIn = (wave: number): number => WAVES[wave - 1]!.groups.reduce((n, g) => n + g.count, 0);
 
@@ -14,36 +10,35 @@ describe("waves", () => {
   });
 
   it("the first wave starts at firstWaveTick with the configured enemies", () => {
-    const before = runTicks(createInitialState({ seed: 3 }), GAME.firstWaveTick);
-    expect(before.wave).toBe(0);
-    expect(before.spawnQueue).toHaveLength(0);
-    const started = step(before);
-    expect(started.wave).toBe(1);
-    expect(started.spawnQueue.length + started.enemies.length).toBe(enemiesIn(1));
-    expect(started.enemies).toHaveLength(1);
+    const game = scenario({ seed: 3, waves: true }).run(GAME.firstWaveTick);
+    expect(game.state().wave).toBe(0);
+    expect(game.state().spawnQueue).toHaveLength(0);
+    game.run(1);
+    expect(game.state().wave).toBe(1);
+    expect(game.state().spawnQueue.length + game.enemies().length).toBe(enemiesIn(1));
+    expect(game.enemies()).toHaveLength(1);
   });
 
-  it("spawn spacing and hp carry seeded jitter", () => {
-    const started = runTicks(createInitialState({ seed: 3 }), GAME.firstWaveTick + 1);
-    const ticks = started.spawnQueue.map((s) => s.tick);
-    const hps = started.spawnQueue.map((s) => s.hp);
-    expect(new Set(hps).size).toBeGreaterThan(1);
-    for (let i = 1; i < ticks.length; i++) expect(ticks[i]!).toBeGreaterThan(ticks[i - 1]!);
+  it("spawn ticks increase and hp carries seeded jitter", () => {
+    const queue = scenario({ seed: 3, waves: true }).run(GAME.firstWaveTick + 1).state().spawnQueue;
+    const hps = new Set(queue.map((s) => s.hp));
+    expect(hps.size).toBeGreaterThan(1);
+    for (let i = 1; i < queue.length; i++) expect(queue[i]!.tick).toBeGreaterThan(queue[i - 1]!.tick);
   });
 
   it("startWave skips straight to that wave", () => {
-    const state = runTicks(createInitialState({ seed: 3, startWave: 7 }), GAME.firstWaveTick + 1);
-    expect(state.wave).toBe(7);
-    expect(state.spawnQueue.length + state.enemies.length).toBe(enemiesIn(7));
+    const game = scenario({ seed: 3, waves: true, startWave: 7 }).run(GAME.firstWaveTick + 1);
+    expect(game.state().wave).toBe(7);
+    expect(game.state().spawnQueue.length + game.enemies().length).toBe(enemiesIn(7));
   });
 
   it("clearing the tenth wave wins the game and freezes it", () => {
-    let state = createInitialState({ seed: 11, gold: 5000 });
-    const bot = createBot("trivial");
-    for (let i = 0; i < 30000 && state.status === "playing"; i++) state = step(state, bot.decide(state));
-    expect(state.status).toBe("won");
-    expect(state.wave).toBe(WAVES.length);
-    expect(state.enemies).toHaveLength(0);
-    expect(step(state)).toBe(state);
+    const game = scenario({ seed: 11, gold: 5000, waves: true, bot: true }).runUntil(() => false, 30000);
+    expect(game.status()).toBe("won");
+    expect(game.state().wave).toBe(WAVES.length);
+    expect(game.enemies()).toHaveLength(0);
+    const frozen = game.state();
+    game.run(1);
+    expect(game.state()).toBe(frozen);
   });
 });

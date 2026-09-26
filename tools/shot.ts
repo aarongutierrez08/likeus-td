@@ -11,11 +11,14 @@ const tick = intArg(args, "tick", 900);
 const useBot = intArg(args, "bot", 1) !== 0;
 const width = intArg(args, "width", 1280);
 const height = intArg(args, "height", 800);
+/** Extra query string appended verbatim, e.g. --params "tower=cannon&dump=1". */
+const extraParams = args.get("params") ?? "";
 
 const toolsDir = dirname(fileURLToPath(import.meta.url));
 const clientRoot = resolve(toolsDir, "../packages/client");
 const outDir = resolve(toolsDir, "out");
-const outFile = resolve(outDir, `seed${seed}-tick${tick}.png`);
+const suffix = args.get("out") ?? `seed${seed}-tick${tick}`;
+const outFile = resolve(outDir, `${suffix}.png`);
 
 const server = await createServer({
   root: clientRoot,
@@ -28,7 +31,7 @@ const baseUrl = server.resolvedUrls?.local[0];
 if (!baseUrl) throw new Error("vite did not report a local URL");
 
 const query = new URLSearchParams({ seed: String(seed), tick: String(tick), speed: "0", bot: useBot ? "1" : "0" });
-const url = `${baseUrl}?${query.toString()}`;
+const url = `${baseUrl}?${query.toString()}${extraParams ? `&${extraParams}` : ""}`;
 
 const browser = await chromium.launch();
 try {

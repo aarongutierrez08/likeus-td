@@ -1,7 +1,7 @@
-import { getMap, distanceToPath, isBuildable } from "./grid";
-import { TOWER_KINDS, TOWERS } from "./balance/towers";
-import { nextRng, seedRng } from "./rng";
-import type { Command, GameState, TowerKind } from "./types";
+import { getMap, distanceToPath, isBuildable } from "../grid";
+import { TOWER_KINDS, TOWERS } from "../balance/towers";
+import { nextRng, seedRng } from "../rng";
+import type { Command, GameState, TowerKind } from "../types";
 
 export type BotMode = "trivial" | "variant";
 

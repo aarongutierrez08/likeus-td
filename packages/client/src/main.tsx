@@ -35,7 +35,7 @@ const REJECT_MESSAGES: Record<RejectReason, string> = {
 async function main(): Promise<void> {
   const params = parseUrlParams(location.search);
   const initial = createInitialState({ seed: params.seed, mapId: params.map, gold: params.gold, startWave: params.wave });
-  const store = createGameStore(initial);
+  const store = createGameStore(initial, params.tower ?? "archer");
   const runner = new GameRunner(initial, {
     speed: params.speed,
     bot: params.bot ? createBot("trivial") : undefined,
