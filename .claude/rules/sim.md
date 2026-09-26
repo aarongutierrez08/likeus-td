@@ -59,3 +59,5 @@ test("aura", () => {
 ```
 
 Excepción: refactors sin cambio de comportamiento no requieren test nuevo; los existentes deben seguir en verde.
+
+El bot de referencia vive en `src/bot/` y ningún archivo fuera de esa carpeta lo importa.

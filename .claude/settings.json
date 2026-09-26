@@ -9,44 +9,23 @@
       "Edit(packages/**)",
       "Edit(tools/**)",
       "Edit(docs/adr/**)",
-      "Write(.claude/last-test-url)"
+      "Edit(.claude/**)",
+      "Edit(CLAUDE.md)"
     ],
     "deny": [
-      "Edit(CLAUDE.md)",
-      "Edit(.claude/**)"
+      "Edit(.claude/settings.json)"
     ]
   },
   "hooks": {
     "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/typecheck.sh"
-          }
-        ]
-      }
+      { "matcher": "Edit|Write|MultiEdit",
+        "hooks": [ { "type": "command", "command": "bash .claude/hooks/typecheck.sh" } ] }
     ],
     "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/notify-done.sh"
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "bash .claude/hooks/notify-done.sh" } ] }
     ],
     "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/notify-wait.sh"
-          }
-        ]
-      }
+      { "hooks": [ { "type": "command", "command": "bash .claude/hooks/notify-wait.sh" } ] }
     ]
   }
 }

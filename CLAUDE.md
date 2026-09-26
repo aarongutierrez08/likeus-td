@@ -30,6 +30,9 @@ Un cambio está listo solo si `/verify` pasa completo. Sin excepciones.
 - Commits chicos, conventional commits (`feat:`, `fix:`, `refactor:`). No commitear sin aprobación.
 
 ## Memoria
-- Lo que aprendés (comandos, gotchas, preferencias) va a auto memory. Nunca a este archivo ni a `docs/`.
-- Este archivo solo cambia con aprobación explícita.
-- Decisión de arquitectura nueva = ADR de una página en `docs/adr/`. No existe otra documentación.
+Podés editar CLAUDE.md, .claude/rules/ y .claude/skills/ sin pedir permiso, con este criterio:
+- Va a CLAUDE.md o a una rule solo lo que cambiaría cómo se escribe código en el futuro (una convención, una restricción, un comando nuevo). Una línea, en imperativo.
+- No va nada circunstancial (versiones, paths, gotchas del entorno): eso es auto memory.
+- Si sacás algo, mejor: estos archivos deben achicarse tanto como crecer.
+- Al final de la respuesta, avisá en una línea qué cambiaste en la memoria y por qué.
+- Decisión de arquitectura nueva = ADR de una página en docs/adr/. No existe otra documentación.
