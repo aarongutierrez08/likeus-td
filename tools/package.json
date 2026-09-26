@@ -1,0 +1,14 @@
+{
+  "name": "@td/tools",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@td/sim": "workspace:*",
+    "playwright": "1.62.0",
+    "vite": "7.3.6"
+  }
+}

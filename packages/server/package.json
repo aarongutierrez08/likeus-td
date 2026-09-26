@@ -1,0 +1,15 @@
+{
+  "name": "@td/server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@colyseus/core": "0.18.17",
+    "@colyseus/ws-transport": "0.18.4",
+    "@td/sim": "workspace:*"
+  }
+}

@@ -1,0 +1,276 @@
+:root {
+  --bg: #14161c;
+  --panel: rgba(20, 22, 28, 0.88);
+  --line: #2e3340;
+  --text: #e6e8ef;
+  --muted: #8b93a7;
+  --gold: #f4c542;
+  --lives: #ef6b6b;
+  --accent: #5ab0ff;
+  --archer: #6cc46c;
+  --cannon: #f0954a;
+  --aura: #b07cf0;
+  --topbar-h: 34px;
+  --shop-h: 72px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+}
+
+#map {
+  position: absolute;
+  inset: var(--topbar-h) 0 var(--shop-h) 0;
+}
+
+#map canvas {
+  display: block;
+  touch-action: none;
+}
+
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#hud > * {
+  pointer-events: auto;
+}
+
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  min-height: var(--topbar-h);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 6px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.topbar .gold {
+  color: var(--gold);
+}
+
+.topbar .lives {
+  color: var(--lives);
+}
+
+.topbar .status {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.topbar .status.won {
+  color: var(--archer);
+}
+
+.topbar .status.lost {
+  color: var(--lives);
+}
+
+.shop {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--shop-h);
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.shop button {
+  flex: 1 1 0;
+  min-width: 96px;
+  min-height: 48px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #1f232d;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.shop button.selected {
+  border-color: var(--accent);
+  background: #24304a;
+}
+
+.shop button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.shop button .name {
+  font-weight: 600;
+}
+
+.shop button .name::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--swatch);
+}
+
+.shop button .cost {
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.shop .hint {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.debug {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  width: min(300px, calc(100vw - 16px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.debug h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.debug .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.debug button {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #1f232d;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.debug label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.debug table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.debug th,
+.debug td {
+  text-align: right;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.debug th:first-child,
+.debug td:first-child {
+  text-align: left;
+}
+
+.dump {
+  position: absolute;
+  left: 8px;
+  bottom: 76px;
+  max-width: calc(100vw - 16px);
+  max-height: 45vh;
+  overflow: auto;
+  margin: 0;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  background: var(--panel);
+  border: 1px solid var(--lives);
+  border-radius: 6px;
+  color: var(--lives);
+  font-size: 12px;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.overlay span {
+  padding: 16px 32px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  :root {
+    --topbar-h: 56px;
+  }
+
+  .shop .hint {
+    display: none;
+  }
+}

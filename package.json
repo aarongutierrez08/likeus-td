@@ -1,0 +1,25 @@
+{
+  "name": "td",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @td/client --filter @td/server run dev",
+    "check": "pnpm -r run check",
+    "test": "vitest run",
+    "simtest": "tsx tools/simtest.ts",
+    "balance": "tsx tools/balance.ts",
+    "shot": "tsx tools/shot.ts",
+    "dump": "tsx tools/dump.ts"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

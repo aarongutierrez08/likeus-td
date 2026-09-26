@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Read(**)",
+      "Edit(packages/**)",
+      "Edit(tools/**)",
+      "Edit(docs/adr/**)"
+    ],
+    "deny": [
+      "Edit(CLAUDE.md)",
+      "Edit(.claude/**)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "bash .claude/hooks/typecheck.sh" }
+        ]
+      }
+    ]
+  }
+}
