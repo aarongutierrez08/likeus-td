@@ -9,5 +9,6 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 003 | Colyseus sobre Node como backend inicial |
 | 004 | HUD en DOM (Solid), mapa en PixiJS |
 | 005 | Balance como datos con BALANCE_VERSION |
+| 006 | En co-op los clientes avanzan solo con los ticks del server |
 
 Plantilla: `000-template.md`.

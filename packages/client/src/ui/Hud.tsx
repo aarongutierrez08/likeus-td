@@ -1,9 +1,11 @@
 import { Show } from "solid-js";
 import { TICKS_PER_SECOND, WAVES } from "@td/sim";
 import type { GameStore } from "../game/store";
+import type { NetStore } from "../net/store";
 
-export function Hud(props: { store: GameStore }) {
+export function Hud(props: { store: GameStore; net?: NetStore }) {
   const s = () => props.store.state();
+  const room = () => props.net?.roomInfo() ?? null;
   const seconds = () => (s().tick / TICKS_PER_SECOND).toFixed(1);
   return (
     <>
@@ -21,6 +23,13 @@ export function Hud(props: { store: GameStore }) {
         </span>
         <Show when={!s().ranked}>
           <span class="dev">sin récords</span>
+        </Show>
+        <Show when={room()}>
+          {(info) => (
+            <span class="dev">
+              sala {info().code} · {info().players.filter((p) => p.connected).length}/{info().players.length} jugadores
+            </span>
+          )}
         </Show>
         <span class="status" classList={{ won: s().status === "won", lost: s().status === "lost" }}>
           {s().status === "playing" ? (props.store.paused() ? "pausa" : "") : s().status === "won" ? "VICTORIA" : "DERROTA"}

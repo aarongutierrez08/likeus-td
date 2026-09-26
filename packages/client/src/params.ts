@@ -1,6 +1,13 @@
 import { TOWER_KINDS, type TowerKind } from "@td/sim";
 
+export type GameMode = "solo" | "coop";
+
 export interface UrlParams {
+  mode: GameMode;
+  /** Room code to join or reconnect to (coop). */
+  room: string | undefined;
+  /** Player name shown to others (coop). */
+  name: string | undefined;
   seed: number;
   map: string;
   speed: number;
@@ -36,15 +43,35 @@ function towerParam(params: URLSearchParams): TowerKind | undefined {
   return TOWER_KINDS.find((kind) => kind === raw);
 }
 
+const ROOM_CODE = /^[A-Z]{4}$/;
+
+function modeParam(params: URLSearchParams): GameMode {
+  return params.get("mode") === "coop" ? "coop" : "solo";
+}
+
+function roomParam(params: URLSearchParams): string | undefined {
+  const raw = params.get("room")?.trim().toUpperCase();
+  return raw && ROOM_CODE.test(raw) ? raw : undefined;
+}
+
+function nameParam(params: URLSearchParams): string | undefined {
+  const raw = params.get("name")?.trim();
+  return raw ? raw : undefined;
+}
+
 /**
- * Public: ?seed=&map=&speed=. Dev only (ignored in production builds):
+ * Public: ?mode=solo|coop&room=&name=&seed=&map=&speed=. Dev only, solo mode, non-production builds:
  * &gold=&wave=&tick=&dump=1&bot=1&tower=archer|cannon|aura
  */
 export function parseUrlParams(search: string, dev: boolean = import.meta.env.DEV): UrlParams {
   const params = new URLSearchParams(search);
-  const usesDevParams = dev && DEV_PARAMS.some((name) => params.has(name));
+  const mode = modeParam(params);
+  const usesDevParams = dev && mode === "solo" && DEV_PARAMS.some((name) => params.has(name));
   const devParams = usesDevParams ? params : new URLSearchParams();
   return {
+    mode,
+    room: roomParam(params),
+    name: nameParam(params),
     seed: intParam(params, "seed") ?? Math.floor(Math.random() * 1_000_000),
     map: params.get("map") ?? "s",
     speed: floatParam(params, "speed") ?? 1,
