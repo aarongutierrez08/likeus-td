@@ -17,5 +17,6 @@ Reporte final, máximo 6 líneas:
 - check / test / simtest / shot: OK o qué falló.
 - Qué cambió en balance (si algo).
 - Qué queda pendiente o dudoso.
+- **URL de prueba**: una URL de `localhost:5173` con parámetros (`seed`, `wave`, `gold`, `speed`, `tower`…) que deje al usuario parado justo donde está el cambio, sin jugar oleadas previas. Escribirla también en `.claude/last-test-url` (un archivo, una línea) para que el hook de notificación la muestre.
 
 No commitear. Pedir aprobación.

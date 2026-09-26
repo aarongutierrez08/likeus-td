@@ -8,7 +8,8 @@
       "Read(**)",
       "Edit(packages/**)",
       "Edit(tools/**)",
-      "Edit(docs/adr/**)"
+      "Edit(docs/adr/**)",
+      "Write(.claude/last-test-url)"
     ],
     "deny": [
       "Edit(CLAUDE.md)",
@@ -20,7 +21,30 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "bash .claude/hooks/typecheck.sh" }
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/typecheck.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/notify-done.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/notify-wait.sh"
+          }
         ]
       }
     ]
