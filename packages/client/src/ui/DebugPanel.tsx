@@ -48,7 +48,7 @@ export function DebugPanel(props: { store: GameStore; actions: DebugActions; rem
             {(t) => (
               <tr>
                 <td>
-                  #{t.id} {t.kind}
+                  #{t.id} {t.kind} nv{t.level}
                 </td>
                 <td>
                   {t.x},{t.y}

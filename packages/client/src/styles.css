@@ -514,3 +514,29 @@ body {
 .topbar .countdown {
   color: var(--accent);
 }
+
+.tower-panel {
+  position: absolute;
+  top: calc(var(--topbar-h) + 8px);
+  left: 8px;
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tower-panel .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+}
+
+.tower-panel .muted {
+  color: var(--muted);
+}

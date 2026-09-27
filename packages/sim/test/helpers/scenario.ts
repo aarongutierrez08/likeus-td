@@ -143,6 +143,11 @@ export class Scenario {
     return this;
   }
 
+  upgrade(towerId: number, player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "upgrade", tick: 0, playerId: player, towerId });
+    return this;
+  }
+
   run(ticks: number): this {
     this.materialize();
     for (let i = 0; i < ticks; i++) this.tick();

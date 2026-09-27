@@ -1,9 +1,9 @@
-import { SELL_REFUND_PCT, TOWERS } from "./balance/towers";
+import { SELL_REFUND_PCT, TOWERS, UPGRADE } from "./balance/towers";
 import { isBuildable, isInside } from "./grid";
 import { ECONOMY } from "./balance/economy";
 import { WAVES } from "./balance/waves";
 import { callQuorum, callWaveBonus, startingGold } from "./economy";
-import type { BuildCommand, CallWaveCommand, Command, GameState, GiftCommand, JoinCommand, Player, SellCommand, TowerKind } from "./types";
+import type { BuildCommand, CallWaveCommand, Command, GameState, GiftCommand, JoinCommand, Player, SellCommand, Tower, TowerKind, UpgradeCommand } from "./types";
 
 export type RejectReason =
   | "outside"
@@ -18,10 +18,30 @@ export type RejectReason =
   | "bad_amount"
   | "no_tower"
   | "not_owner"
-  | "wave_in_progress";
+  | "wave_in_progress"
+  | "max_level";
 
-export function sellRefund(kind: TowerKind): number {
-  return Math.floor((TOWERS[kind].cost * SELL_REFUND_PCT) / 100);
+export function upgradeCost(kind: TowerKind): number {
+  return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
+}
+
+export function investedIn(tower: Tower): number {
+  return TOWERS[tower.kind].cost + upgradeCost(tower.kind) * (tower.level - 1);
+}
+
+export function sellRefund(tower: Tower): number {
+  return Math.floor((investedIn(tower) * SELL_REFUND_PCT) / 100);
+}
+
+export function towerDamage(tower: Tower): number {
+  const def = TOWERS[tower.kind];
+  return Math.floor((def.damage * (100 + UPGRADE.damagePctPerLevel * (tower.level - 1))) / 100);
+}
+
+export function auraBonusOf(tower: Tower): number {
+  const def = TOWERS[tower.kind];
+  if (def.auraRadius === 0) return 0;
+  return def.auraBonusPct + UPGRADE.auraBonusPctPerLevel * (tower.level - 1);
 }
 
 export function findPlayer(state: GameState, playerId: number): Player | undefined {
@@ -62,6 +82,17 @@ export function validateSell(state: GameState, cmd: SellCommand): RejectReason |
   return null;
 }
 
+export function validateUpgrade(state: GameState, cmd: UpgradeCommand): RejectReason | null {
+  const player = findPlayer(state, cmd.playerId);
+  if (!player) return "no_player";
+  const tower = state.towers.find((t) => t.id === cmd.towerId);
+  if (!tower) return "no_tower";
+  if (tower.owner !== cmd.playerId) return "not_owner";
+  if (tower.level >= UPGRADE.maxLevel) return "max_level";
+  if (player.gold < upgradeCost(tower.kind)) return "no_gold";
+  return null;
+}
+
 export function validateGift(state: GameState, cmd: GiftCommand): RejectReason | null {
   const from = findPlayer(state, cmd.playerId);
   if (!from) return "no_player";
@@ -84,6 +115,8 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateGift(state, cmd);
     case "sell":
       return validateSell(state, cmd);
+    case "upgrade":
+      return validateUpgrade(state, cmd);
   }
 }
 
@@ -97,6 +130,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
         id: state.nextId++,
         owner: cmd.playerId,
         kind: cmd.tower,
+        level: 1,
         x: cmd.x,
         y: cmd.y,
         cooldown: 0,
@@ -127,7 +161,13 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       const index = state.towers.findIndex((t) => t.id === cmd.towerId);
       const tower = state.towers[index]!;
       state.towers.splice(index, 1);
-      findPlayer(state, cmd.playerId)!.gold += sellRefund(tower.kind);
+      findPlayer(state, cmd.playerId)!.gold += sellRefund(tower);
+      return true;
+    }
+    case "upgrade": {
+      const tower = state.towers.find((t) => t.id === cmd.towerId)!;
+      tower.level++;
+      findPlayer(state, cmd.playerId)!.gold -= upgradeCost(tower.kind);
       return true;
     }
   }

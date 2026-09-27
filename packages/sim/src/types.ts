@@ -8,6 +8,8 @@ export interface Tower {
   id: number;
   owner: number;
   kind: TowerKind;
+  /** 1 when built; each upgrade adds one, up to UPGRADE.maxLevel. */
+  level: number;
   x: number;
   y: number;
   cooldown: number;
@@ -71,7 +73,14 @@ export interface SellCommand {
   towerId: number;
 }
 
-export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand;
+export interface UpgradeCommand {
+  type: "upgrade";
+  tick: number;
+  playerId: number;
+  towerId: number;
+}
+
+export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand | UpgradeCommand;
 
 export interface Player {
   id: number;

@@ -16,7 +16,7 @@ export class EntityLayer {
   readonly towers = new Container();
   readonly enemies = new Container();
   readonly ranges = new Graphics();
-  private readonly towerSprites = new Map<number, Graphics>();
+  private readonly towerSprites = new Map<number, { g: Graphics; level: number }>();
   private readonly enemySprites = new Map<number, EnemySprite>();
 
   constructor(private readonly base: number) {}
@@ -32,19 +32,23 @@ export class EntityLayer {
     const seen = new Set<number>();
     for (const t of towers) {
       seen.add(t.id);
-      if (this.towerSprites.has(t.id)) continue;
+      const existing = this.towerSprites.get(t.id);
+      if (existing && existing.level === t.level) continue;
+      existing?.g.destroy();
       const g = new Graphics();
       const pad = this.base * 0.15;
       g.rect(pad, pad, this.base - pad * 2, this.base - pad * 2).fill(TOWER_COLORS[t.kind]);
       if (t.kind === "aura") g.circle(this.base / 2, this.base / 2, this.base * 0.18).fill(COLORS.background);
       if (t.kind === "cannon") g.circle(this.base / 2, this.base / 2, this.base * 0.14).fill(COLORS.background);
+      const pip = this.base * 0.1;
+      for (let i = 1; i < t.level; i++) g.rect(pad + pip * (2 * i - 1), this.base - pad - pip * 2, pip, pip).fill(COLORS.background);
       g.position.set(t.x * this.base, t.y * this.base);
       this.towers.addChild(g);
-      this.towerSprites.set(t.id, g);
+      this.towerSprites.set(t.id, { g, level: t.level });
     }
-    for (const [id, g] of this.towerSprites) {
+    for (const [id, sprite] of this.towerSprites) {
       if (seen.has(id)) continue;
-      g.destroy();
+      sprite.g.destroy();
       this.towerSprites.delete(id);
     }
   }

@@ -16,8 +16,18 @@ export interface TowerDef {
 
 export const TOWER_KINDS: readonly TowerKind[] = ["archer", "cannon", "aura"];
 
-/** Percent of the cost a player gets back when selling a tower. */
+/** Percent of everything invested (build plus upgrades) a player gets back when selling. */
 export const SELL_REFUND_PCT = 75;
+
+export const UPGRADE = {
+  maxLevel: 3,
+  /** Each level adds this percent of the base damage. */
+  damagePctPerLevel: 50,
+  /** Each aura level adds this many percent points to its bonus. */
+  auraBonusPctPerLevel: 10,
+  /** Each upgrade costs this percent of the tower's base cost. */
+  costPctPerLevel: 100,
+} as const;
 
 export const TOWERS: Record<TowerKind, TowerDef> = {
   archer: { cost: 40, damage: 8, range: 2500, cooldown: 8, splash: 0, auraRadius: 0, auraBonusPct: 0 },

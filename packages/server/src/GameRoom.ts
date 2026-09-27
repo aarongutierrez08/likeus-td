@@ -300,6 +300,9 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
     case "sell":
       if (!Number.isInteger(v["towerId"])) return null;
       return { type: "sell", tick, playerId, towerId: v["towerId"] as number };
+    case "upgrade":
+      if (!Number.isInteger(v["towerId"])) return null;
+      return { type: "upgrade", tick, playerId, towerId: v["towerId"] as number };
     default:
       return null;
   }

@@ -17,7 +17,7 @@ export function dumpState(state: GameState): string {
   lines.push(`players: ${state.players.map((p) => `#${p.id} gold ${p.gold}`).join(", ")}`);
   lines.push(`towers (${state.towers.length}):`);
   for (const t of state.towers) {
-    lines.push(`  #${t.id} ${t.kind} (${t.x},${t.y}) owner ${t.owner} cd ${t.cooldown} dmg ${t.damageDealt} kills ${t.kills}`);
+    lines.push(`  #${t.id} ${t.kind} nv${t.level} (${t.x},${t.y}) owner ${t.owner} cd ${t.cooldown} dmg ${t.damageDealt} kills ${t.kills}`);
   }
   lines.push(`enemies (${state.enemies.length}):`);
   for (const e of state.enemies) {

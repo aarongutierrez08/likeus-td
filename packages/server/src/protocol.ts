@@ -89,7 +89,12 @@ export interface SellRequest {
   towerId: number;
 }
 
-export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest | SellRequest;
+export interface UpgradeRequest {
+  type: "upgrade";
+  towerId: number;
+}
+
+export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest | SellRequest | UpgradeRequest;
 
 export interface DesyncReport {
   tick: number;

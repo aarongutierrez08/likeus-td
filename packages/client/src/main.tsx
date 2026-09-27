@@ -14,6 +14,7 @@ import { Dump } from "./ui/Dump";
 import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { Shop } from "./ui/Shop";
+import { TowerPanel } from "./ui/TowerPanel";
 import "./styles.css";
 
 interface DebugHandle {
@@ -43,6 +44,7 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   no_tower: "Esa torre ya no existe",
   not_owner: "Esa torre no es tuya",
   wave_in_progress: "Todavía quedan enemigos de esta oleada",
+  max_level: "La torre ya está al máximo",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -91,7 +93,8 @@ function bindRenderer(renderer: Renderer, game: Game): void {
   createRoot(() => {
     createEffect(() => renderer.setHoverTower(game.store.selectedTower()));
     createEffect(() => {
-      const tower = game.store.selectedOwnTower();
+      const id = game.store.selectedTowerId();
+      const tower = id === null ? undefined : game.store.state().towers.find((t) => t.id === id);
       renderer.setSelectedCell(tower ? { x: tower.x, y: tower.y } : null);
     });
     createEffect(() => {
@@ -137,6 +140,11 @@ function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?:
   return (
     <>
       <Hud store={props.game.store} net={props.net} economy={props.economy} />
+      <TowerPanel
+        store={props.game.store}
+        actions={props.economy}
+        ownerName={(id) => props.net?.roomInfo()?.players.find((p) => p.playerId === id)?.name ?? `Jugador ${id + 1}`}
+      />
       <Shop store={props.game.store} />
       <Show when={props.net && props.sendChat}>
         <Chat net={props.net!} send={props.sendChat!} />
@@ -197,6 +205,7 @@ async function bootSolo(params: UrlParams): Promise<void> {
       store.setSelectedTowerId(null);
       localCommand({ type: "sell", tick: 0, playerId: 0, towerId });
     },
+    upgrade: (towerId) => localCommand({ type: "upgrade", tick: 0, playerId: 0, towerId }),
   };
   render(() => <GameView game={game} dump={params.dump} economy={economy} />, hudEl);
 
@@ -316,6 +325,7 @@ function bootCoop(params: UrlParams): void {
                   g().store.setSelectedTowerId(null);
                   connection.send("cmd", { type: "sell", towerId });
                 },
+                upgrade: (towerId) => connection.send("cmd", { type: "upgrade", towerId }),
               }}
             />
           )}

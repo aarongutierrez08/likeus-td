@@ -1,4 +1,5 @@
 import { ENEMIES } from "../balance/enemies";
+import { auraBonusOf, towerDamage } from "../commands";
 import { attenuatedBounty } from "../economy";
 import { TOWERS } from "../balance/towers";
 import { cellCenterFP, positionAt } from "../path";
@@ -16,19 +17,24 @@ function squaredDistance(ax: number, ay: number, bx: number, by: number): number
   return dx * dx + dy * dy;
 }
 
-export function isAuraBoosted(state: GameState, tower: Tower): boolean {
-  return state.towers.some((other) => {
+/** Strongest aura reaching the tower; auras never stack. */
+function auraBonusFor(state: GameState, tower: Tower): number {
+  let best = 0;
+  for (const other of state.towers) {
     const def = TOWERS[other.kind];
-    if (def.auraRadius === 0 || other.id === tower.id) return false;
-    return Math.max(Math.abs(other.x - tower.x), Math.abs(other.y - tower.y)) <= def.auraRadius;
-  });
+    if (def.auraRadius === 0 || other.id === tower.id) continue;
+    if (Math.max(Math.abs(other.x - tower.x), Math.abs(other.y - tower.y)) > def.auraRadius) continue;
+    best = Math.max(best, auraBonusOf(other));
+  }
+  return best;
+}
+
+export function isAuraBoosted(state: GameState, tower: Tower): boolean {
+  return auraBonusFor(state, tower) > 0;
 }
 
 export function effectiveDamage(state: GameState, tower: Tower): number {
-  const def = TOWERS[tower.kind];
-  if (!isAuraBoosted(state, tower)) return def.damage;
-  const bonus = Math.max(...state.towers.map((t) => TOWERS[t.kind].auraBonusPct));
-  return Math.floor((def.damage * (100 + bonus)) / 100);
+  return Math.floor((towerDamage(tower) * (100 + auraBonusFor(state, tower))) / 100);
 }
 
 /** Enemy furthest along the path within range. Ties go to the lowest id. */

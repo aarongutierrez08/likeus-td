@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { TOWERS, sellRefund, validateCommand, type Command } from "../src/index";
+import type { Tower } from "../src/index";
 import { scenario } from "./helpers/scenario";
 
 describe("selling towers", () => {
   it("the owner gets the refund and the tower disappears", () => {
     const game = scenario({ seed: 1, gold: 0 }).tower("archer", { x: 3, y: 3 }).run(0);
-    const archer = game.tower(0);
+    const archer: Tower = { ...game.tower(0) };
     game.sell(archer.id).run(1);
     expect(game.towers()).toHaveLength(0);
-    expect(game.gold(0)).toBe(sellRefund("archer"));
-    expect(sellRefund("archer")).toBeLessThan(TOWERS.archer.cost);
-    expect(sellRefund("archer")).toBeGreaterThan(0);
+    expect(game.gold(0)).toBe(sellRefund(archer));
+    expect(sellRefund(archer)).toBeLessThan(TOWERS.archer.cost);
+    expect(sellRefund(archer)).toBeGreaterThan(0);
   });
 
   it("only the owner can sell a tower", () => {
