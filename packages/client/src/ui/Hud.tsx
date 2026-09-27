@@ -11,6 +11,9 @@ export interface EconomyActions {
   gift: (to: number, amount: number) => void;
   sell: (towerId: number) => void;
   upgrade: (towerId: number) => void;
+  /** Absent when this player may not change the pace (coop guests). */
+  setSpeed?: (speed: number) => void;
+  speed?: () => number;
 }
 
 export function Hud(props: { store: GameStore; net?: NetStore; economy?: EconomyActions }) {
@@ -59,6 +62,25 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
         </Show>
         <Show when={!s().ranked}>
           <span class="dev">sin récords</span>
+        </Show>
+        <Show when={props.economy?.speed}>
+          {(speed) => (
+            <span class="speed">
+              <For each={[1, 2, 4]}>
+                {(s) => (
+                  <button
+                    type="button"
+                    class="inline"
+                    classList={{ active: speed()() === s }}
+                    disabled={!props.economy?.setSpeed}
+                    onClick={() => props.economy?.setSpeed?.(s)}
+                  >
+                    {s}×
+                  </button>
+                )}
+              </For>
+            </span>
+          )}
         </Show>
         <Show when={props.economy?.report}>{(send) => <ReportButton send={send()} />}</Show>
         <Show when={room()}>

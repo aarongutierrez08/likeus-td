@@ -7,6 +7,8 @@ import {
   cloneState,
   createInitialState,
   dumpState,
+  isMapId,
+  DEFAULT_MAP,
   hashState,
   applyCommand,
   step,
@@ -27,6 +29,8 @@ import {
   type CommandReject,
   type HistoryEntry,
   type ReportRequest,
+  type Speed,
+  SPEEDS,
   type CommandRequest,
   type CreateRoomOptions,
   type DesyncReport,
@@ -41,8 +45,8 @@ import { createReportSink, globalReportAllowed, type ReportSink } from "./report
 import { uniqueRoomCode } from "./roomCode";
 
 const TICK_MS = 1000 / TICKS_PER_SECOND;
-/** Ticks the server may run in one interval callback when it falls behind. */
-const MAX_CATCH_UP_TICKS = 5;
+/** Ticks the server may run in one interval callback when it falls behind (at 4× it needs 4 per interval). */
+const MAX_CATCH_UP_TICKS = 12;
 const CONSENTED_CLOSE_CODE = 4000;
 /** A finished game stays open this long so players can look at the result, then everyone is disconnected. */
 const ENDED_ROOM_TTL_MS = 120_000;
@@ -71,6 +75,8 @@ export class GameRoom extends Room {
   private creatorPlayerId = 0;
   private nextPlayerId = 0;
   private seed = 0;
+  private mapId: string = DEFAULT_MAP;
+  private speed: Speed = 1;
   private pending: Command[] = [];
   private readonly commandsThisTick = new Map<number, number>();
   private accumulator = 0;
@@ -86,7 +92,8 @@ export class GameRoom extends Room {
   override async onCreate(options: CreateRoomOptions): Promise<void> {
     this.roomId = await uniqueRoomCode();
     this.seed = pickSeed(options.seed);
-    this.sim = createInitialState({ seed: this.seed, players: [] });
+    this.mapId = typeof options.map === "string" && isMapId(options.map) ? options.map : DEFAULT_MAP;
+    this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players: [] });
     await this.setPrivate(options.private === true);
     await this.publishMetadata();
 
@@ -96,6 +103,7 @@ export class GameRoom extends Room {
     this.onMessage<{ playerId?: unknown }>("kick", (client, msg) => this.handleKick(client, msg));
     this.onMessage<DesyncReport>("desync", (client, report) => this.handleDesync(client, report));
     this.onMessage<ReportRequest>("report", (client, request) => void this.handleReport(client, request));
+    this.onMessage<{ speed?: unknown }>("setSpeed", (client, msg) => this.handleSetSpeed(client, msg));
   }
 
   override async onJoin(client: Client, options?: JoinRoomOptions): Promise<void> {
@@ -143,7 +151,7 @@ export class GameRoom extends Room {
   private handleStart(client: Client): void {
     if (!this.isCreator(client) || this.phase !== "lobby") return;
     const players = [...this.players.values()].map((p) => ({ id: p.playerId }));
-    this.sim = createInitialState({ seed: this.seed, players });
+    this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players });
     this.initialState = this.sim;
     this.history.length = 0;
     this.setPhase("playing");
@@ -161,7 +169,7 @@ export class GameRoom extends Room {
       this.accumulator = 0;
       return;
     }
-    this.accumulator += deltaMs;
+    this.accumulator += deltaMs * this.speed;
     let ticks = 0;
     while (this.accumulator >= TICK_MS && ticks < MAX_CATCH_UP_TICKS && this.sim.status === "playing") {
       this.tick();
@@ -221,6 +229,15 @@ export class GameRoom extends Room {
     if (reason !== null) return this.reject(client, reason);
     this.commandsThisTick.set(player.playerId, sent + 1);
     this.pending.push(command);
+  }
+
+  /** Only the creator sets the pace; everyone hears about it so the HUD can show it. */
+  private handleSetSpeed(client: Client, msg: { speed?: unknown }): void {
+    if (!this.isCreator(client)) return;
+    const speed = SPEEDS.find((s) => s === msg?.speed);
+    if (speed === undefined || speed === this.speed) return;
+    this.speed = speed;
+    this.broadcast("speed", speed);
   }
 
   private handleChat(client: Client, msg: { text?: unknown }): void {
@@ -376,7 +393,14 @@ export class GameRoom extends Room {
   }
 
   private snapshotFor(player: Player): SnapshotMessage {
-    return { state: this.sim, players: this.playerList(), you: player.playerId, creator: this.creatorPlayerId, phase: this.phase };
+    return {
+      state: this.sim,
+      players: this.playerList(),
+      you: player.playerId,
+      creator: this.creatorPlayerId,
+      phase: this.phase,
+      speed: this.speed,
+    };
   }
 
   private playerList(): PlayerInfo[] {
@@ -402,6 +426,7 @@ export class GameRoom extends Room {
     const metadata: RoomMetadata = {
       code: this.roomId,
       seed: this.sim.seed,
+      map: this.mapId,
       phase: this.phase,
       players: this.players.size,
       connected: this.connectedCount(),

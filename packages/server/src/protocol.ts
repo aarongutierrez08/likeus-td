@@ -27,7 +27,11 @@ export interface CreateRoomOptions {
   seed?: number;
   private?: boolean;
   name?: string;
+  map?: string;
 }
+
+export const SPEEDS = [1, 2, 4] as const;
+export type Speed = (typeof SPEEDS)[number];
 
 export interface JoinRoomOptions {
   name?: string;
@@ -36,6 +40,7 @@ export interface JoinRoomOptions {
 export interface RoomMetadata {
   code: string;
   seed: number;
+  map: string;
   phase: Phase;
   /** Seats taken, reconnection reservations included: what decides whether you can join. */
   players: number;
@@ -50,6 +55,7 @@ export interface SnapshotMessage {
   you: number;
   creator: number;
   phase: Phase;
+  speed: Speed;
 }
 
 export interface TickMessage {
@@ -165,6 +171,8 @@ export interface ServerMessages {
   chat: ChatMessage;
   rejected: RejectedMessage;
   reported: ReportedMessage;
+  /** Simulation speed multiplier chosen by the creator. */
+  speed: Speed;
 }
 
 export interface ClientMessages {
@@ -174,4 +182,5 @@ export interface ClientMessages {
   kick: { playerId: number };
   desync: DesyncReport;
   report: ReportRequest;
+  setSpeed: { speed: Speed };
 }

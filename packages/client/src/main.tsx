@@ -243,7 +243,13 @@ async function bootSolo(params: UrlParams): Promise<void> {
     runner.enqueue(cmd);
     if (runner.paused || runner.speed === 0) runner.stepAndPublish();
   };
+  const [speed, setSpeedSignal] = createSignal(params.speed);
   const economy: EconomyActions = {
+    speed,
+    setSpeed: (s) => {
+      runner.speed = s;
+      setSpeedSignal(s);
+    },
     callWave: () => localCommand({ type: "callWave", tick: 0, playerId: 0 }),
     gift: (to, amount) => localCommand({ type: "gift", tick: 0, playerId: 0, to, amount }),
     sell: (towerId) => {
@@ -329,7 +335,14 @@ function bootCoop(params: UrlParams): void {
 
   const handlers: RoomHandlers = {
     snapshot: (msg) => {
-      net.setRoomInfo({ code: connection.code ?? "", players: msg.players, you: msg.you, creator: msg.creator, phase: msg.phase });
+      net.setRoomInfo({
+        code: connection.code ?? "",
+        players: msg.players,
+        you: msg.you,
+        creator: msg.creator,
+        phase: msg.phase,
+        speed: msg.speed,
+      });
       const current = game();
       if (current && current.store.you === msg.you) current.runner.replaceState(msg.state);
       else startGame(msg);
@@ -342,6 +355,7 @@ function bootCoop(params: UrlParams): void {
       const current = game();
       if (current) makeNotifier(current)(REJECT_MESSAGES[msg.reason]);
     },
+    speed: (speed) => net.setRoomInfo((info) => (info ? { ...info, speed } : info)),
     dropped: () => net.setDropped(true),
     reconnected: () => net.setDropped(false),
     reported: (msg) => {
@@ -385,7 +399,7 @@ function bootCoop(params: UrlParams): void {
   };
 
   const actions: LobbyActions = {
-    create: (name, isPrivate) => guarded(() => connection.create({ name, private: isPrivate }, handlers)),
+    create: (name, isPrivate, map) => guarded(() => connection.create({ name, private: isPrivate, map }, handlers)),
     join: (code, name) => guarded(() => connection.join(code, name, handlers)),
     listRooms: () => connection.listRooms(),
     start: () => connection.send("start", {}),
@@ -419,6 +433,11 @@ function bootCoop(params: UrlParams): void {
                   connection.send("cmd", { type: "sell", towerId });
                 },
                 upgrade: (towerId) => connection.send("cmd", { type: "upgrade", towerId }),
+                speed: () => net.roomInfo()?.speed ?? 1,
+                setSpeed:
+                  net.roomInfo()?.you === net.roomInfo()?.creator
+                    ? (s) => connection.send("setSpeed", { speed: s as 1 | 2 | 4 })
+                    : undefined,
               }}
               onGiveUp={() => void actions.leave()}
             />

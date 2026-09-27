@@ -7,6 +7,7 @@ export interface RoomInfo {
   you: number;
   creator: number;
   phase: Phase;
+  speed: number;
 }
 
 export const MAX_CHAT_HISTORY = 100;

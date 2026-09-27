@@ -94,7 +94,7 @@ function watch(room: Room): Inbox {
   };
 }
 
-async function createRoom(options: { name?: string; private?: boolean; seed?: number } = {}): Promise<Inbox> {
+async function createRoom(options: { name?: string; private?: boolean; seed?: number; map?: string } = {}): Promise<Inbox> {
   return watch(await client().create(ROOM_NAME, options));
 }
 
@@ -324,6 +324,26 @@ describe("game room", () => {
     for (let i = 0; i < 15; i++) if (globalReportAllowed(start + i)) allowed++;
     expect(allowed).toBe(10);
     expect(globalReportAllowed(start + 11 * 60_000)).toBe(true);
+  });
+
+  it("the creator can speed the game up and a map can be chosen", async () => {
+    const host = await createRoom({ name: "host", map: "directo" });
+    const snapshot = await host.next<SnapshotMessage>("snapshot");
+    expect(snapshot.state.mapId).toBe("directo");
+    expect(snapshot.speed).toBe(1);
+    host.room.send("start", {});
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    guest.room.send("setSpeed", { speed: 4 });
+    await guest.none("speed", 200);
+    let latest = 0;
+    host.tap<TickMessage>("tick", (t) => (latest = t.tick));
+    host.room.send("setSpeed", { speed: 4 });
+    expect(await guest.next<number>("speed")).toBe(4);
+    const from = latest;
+    await new Promise((r) => setTimeout(r, 500));
+    expect(latest - from).toBeGreaterThan(25);
   });
 
   it("answers a desync report with a fresh snapshot", async () => {

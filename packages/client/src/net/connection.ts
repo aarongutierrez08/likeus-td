@@ -6,6 +6,7 @@ import type {
   PlayerInfo,
   RejectedMessage,
   ReportedMessage,
+  Speed,
   RoomMetadata,
   SnapshotMessage,
   TickMessage,
@@ -20,6 +21,7 @@ export interface RoomHandlers {
   chat: (msg: ChatMessage) => void;
   rejected: (msg: RejectedMessage) => void;
   reported: (msg: ReportedMessage) => void;
+  speed: (speed: Speed) => void;
   /** The socket dropped; the SDK is retrying on its own. */
   dropped: () => void;
   reconnected: () => void;
@@ -82,7 +84,7 @@ export class Connection {
     return body.rooms;
   }
 
-  async create(opts: { name: string; private: boolean }, handlers: RoomHandlers): Promise<string> {
+  async create(opts: { name: string; private: boolean; map: string }, handlers: RoomHandlers): Promise<string> {
     return this.attach(await this.client.create(ROOM_NAME, opts), handlers);
   }
 
@@ -127,6 +129,7 @@ export class Connection {
     room.onMessage<ChatMessage>("chat", handlers.chat);
     room.onMessage<RejectedMessage>("rejected", handlers.rejected);
     room.onMessage<ReportedMessage>("reported", handlers.reported);
+    room.onMessage<Speed>("speed", handlers.speed);
     room.reconnection.maxRetries = MAX_RECONNECT_RETRIES;
     room.onDrop(() => handlers.dropped());
     room.onReconnect(() => handlers.reconnected());

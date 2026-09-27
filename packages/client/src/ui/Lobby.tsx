@@ -1,10 +1,11 @@
 import { For, Show, createSignal, onMount } from "solid-js";
 import type { RoomMetadata } from "@td/server/protocol";
 import { PLAYER_LIMIT } from "@td/server/protocol";
+import { MAP_IDS } from "@td/sim";
 import type { NetStore } from "../net/store";
 
 export interface LobbyActions {
-  create(name: string, isPrivate: boolean): Promise<void>;
+  create(name: string, isPrivate: boolean, map: string): Promise<void>;
   join(code: string, name: string): Promise<void>;
   listRooms(): Promise<RoomMetadata[]>;
   start(): void;
@@ -23,6 +24,7 @@ export function Lobby(props: { net: NetStore; actions: LobbyActions; defaultName
 function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string; initialCode?: string | undefined }) {
   const [name, setName] = createSignal(props.defaultName);
   const [code, setCode] = createSignal(props.initialCode ?? "");
+  const [map, setMap] = createSignal<string>(MAP_IDS[0]!);
   const [rooms, setRooms] = createSignal<RoomMetadata[]>([]);
   const refresh = async (): Promise<void> => {
     try {
@@ -39,11 +41,17 @@ function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string
         Nombre
         <input type="text" maxLength={16} value={name()} onInput={(e) => setName(e.currentTarget.value)} />
       </label>
+      <label class="field">
+        Mapa
+        <select value={map()} onChange={(e) => setMap(e.currentTarget.value)}>
+          <For each={MAP_IDS}>{(id) => <option value={id}>{id}</option>}</For>
+        </select>
+      </label>
       <div class="row">
-        <button type="button" disabled={props.net.busy()} onClick={() => void props.actions.create(name(), false)}>
+        <button type="button" disabled={props.net.busy()} onClick={() => void props.actions.create(name(), false, map())}>
           Crear sala pública
         </button>
-        <button type="button" disabled={props.net.busy()} onClick={() => void props.actions.create(name(), true)}>
+        <button type="button" disabled={props.net.busy()} onClick={() => void props.actions.create(name(), true, map())}>
           Crear sala privada
         </button>
       </div>
@@ -78,7 +86,7 @@ function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string
             <li>
               <span class="code">{room.code}</span>
               <span>
-                {room.players}/{PLAYER_LIMIT} asientos · {room.connected} conectado{room.connected === 1 ? "" : "s"} ·{" "}
+                {room.map} · {room.players}/{PLAYER_LIMIT} asientos · {room.connected} conectado{room.connected === 1 ? "" : "s"} ·{" "}
                 {room.phase === "lobby" ? "en espera" : `oleada ${room.wave}`}
               </span>
               <button type="button" class="small" disabled={props.net.busy()} onClick={() => void props.actions.join(room.code, name())}>
