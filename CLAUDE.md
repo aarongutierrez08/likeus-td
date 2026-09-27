@@ -11,13 +11,14 @@ Tower defense minimalista, co-op hasta 8, web. Monorepo pnpm, TypeScript strict 
 ## Comandos
 ```
 pnpm dev                          # cliente (:5173) + server local (:2567)
-pnpm check                        # tsc --noEmit en todos los paquetes
+pnpm check                        # tsc, ESLint y Prettier en todos los paquetes (pnpm format arregla el formato)
 pnpm test                         # vitest
 pnpm simtest                      # bot juega la seed de referencia; DEBE ganar
 pnpm shot --seed 42 --tick 900    # PNG en tools/out/ para inspección visual
 pnpm dump --seed 42 --tick 900    # estado del juego como texto
 pnpm coopsmoke                    # dos pestañas reales contra el server: crear, unir, jugar, reconectar
 pnpm build                        # cliente estático en packages/client/dist (VITE_SERVER_URL apunta al server)
+pnpm report list|show|replay N    # reportes de jugadores (issues bug-report o tools/out/reports); replay reproduce la partida
 ```
 
 ## Definición de terminado
