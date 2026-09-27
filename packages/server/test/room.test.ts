@@ -1,8 +1,11 @@
 import { createServer } from "node:http";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { Client, type Room } from "@colyseus/sdk";
 import type { Server } from "@colyseus/core";
-import { hashState, startingGold, step } from "@td/sim";
+import { hashState, startingGold, step, type Command, type GameState } from "@td/sim";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   MAX_COMMANDS_PER_TICK,
@@ -14,6 +17,8 @@ import {
   type TickMessage,
 } from "../src/protocol";
 import type { RoomListing } from "../src/routes";
+import { globalReportAllowed } from "../src/reports";
+import type { BugReport, ReportedMessage } from "../src/protocol";
 import { createGameServer } from "../src/server";
 
 interface Inbox {
@@ -28,7 +33,11 @@ let gameServer: Server;
 let port = 0;
 const openRooms: Room[] = [];
 
+let reportsDir = "";
+
 beforeAll(async () => {
+  reportsDir = await mkdtemp(join(tmpdir(), "td-reports-"));
+  process.env["REPORTS_DIR"] = reportsDir;
   const http = createServer();
   gameServer = createGameServer(http);
   await gameServer.listen(0);
@@ -260,6 +269,61 @@ describe("game room", () => {
     const listing = await listRooms();
     expect(listing.rooms.find((r) => r.code === host.room.roomId)?.connected).toBe(1);
     await back.next<TickMessage>("tick", (t) => t.tick > resumed.state.tick + 2);
+  });
+
+  it("files a manual report that replays to the server hash", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    await host.next<SnapshotMessage>("snapshot");
+    await host.next<TickMessage>("tick");
+    host.room.send("cmd", { type: "build", tower: "archer", x: 3, y: 3 });
+    await host.next<TickMessage>("tick", (t) => t.commands.length > 0);
+    await host.next<TickMessage>("tick", (t) => t.tick > 30);
+    host.room.send("report", {
+      reason: "manual",
+      message: "se ve raro",
+      clientTick: 1,
+      clientHash: "x",
+      clientDump: "d",
+      errors: ["e1"],
+      userAgent: "test",
+    });
+    const { ref } = await host.next<ReportedMessage>("reported");
+    expect(ref.startsWith(reportsDir)).toBe(true);
+    const report = JSON.parse(await readFile(ref, "utf8")) as BugReport;
+    expect(report.reason).toBe("manual");
+    expect(report.message).toBe("se ve raro");
+    expect(report.history.some((h) => h.commands.some((c) => c.type === "build"))).toBe(true);
+    let state: GameState = report.initialState!;
+    const byTick = new Map<number, Command[]>(report.history.map((h) => [h.tick, h.commands]));
+    while (state.tick < report.serverTick) state = step(state, byTick.get(state.tick) ?? []);
+    expect(hashState(state)).toBe(report.serverHash);
+  });
+
+  it("files a desync report with both dumps and rate limits repeats", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    await host.next<SnapshotMessage>("snapshot");
+    const tick = await host.next<TickMessage>("tick");
+    host.room.send("desync", { tick: tick.tick, hash: "deadbeef", dump: "client dump" });
+    await host.next<SnapshotMessage>("snapshot");
+    await new Promise((r) => setTimeout(r, 200));
+    const { readdir } = await import("node:fs/promises");
+    const files = (await readdir(reportsDir)).filter((f) => f.includes(host.room.roomId) && f.includes("desync"));
+    expect(files).toHaveLength(1);
+    const report = JSON.parse(await readFile(join(reportsDir, files[0]!), "utf8")) as BugReport;
+    expect(report.clientDump).toBe("client dump");
+    expect(report.clientHash).toBe("deadbeef");
+  });
+
+  it("caps reports process-wide", () => {
+    const start = Date.now() + 3_600_000;
+    let allowed = 0;
+    for (let i = 0; i < 15; i++) if (globalReportAllowed(start + i)) allowed++;
+    expect(allowed).toBe(10);
+    expect(globalReportAllowed(start + 11 * 60_000)).toBe(true);
   });
 
   it("answers a desync report with a fresh snapshot", async () => {

@@ -1,10 +1,24 @@
 import { render } from "solid-js/web";
 import { Show, createEffect, createRoot, createSignal } from "solid-js";
-import { ECONOMY, ENEMIES, attenuatedBounty, createBot, createInitialState, hashState, validateBuild, validateCommand, type Command, type GameState, type MapId, type TowerKind } from "@td/sim";
+import {
+  ECONOMY,
+  ENEMIES,
+  attenuatedBounty,
+  createBot,
+  dumpState,
+  createInitialState,
+  hashState,
+  validateBuild,
+  validateCommand,
+  type Command,
+  type GameState,
+  type TowerKind,
+} from "@td/sim";
 import type { CommandReject, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
 import { createGameStore, type GameStore } from "./game/store";
 import { Connection, type RoomHandlers } from "./net/connection";
+import { captureErrors, recentErrors } from "./net/errors";
 import { createNetStore, type NetStore } from "./net/store";
 import { parseUrlParams, type UrlParams } from "./params";
 import { createRenderer, type Renderer } from "./render/app";
@@ -147,8 +161,15 @@ function bindKeyboard(getGame: () => Game | null): void {
   });
 }
 
-function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?: (text: string) => void; economy: EconomyActions; onGiveUp?: () => void }) {
-  const actions = debugActions(props.game);
+function GameView(props: {
+  game: Game;
+  net?: NetStore;
+  dump: boolean;
+  sendChat?: (text: string) => void;
+  economy: EconomyActions;
+  onGiveUp?: () => void;
+}) {
+  const actions = () => debugActions(props.game);
   return (
     <>
       <Hud store={props.game.store} net={props.net} economy={props.economy} />
@@ -162,7 +183,7 @@ function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?:
         <Chat net={props.net!} send={props.sendChat!} />
       </Show>
       <Show when={props.game.store.debugOpen()}>
-        <DebugPanel store={props.game.store} actions={actions} remote={props.game.runner.remote} />
+        <DebugPanel store={props.game.store} actions={actions()} remote={props.game.runner.remote} />
       </Show>
       <Show when={props.dump}>
         <Dump store={props.game.store} />
@@ -201,7 +222,7 @@ async function bootSolo(params: UrlParams): Promise<void> {
   const notify = makeNotifier(game);
 
   const renderer = await createRenderer(mapEl, {
-    mapId: initial.mapId as MapId,
+    mapId: initial.mapId,
     onKills: killLabel(game),
     onCellTap: (cell) => {
       if (selectTowerAt(game, cell)) return;
@@ -245,7 +266,12 @@ async function bootSolo(params: UrlParams): Promise<void> {
 function bootCoop(params: UrlParams): void {
   const net = createNetStore();
   const connection = new Connection();
-  const [game, setGame] = createSignal<Game | null>(null);
+  const [game, setGameSignal] = createSignal<Game | null>(null);
+  let currentGame: Game | null = null;
+  const setGame = (next: Game | null): void => {
+    currentGame = next;
+    setGameSignal(next);
+  };
   const [lastCode, setLastCode] = createSignal<string | undefined>(params.room);
   let renderer: Renderer | null = null;
   const defaultName = params.name ?? "Jugador";
@@ -263,14 +289,14 @@ function bootCoop(params: UrlParams): void {
       speed: 1,
       remote: true,
       onState: store.setState,
-      onDesync: (tick, hash) => connection.send("desync", { tick, hash }),
+      onDesync: (tick, hash, dump) => connection.send("desync", { tick, hash, dump }),
     });
     const created: Game = { store, runner, labels: createFloatingLabels() };
     const notify = makeNotifier(created);
     exposeForTools(created);
     setGame(created);
     void createRenderer(mapEl, {
-      mapId: snapshot.state.mapId as MapId,
+      mapId: snapshot.state.mapId,
       onKills: killLabel(created),
       onCellTap: (cell) => {
         if (selectTowerAt(created, cell)) return;
@@ -318,10 +344,31 @@ function bootCoop(params: UrlParams): void {
     },
     dropped: () => net.setDropped(true),
     reconnected: () => net.setDropped(false),
+    reported: (msg) => {
+      const current = game();
+      if (current) makeNotifier(current)(`Reporte enviado: ${msg.ref}`);
+    },
     left: (_code, kicked) => {
-      leaveGame(kicked ? "Te expulsaron de la sala" : "Se perdió la conexión con la sala. Si el server sigue en pie, volvé a entrar con el código.");
+      leaveGame(
+        kicked ? "Te expulsaron de la sala" : "Se perdió la conexión con la sala. Si el server sigue en pie, volvé a entrar con el código.",
+      );
     },
   };
+
+  const sendReport = (reason: "manual" | "client_error", message: string): void => {
+    const current = currentGame;
+    if (!current || !connection.room) return;
+    connection.send("report", {
+      reason,
+      message,
+      clientTick: current.store.state().tick,
+      clientHash: hashState(current.store.state()),
+      clientDump: dumpState(current.store.state()),
+      errors: recentErrors(),
+      userAgent: navigator.userAgent,
+    });
+  };
+  captureErrors((message) => sendReport("client_error", message));
 
   const guarded = async (task: () => Promise<string>): Promise<void> => {
     net.setBusy(true);
@@ -349,7 +396,7 @@ function bootCoop(params: UrlParams): void {
     },
   };
 
-  bindKeyboard(game);
+  bindKeyboard(() => currentGame);
   render(
     () => (
       <>
@@ -364,6 +411,7 @@ function bootCoop(params: UrlParams): void {
               dump={false}
               sendChat={(text) => connection.send("chat", { text })}
               economy={{
+                report: (message) => sendReport("manual", message),
                 callWave: () => connection.send("cmd", { type: "callWave" }),
                 gift: (to, amount) => connection.send("cmd", { type: "gift", to, amount }),
                 sell: (towerId) => {

@@ -10,6 +10,8 @@ COPY tools/package.json tools/
 RUN pnpm install --frozen-lockfile --prod --filter @td/server... --ignore-scripts
 
 FROM base AS run
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=$GIT_COMMIT
 COPY tsconfig.base.json ./
 COPY packages/sim packages/sim
 COPY packages/server packages/server

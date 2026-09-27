@@ -33,7 +33,13 @@ export function Chat(props: { net: NetStore; send: (text: string) => void }) {
             submit();
           }}
         >
-          <input type="text" maxLength={MAX_CHAT_LENGTH} value={draft()} placeholder="Mensaje" onInput={(e) => setDraft(e.currentTarget.value)} />
+          <input
+            type="text"
+            maxLength={MAX_CHAT_LENGTH}
+            value={draft()}
+            placeholder="Mensaje"
+            onInput={(e) => setDraft(e.currentTarget.value)}
+          />
           <button type="submit" class="small">
             Enviar
           </button>

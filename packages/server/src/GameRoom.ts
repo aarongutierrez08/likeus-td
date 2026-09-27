@@ -1,10 +1,12 @@
 import { Room, type Client } from "@colyseus/core";
 import {
+  BALANCE_VERSION,
   TICKS_PER_SECOND,
   TOWER_KINDS,
   canSubmitRecord,
   cloneState,
   createInitialState,
+  dumpState,
   hashState,
   applyCommand,
   step,
@@ -20,8 +22,11 @@ import {
   MAX_NAME_LENGTH,
   PLAYER_LIMIT,
   RECONNECT_SECONDS,
+  type BugReport,
   type ChatMessage,
   type CommandReject,
+  type HistoryEntry,
+  type ReportRequest,
   type CommandRequest,
   type CreateRoomOptions,
   type DesyncReport,
@@ -32,6 +37,7 @@ import {
   type SnapshotMessage,
   type TickMessage,
 } from "./protocol";
+import { createReportSink, globalReportAllowed, type ReportSink } from "./reports";
 import { uniqueRoomCode } from "./roomCode";
 
 const TICK_MS = 1000 / TICKS_PER_SECOND;
@@ -40,6 +46,10 @@ const MAX_CATCH_UP_TICKS = 5;
 const CONSENTED_CLOSE_CODE = 4000;
 /** A finished game stays open this long so players can look at the result, then everyone is disconnected. */
 const ENDED_ROOM_TTL_MS = 120_000;
+/** One report per player (manual or client error) and one desync report per room within this window. */
+const REPORT_COOLDOWN_MS = 30_000;
+const MAX_ERRORS_PER_REPORT = 20;
+const MAX_MESSAGE_CHARS = 2000;
 const MAX_SEED = 2 ** 31;
 
 interface Player extends PlayerInfo {
@@ -64,6 +74,14 @@ export class GameRoom extends Room {
   private pending: Command[] = [];
   private readonly commandsThisTick = new Map<number, number>();
   private accumulator = 0;
+  private initialState: GameState | null = null;
+  private readonly history: HistoryEntry[] = [];
+  private readonly reports: ReportSink = createReportSink({
+    githubToken: process.env["GITHUB_TOKEN"],
+    githubRepo: process.env["GITHUB_REPO"],
+    reportsDir: process.env["REPORTS_DIR"],
+  });
+  private readonly lastReportAt = new Map<string, number>();
 
   override async onCreate(options: CreateRoomOptions): Promise<void> {
     this.roomId = await uniqueRoomCode();
@@ -77,6 +95,7 @@ export class GameRoom extends Room {
     this.onMessage("start", (client) => this.handleStart(client));
     this.onMessage<{ playerId?: unknown }>("kick", (client, msg) => this.handleKick(client, msg));
     this.onMessage<DesyncReport>("desync", (client, report) => this.handleDesync(client, report));
+    this.onMessage<ReportRequest>("report", (client, request) => void this.handleReport(client, request));
   }
 
   override async onJoin(client: Client, options?: JoinRoomOptions): Promise<void> {
@@ -125,6 +144,8 @@ export class GameRoom extends Room {
     if (!this.isCreator(client) || this.phase !== "lobby") return;
     const players = [...this.players.values()].map((p) => ({ id: p.playerId }));
     this.sim = createInitialState({ seed: this.seed, players });
+    this.initialState = this.sim;
+    this.history.length = 0;
     this.setPhase("playing");
     for (const player of this.players.values()) {
       const target = this.clients.find((c) => c.sessionId === player.sessionId);
@@ -157,6 +178,7 @@ export class GameRoom extends Room {
     const accepted = this.acceptInOrder(requested);
     const waveBefore = this.sim.wave;
     this.sim = step(this.sim, accepted);
+    if (accepted.length > 0) this.history.push({ tick: this.sim.tick - 1, commands: accepted });
     const message: TickMessage = { tick: this.sim.tick - 1, commands: accepted };
     if (this.sim.tick % HASH_EVERY_TICKS === 0) message.hash = hashState(this.sim);
     this.broadcast("tick", message);
@@ -182,8 +204,8 @@ export class GameRoom extends Room {
   private finish(): void {
     this.setSimulationInterval(undefined);
     this.setPhase("ended");
-    this.lock();
-    this.clock.setTimeout(() => this.disconnect(), ENDED_ROOM_TTL_MS);
+    void this.lock();
+    this.clock.setTimeout(() => void this.disconnect(), ENDED_ROOM_TTL_MS);
     console.log(`room ${this.roomId} ${this.sim.status} at tick ${this.sim.tick}, record eligible: ${canSubmitRecord(this.sim)}`);
   }
 
@@ -224,6 +246,105 @@ export class GameRoom extends Room {
       `desync in ${this.roomId}: player ${player.playerId} tick ${report?.tick} hash ${report?.hash}, server tick ${this.sim.tick} hash ${hashState(this.sim)}`,
     );
     client.send("snapshot", this.snapshotFor(player));
+    if (!this.reportAllowed("desync")) return;
+    void this.fileReport({
+      reason: "desync",
+      message: `hash del cliente ${report?.hash} en tick ${report?.tick}`,
+      reporter: player.playerId,
+      clientTick: report?.tick ?? null,
+      clientHash: report?.hash ?? null,
+      clientDump: report?.dump ?? null,
+      errors: [],
+      userAgent: null,
+    });
+  }
+
+  private async handleReport(client: Client, request: ReportRequest): Promise<void> {
+    const player = this.players.get(client.sessionId);
+    if (!player || typeof request !== "object" || request === null) return;
+    if (!this.reportAllowed(`player:${player.playerId}`)) return this.reject(client, "rate_limited");
+    const ref = await this.fileReport({
+      reason: request.reason === "client_error" ? "client_error" : "manual",
+      message: String(request.message ?? "").slice(0, MAX_MESSAGE_CHARS),
+      reporter: player.playerId,
+      clientTick: Number.isInteger(request.clientTick) ? request.clientTick : null,
+      clientHash: typeof request.clientHash === "string" ? request.clientHash : null,
+      clientDump: typeof request.clientDump === "string" ? request.clientDump : null,
+      errors: Array.isArray(request.errors) ? request.errors.slice(0, MAX_ERRORS_PER_REPORT).map(String) : [],
+      userAgent: typeof request.userAgent === "string" ? request.userAgent : null,
+    });
+    if (ref) client.send("reported", { ref });
+  }
+
+  override onUncaughtException(error: Error, methodName: string): void {
+    console.error(`uncaught in ${this.roomId} (${methodName}):`, error);
+    if (!this.reportAllowed("server_error")) return;
+    void this.fileReport({
+      reason: "server_error",
+      message: `${methodName}: ${error.message}\n${error.stack ?? ""}`,
+      reporter: null,
+      clientTick: null,
+      clientHash: null,
+      clientDump: null,
+      errors: [],
+      userAgent: null,
+    });
+  }
+
+  private reportAllowed(key: string): boolean {
+    const now = Date.now();
+    const last = this.lastReportAt.get(key) ?? 0;
+    if (now - last < REPORT_COOLDOWN_MS) return false;
+    this.lastReportAt.set(key, now);
+    return true;
+  }
+
+  private async fileReport(
+    partial: Omit<
+      BugReport,
+      | "at"
+      | "code"
+      | "seed"
+      | "balanceVersion"
+      | "commit"
+      | "players"
+      | "phase"
+      | "serverTick"
+      | "serverHash"
+      | "serverDump"
+      | "initialState"
+      | "history"
+      | "historyTruncated"
+    >,
+  ): Promise<string | null> {
+    const report: BugReport = {
+      at: new Date().toISOString(),
+      code: this.roomId,
+      seed: this.seed,
+      balanceVersion: BALANCE_VERSION,
+      commit: process.env["GIT_COMMIT"] ?? "unknown",
+      players: this.playerList(),
+      phase: this.phase,
+      serverTick: this.sim.tick,
+      serverHash: hashState(this.sim),
+      serverDump: dumpState(this.sim),
+      initialState: this.initialState,
+      history: this.history,
+      historyTruncated: false,
+      ...partial,
+    };
+    if (!globalReportAllowed()) {
+      console.warn(`report dropped for ${this.roomId} (${report.reason}): global limit reached`);
+      return null;
+    }
+    try {
+      const ref = await this.reports.file(report);
+      console.log(`report filed for ${this.roomId} (${report.reason}): ${ref}`);
+      return ref;
+    } catch (err) {
+      console.error(`report failed for ${this.roomId}:`, err);
+      return null;
+    }
   }
 
   private reject(client: Client, reason: CommandReject): void {
@@ -307,7 +428,14 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
   switch (v["type"]) {
     case "build":
       if (!TOWER_KINDS.includes(v["tower"] as never) || !Number.isInteger(v["x"]) || !Number.isInteger(v["y"])) return null;
-      return { type: "build", tick, playerId, tower: v["tower"] as CommandRequest extends { tower: infer T } ? T : never, x: v["x"] as number, y: v["y"] as number };
+      return {
+        type: "build",
+        tick,
+        playerId,
+        tower: v["tower"] as CommandRequest extends { tower: infer T } ? T : never,
+        x: v["x"] as number,
+        y: v["y"] as number,
+      };
     case "callWave":
       return { type: "callWave", tick, playerId };
     case "gift":

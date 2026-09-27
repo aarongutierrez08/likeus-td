@@ -1,4 +1,4 @@
-import { TICKS_PER_SECOND, hashState, step, type Bot, type Command, type GameState } from "@td/sim";
+import { TICKS_PER_SECOND, dumpState, hashState, step, type Bot, type Command, type GameState } from "@td/sim";
 
 const TICK_MS = 1000 / TICKS_PER_SECOND;
 /** Never simulate more than this many ticks in a single frame (tab was hidden, etc). */
@@ -10,7 +10,7 @@ export interface RunnerOptions {
   onState: (state: GameState) => void;
   /** Remote: the sim only advances on server ticks (ADR 006); the local clock is off. */
   remote?: boolean;
-  onDesync?: (tick: number, localHash: string) => void;
+  onDesync?: (tick: number, localHash: string, dump: string) => void;
 }
 
 /**
@@ -27,7 +27,7 @@ export class GameRunner {
   private lastFrame = 0;
   private readonly bot: Bot | undefined;
   private readonly onState: (state: GameState) => void;
-  private readonly onDesync: ((tick: number, localHash: string) => void) | undefined;
+  private readonly onDesync: ((tick: number, localHash: string, dump: string) => void) | undefined;
 
   constructor(initial: GameState, opts: RunnerOptions) {
     this.state = initial;
@@ -40,12 +40,12 @@ export class GameRunner {
 
   /** Remote only: applies one server tick and checks the hash when the server sent one. */
   applyTick(tick: number, commands: readonly Command[], hash?: string): void {
-    if (tick !== this.state.tick) return this.onDesync?.(tick, hashState(this.state));
+    if (tick !== this.state.tick) return this.onDesync?.(tick, hashState(this.state), dumpState(this.state));
     this.state = step(this.state, commands);
     this.onState(this.state);
     if (hash !== undefined) {
       const local = hashState(this.state);
-      if (local !== hash) this.onDesync?.(tick, local);
+      if (local !== hash) this.onDesync?.(tick, local, dumpState(this.state));
     }
   }
 

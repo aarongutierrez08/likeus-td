@@ -1,9 +1,12 @@
-import { For, Show, createSignal } from "solid-js";
+import { For, Show, createSignal, untrack } from "solid-js";
 import { ECONOMY, TICKS_PER_SECOND, WAVES, callWaveBonus } from "@td/sim";
 import type { GameStore } from "../game/store";
 import type { NetStore } from "../net/store";
+import { ReportButton } from "./ReportDialog";
 
 export interface EconomyActions {
+  /** Coop only: sends a bug report with the game attached. */
+  report?: (message: string) => void;
   callWave: () => void;
   gift: (to: number, amount: number) => void;
   sell: (towerId: number) => void;
@@ -32,9 +35,7 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
         <span>
           Oleada {s().wave}/{WAVES.length}
         </span>
-        <span>
-          Enemigos {s().enemies.length}
-        </span>
+        <span>Enemigos {s().enemies.length}</span>
         <span>
           Tick {s().tick} ({seconds()}s)
         </span>
@@ -49,11 +50,17 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
           </button>
         </Show>
         <Show when={props.economy && canGift()}>
-          <GiftControl others={others().map((p) => p.id)} names={room()?.players ?? []} max={props.store.gold()} gift={props.economy!.gift} />
+          <GiftControl
+            others={others().map((p) => p.id)}
+            names={room()?.players ?? []}
+            max={props.store.gold()}
+            gift={props.economy!.gift}
+          />
         </Show>
         <Show when={!s().ranked}>
           <span class="dev">sin récords</span>
         </Show>
+        <Show when={props.economy?.report}>{(send) => <ReportButton send={send()} />}</Show>
         <Show when={room()}>
           {(info) => (
             <>
@@ -86,8 +93,13 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
   );
 }
 
-function GiftControl(props: { others: number[]; names: { playerId: number; name: string }[]; max: number; gift: (to: number, amount: number) => void }) {
-  const [to, setTo] = createSignal(props.others[0] ?? 0);
+function GiftControl(props: {
+  others: number[];
+  names: { playerId: number; name: string }[];
+  max: number;
+  gift: (to: number, amount: number) => void;
+}) {
+  const [to, setTo] = createSignal(untrack(() => props.others[0] ?? 0));
   const [amount, setAmount] = createSignal(10);
   const label = (id: number): string => props.names.find((p) => p.playerId === id)?.name ?? `Jugador ${id + 1}`;
   return (

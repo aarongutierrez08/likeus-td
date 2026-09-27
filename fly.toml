@@ -7,6 +7,7 @@ primary_region = "gru"
 
 [env]
   PORT = "2567"
+  GITHUB_REPO = "aarongutierrez08/likeus-td"
 
 [http_service]
   internal_port = 2567

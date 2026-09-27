@@ -5,6 +5,7 @@ import type {
   Phase,
   PlayerInfo,
   RejectedMessage,
+  ReportedMessage,
   RoomMetadata,
   SnapshotMessage,
   TickMessage,
@@ -12,16 +13,17 @@ import type {
 import { KICKED_CLOSE_CODE, ROOM_NAME } from "@td/server/protocol";
 
 export interface RoomHandlers {
-  snapshot(msg: SnapshotMessage): void;
-  tick(msg: TickMessage): void;
-  players(list: PlayerInfo[]): void;
-  phase(phase: Phase): void;
-  chat(msg: ChatMessage): void;
-  rejected(msg: RejectedMessage): void;
+  snapshot: (msg: SnapshotMessage) => void;
+  tick: (msg: TickMessage) => void;
+  players: (list: PlayerInfo[]) => void;
+  phase: (phase: Phase) => void;
+  chat: (msg: ChatMessage) => void;
+  rejected: (msg: RejectedMessage) => void;
+  reported: (msg: ReportedMessage) => void;
   /** The socket dropped; the SDK is retrying on its own. */
-  dropped(): void;
-  reconnected(): void;
-  left(code: number, kicked: boolean): void;
+  dropped: () => void;
+  reconnected: () => void;
+  left: (code: number, kicked: boolean) => void;
 }
 
 /** Retries with exponential backoff up to ~30 s, matching the seat the server keeps for that long. */
@@ -30,7 +32,8 @@ const MAX_RECONNECT_RETRIES = 10;
 const TOKEN_KEY_PREFIX = "td:reconnect:";
 
 function defaultEndpoint(): string {
-  const configured = (import.meta.env["VITE_SERVER_URL"] as string | undefined) ?? (window as { __VITE_SERVER_URL?: string }).__VITE_SERVER_URL;
+  const configured =
+    (import.meta.env["VITE_SERVER_URL"] as string | undefined) ?? (window as { __VITE_SERVER_URL?: string }).__VITE_SERVER_URL;
   if (configured) return configured;
   const protocol = location.protocol === "https:" ? "wss" : "ws";
   return `${protocol}://${location.hostname}:2567`;
@@ -123,6 +126,7 @@ export class Connection {
     room.onMessage<Phase>("phase", handlers.phase);
     room.onMessage<ChatMessage>("chat", handlers.chat);
     room.onMessage<RejectedMessage>("rejected", handlers.rejected);
+    room.onMessage<ReportedMessage>("reported", handlers.reported);
     room.reconnection.maxRetries = MAX_RECONNECT_RETRIES;
     room.onDrop(() => handlers.dropped());
     room.onReconnect(() => handlers.reconnected());

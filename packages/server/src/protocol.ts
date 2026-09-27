@@ -102,6 +102,59 @@ export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest | Sell
 export interface DesyncReport {
   tick: number;
   hash: string;
+  /** dumpState() of the client at that tick, for side-by-side diagnosis. */
+  dump?: string;
+}
+
+export type ReportReason = "manual" | "client_error" | "desync" | "server_error";
+
+/** What a client sends when someone presses "Reportar problema" or an uncaught error fires. */
+export interface ReportRequest {
+  reason: "manual" | "client_error";
+  message: string;
+  clientTick: number;
+  clientHash: string;
+  clientDump: string;
+  errors: string[];
+  userAgent: string;
+}
+
+export interface ReportedMessage {
+  ref: string;
+}
+
+/** One accepted-commands entry of the room history; ticks without commands are omitted. */
+export interface HistoryEntry {
+  tick: number;
+  commands: Command[];
+}
+
+/**
+ * Everything needed to replay a game to the reported tick: `initialState` plus `history`,
+ * because the sim is deterministic. Written to a file locally or to a GitHub issue in production.
+ */
+export interface BugReport {
+  at: string;
+  reason: ReportReason;
+  message: string;
+  code: string;
+  seed: number;
+  balanceVersion: number;
+  commit: string;
+  reporter: number | null;
+  players: PlayerInfo[];
+  phase: Phase;
+  serverTick: number;
+  serverHash: string;
+  serverDump: string;
+  clientTick: number | null;
+  clientHash: string | null;
+  clientDump: string | null;
+  errors: string[];
+  userAgent: string | null;
+  initialState: GameState | null;
+  history: HistoryEntry[];
+  historyTruncated: boolean;
 }
 
 export interface ServerMessages {
@@ -111,6 +164,7 @@ export interface ServerMessages {
   phase: Phase;
   chat: ChatMessage;
   rejected: RejectedMessage;
+  reported: ReportedMessage;
 }
 
 export interface ClientMessages {
@@ -119,4 +173,5 @@ export interface ClientMessages {
   start: Record<string, never>;
   kick: { playerId: number };
   desync: DesyncReport;
+  report: ReportRequest;
 }
