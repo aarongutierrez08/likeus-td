@@ -38,6 +38,8 @@ const TICK_MS = 1000 / TICKS_PER_SECOND;
 /** Ticks the server may run in one interval callback when it falls behind. */
 const MAX_CATCH_UP_TICKS = 5;
 const CONSENTED_CLOSE_CODE = 4000;
+/** A finished game stays open this long so players can look at the result, then everyone is disconnected. */
+const ENDED_ROOM_TTL_MS = 120_000;
 const MAX_SEED = 2 ** 31;
 
 interface Player extends PlayerInfo {
@@ -175,6 +177,8 @@ export class GameRoom extends Room {
   private finish(): void {
     this.setSimulationInterval(undefined);
     this.setPhase("ended");
+    this.lock();
+    this.clock.setTimeout(() => this.disconnect(), ENDED_ROOM_TTL_MS);
     console.log(`room ${this.roomId} ${this.sim.status} at tick ${this.sim.tick}, record eligible: ${canSubmitRecord(this.sim)}`);
   }
 
