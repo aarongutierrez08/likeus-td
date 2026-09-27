@@ -15,7 +15,9 @@ describe("selling towers", () => {
   });
 
   it("only the owner can sell a tower", () => {
-    const game = scenario({ seed: 1, players: [0, 1], gold: 0 }).tower("cannon", { x: 3, y: 3, owner: 0 }).run(0);
+    const game = scenario({ seed: 1, players: [0, 1], gold: 0 })
+      .tower("cannon", { x: 3, y: 3, owner: 0 })
+      .run(0);
     const byOther: Command = { type: "sell", tick: 0, playerId: 1, towerId: game.tower(0).id };
     expect(validateCommand(game.state(), byOther)).toBe("not_owner");
     game.sell(game.tower(0).id, 1).run(1);

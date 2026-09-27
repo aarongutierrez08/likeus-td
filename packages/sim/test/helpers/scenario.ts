@@ -238,10 +238,12 @@ export class Scenario {
     this.materialized = true;
     const owners = new Set([...this.players, ...this.pendingTowers.map((t) => t.owner)]);
     const anySetup = this.goldAfterSetup !== undefined || this.pendingTowers.length > 0;
-    const players = [...owners].sort((a, b) => a - b).map((id) => {
-      const setupCost = this.pendingTowers.filter((t) => t.owner === id).reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
-      return anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
-    });
+    const players = [...owners]
+      .sort((a, b) => a - b)
+      .map((id) => {
+        const setupCost = this.pendingTowers.filter((t) => t.owner === id).reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
+        return anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
+      });
     this.current = createInitialState({ seed: this.current.seed, players, startWave: this.startWave, ranked: this.rankedOption });
     if (!this.wavesOn) this.current = { ...this.current, nextWaveTick: WAVES_OFF };
     if (this.pendingTowers.length > 0) this.placeTowers();

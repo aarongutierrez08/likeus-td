@@ -20,7 +20,11 @@ describe("records eligibility", () => {
   });
 
   it("ranked survives ticks", () => {
-    expect(scenario({ seed: 1, waves: true }).run(GAME.firstWaveTick + 50).ranked()).toBe(true);
+    expect(
+      scenario({ seed: 1, waves: true })
+        .run(GAME.firstWaveTick + 50)
+        .ranked(),
+    ).toBe(true);
   });
 
   it("only a ranked game that was won can submit a record", () => {

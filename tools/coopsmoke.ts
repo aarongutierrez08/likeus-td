@@ -32,7 +32,12 @@ await new Promise<void>((ok, fail) => {
   }, 100);
 });
 
-const vite = await createServer({ root, configFile: resolve(root, "vite.config.ts"), logLevel: "error", server: { port: 0, host: "127.0.0.1" } });
+const vite = await createServer({
+  root,
+  configFile: resolve(root, "vite.config.ts"),
+  logLevel: "error",
+  server: { port: 0, host: "127.0.0.1" },
+});
 await vite.listen();
 const base = vite.resolvedUrls!.local[0]!;
 const browser = await chromium.launch();
@@ -108,7 +113,10 @@ try {
   await vite.close();
   serverProc.kill();
 }
-const desyncs = serverLog.join("").split("\n").filter((l) => l.includes("desync")).length;
+const desyncs = serverLog
+  .join("")
+  .split("\n")
+  .filter((l) => l.includes("desync")).length;
 if (desyncs > 0) {
   failed = true;
   console.error(`el server registró ${desyncs} desync(s)`);

@@ -131,9 +131,7 @@ export class EntityLayer {
       }
       if (def.auraRadius > 0) {
         const side = (def.auraRadius * 2 + 1) * this.base;
-        this.ranges
-          .rect(cx - side / 2, cy - side / 2, side, side)
-          .stroke({ width: 1, color: COLORS.aura, alpha: 0.7 });
+        this.ranges.rect(cx - side / 2, cy - side / 2, side, side).stroke({ width: 1, color: COLORS.aura, alpha: 0.7 });
       }
     }
   }

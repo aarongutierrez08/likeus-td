@@ -1,5 +1,17 @@
 import { Show } from "solid-js";
-import { FP, TEAM_OWNER, TICKS_PER_SECOND, TOWERS, UPGRADE, auraBonusOf, mayManage, sellRefund, towerDamage, upgradeCost, type Tower } from "@td/sim";
+import {
+  FP,
+  TEAM_OWNER,
+  TICKS_PER_SECOND,
+  TOWERS,
+  UPGRADE,
+  auraBonusOf,
+  mayManage,
+  sellRefund,
+  towerDamage,
+  upgradeCost,
+  type Tower,
+} from "@td/sim";
 import type { GameStore } from "../game/store";
 
 export interface TowerActions {

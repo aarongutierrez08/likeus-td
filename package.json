@@ -8,14 +8,17 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @td/client --filter @td/server run dev",
-    "check": "pnpm -r run check",
+    "check": "pnpm -r run check && pnpm lint",
     "test": "vitest run",
     "simtest": "tsx tools/simtest.ts",
     "balance": "tsx tools/balance.ts",
     "shot": "tsx tools/shot.ts",
     "dump": "tsx tools/dump.ts",
     "coopsmoke": "tsx tools/coopsmoke.ts",
-    "build": "pnpm --filter @td/client run build"
+    "build": "pnpm --filter @td/client run build",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "report": "tsx tools/report.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -23,9 +26,15 @@
     ]
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "22.20.4",
+    "eslint": "10.11.0",
+    "eslint-plugin-solid": "0.18.0",
+    "globals": "17.12.0",
+    "prettier": "3.9.9",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1",
     "vitest": "4.1.11"
   }
 }

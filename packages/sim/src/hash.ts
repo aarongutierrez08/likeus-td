@@ -20,5 +20,7 @@ export function fnv1a(text: string): number {
 
 /** 32-bit FNV-1a over the canonical JSON of the state, as 8 hex chars. */
 export function hashState(state: GameState): string {
-  return fnv1a(canonical(state as unknown as Json)).toString(16).padStart(8, "0");
+  return fnv1a(canonical(state as unknown as Json))
+    .toString(16)
+    .padStart(8, "0");
 }

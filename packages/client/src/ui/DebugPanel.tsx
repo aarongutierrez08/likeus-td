@@ -18,10 +18,10 @@ export function DebugPanel(props: { store: GameStore; actions: DebugActions; rem
       <h3>Debug (~)</h3>
       <div class="row">
         <Show when={!props.remote} fallback={<span>reloj del server</span>}>
-          <button type="button" onClick={props.actions.togglePause}>
+          <button type="button" onClick={() => props.actions.togglePause()}>
             {props.store.paused() ? "Reanudar" : "Pausar"}
           </button>
-          <button type="button" onClick={props.actions.stepOnce}>
+          <button type="button" onClick={() => props.actions.stepOnce()}>
             +1 tick
           </button>
         </Show>

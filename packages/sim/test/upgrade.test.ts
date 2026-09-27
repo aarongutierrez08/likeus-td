@@ -6,7 +6,9 @@ const hp = 100;
 
 describe("upgrading towers", () => {
   it("each upgrade costs the base price and raises the damage by 50% of the base", () => {
-    const game = scenario({ seed: 1, gold: TOWERS.archer.cost * 2 }).tower("archer", { x: 4, y: 2 }).run(0);
+    const game = scenario({ seed: 1, gold: TOWERS.archer.cost * 2 })
+      .tower("archer", { x: 4, y: 2 })
+      .run(0);
     const archer = game.tower(0);
     expect(archer.level).toBe(1);
     game.upgrade(archer.id).run(1);
@@ -39,7 +41,9 @@ describe("upgrading towers", () => {
   });
 
   it("only the owner with enough gold can upgrade an existing tower", () => {
-    const game = scenario({ seed: 1, players: [0, 1], gold: 10 }).tower("cannon", { x: 4, y: 3, owner: 0 }).run(0);
+    const game = scenario({ seed: 1, players: [0, 1], gold: 10 })
+      .tower("cannon", { x: 4, y: 3, owner: 0 })
+      .run(0);
     expect(validateCommand(game.state(), { type: "upgrade", tick: 0, playerId: 1, towerId: 1 })).toBe("not_owner");
     expect(validateCommand(game.state(), { type: "upgrade", tick: 0, playerId: 0, towerId: 1 })).toBe("no_gold");
     expect(validateCommand(game.state(), { type: "upgrade", tick: 0, playerId: 0, towerId: 9 })).toBe("no_tower");

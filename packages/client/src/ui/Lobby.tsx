@@ -1,4 +1,4 @@
-import { For, Show, createSignal } from "solid-js";
+import { For, Show, createSignal, onMount } from "solid-js";
 import type { RoomMetadata } from "@td/server/protocol";
 import { PLAYER_LIMIT } from "@td/server/protocol";
 import type { NetStore } from "../net/store";
@@ -31,7 +31,7 @@ function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string
       props.net.setError((current) => current ?? "No se pudo conectar con el servidor");
     }
   };
-  void refresh();
+  onMount(() => void refresh());
   return (
     <div class="lobby">
       <h2>Likeus TD · Co-op</h2>

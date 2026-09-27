@@ -22,7 +22,10 @@ export function playGame(opts: PlayOptions): GameState {
   const limit = Math.min(opts.untilTick ?? MAX_TICKS, MAX_TICKS);
   let state = createInitialState({ seed: opts.seed, gold: opts.gold, mapId: opts.mapId, players: ids.map((id) => ({ id })) });
   while (state.status === "playing" && state.tick < limit) {
-    state = step(state, bots.flatMap((bot) => bot.decide(state)));
+    state = step(
+      state,
+      bots.flatMap((bot) => bot.decide(state)),
+    );
   }
   return state;
 }

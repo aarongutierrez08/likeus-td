@@ -7,7 +7,7 @@ description: Verificación completa del proyecto antes de dar por terminado cual
 
 Ejecutar en orden. Si un paso falla, detenerse, arreglar y volver a empezar desde el principio.
 
-1. `pnpm check` — typecheck de todos los paquetes.
+1. `pnpm check` — typecheck de todos los paquetes, ESLint y Prettier. Si Prettier falla, `pnpm format` y volver a correr.
 2. `pnpm test` — vitest. Prestar atención especial a `determinism.test.ts`.
 3. `pnpm simtest` — el bot debe ganar la seed de referencia. Si pierde tras un cambio de balance, es un cambio de balance real: reportarlo, no ajustar el test.
 4. Si se tocó `packages/client`: `pnpm shot --seed 42 --tick 900` y abrir el PNG en `tools/out/`. Mirar que el mapa, las torres, los enemigos y el HUD se vean correctos. Comparar con el PNG anterior si existe.

@@ -47,10 +47,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   const layout = (): void => {
     const cell = Math.max(4, Math.min(app.screen.width / map.width, app.screen.height / map.height));
     world.scale.set(cell / BASE);
-    world.position.set(
-      Math.floor((app.screen.width - cell * map.width) / 2),
-      Math.floor((app.screen.height - cell * map.height) / 2),
-    );
+    world.position.set(Math.floor((app.screen.width - cell * map.width) / 2), Math.floor((app.screen.height - cell * map.height) / 2));
   };
   layout();
   app.renderer.on("resize", layout);
@@ -96,10 +93,12 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
       lastState = state;
       const kills = entities.sync(state, showRanges);
       if (kills.length > 0 && opts.onKills) {
-        opts.onKills(kills.map((k) => {
-          const global = world.toGlobal({ x: k.x, y: k.y });
-          return { x: global.x, y: global.y };
-        }));
+        opts.onKills(
+          kills.map((k) => {
+            const global = world.toGlobal({ x: k.x, y: k.y });
+            return { x: global.x, y: global.y };
+          }),
+        );
       }
     },
     setHoverTower(kind) {

@@ -20,7 +20,9 @@ describe("waves", () => {
   });
 
   it("spawn ticks increase and hp carries seeded jitter", () => {
-    const queue = scenario({ seed: 3, waves: true }).run(GAME.firstWaveTick + 1).state().spawnQueue;
+    const queue = scenario({ seed: 3, waves: true })
+      .run(GAME.firstWaveTick + 1)
+      .state().spawnQueue;
     const hps = new Set(queue.map((s) => s.hp));
     expect(hps.size).toBeGreaterThan(1);
     for (let i = 1; i < queue.length; i++) expect(queue[i]!.tick).toBeGreaterThan(queue[i - 1]!.tick);

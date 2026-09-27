@@ -59,7 +59,7 @@ describe("multiplayer economy", () => {
   it("closing a wave pays interest on gold in hand, capped, once per wave, only when its last enemy is gone", () => {
     const lastSpawnTick = (s: Scenario): number => Math.max(...s.state().spawnQueue.map((e) => e.tick));
     const game = scenario({ seed: 3, waves: true, gold: 150 }).run(GAME.firstWaveTick + 1);
-    const walkTicks = Math.ceil((17 + 4 + 15 + 4 + 17) * 1000 / ENEMIES.normal.speed);
+    const walkTicks = Math.ceil(((17 + 4 + 15 + 4 + 17) * 1000) / ENEMIES.normal.speed);
     const lastLeakTick = lastSpawnTick(game) + walkTicks;
     game.runUntil((st) => st.tick >= lastLeakTick - 5, 10000);
     expect(game.state().wavesClosed).toBe(0);
@@ -74,7 +74,9 @@ describe("multiplayer economy", () => {
   });
 
   it("any player can call the next wave early and everyone earns one gold per second saved", () => {
-    const game = scenario({ seed: 1, players: [0, 1], waves: true, gold: 0 }).callWave(1).run(1);
+    const game = scenario({ seed: 1, players: [0, 1], waves: true, gold: 0 })
+      .callWave(1)
+      .run(1);
     const saved = Math.floor(GAME.firstWaveTick / TICKS_PER_SECOND);
     expect(game.state().wave).toBe(1);
     expect(game.gold(0)).toBe(saved);
@@ -82,7 +84,9 @@ describe("multiplayer economy", () => {
   });
 
   it("with four or more players two different players must call the same wave", () => {
-    const game = scenario({ seed: 1, players: ids(4), waves: true, gold: 0 }).callWave(2).run(1);
+    const game = scenario({ seed: 1, players: ids(4), waves: true, gold: 0 })
+      .callWave(2)
+      .run(1);
     expect(game.state().wave).toBe(0);
     expect(game.gold(2)).toBe(0);
     const repeat: Command = { type: "callWave", tick: game.state().tick, playerId: 2 };
@@ -121,10 +125,14 @@ describe("multiplayer economy", () => {
   });
 
   it("gifts move gold between players from wave three on, up to what the giver has", () => {
-    const early = scenario({ seed: 1, players: [0, 1], gold: 100 }).gift(0, 1, 30).run(1);
+    const early = scenario({ seed: 1, players: [0, 1], gold: 100 })
+      .gift(0, 1, 30)
+      .run(1);
     expect(early.gold(0)).toBe(100);
     expect(validateCommand(early.state(), { type: "gift", tick: 0, playerId: 0, to: 1, amount: 30 })).toBe("gift_too_early");
-    const late = scenario({ seed: 1, players: [0, 1], waves: true, startWave: ECONOMY.giftFromWave, gold: 100 }).run(GAME.firstWaveTick + 1);
+    const late = scenario({ seed: 1, players: [0, 1], waves: true, startWave: ECONOMY.giftFromWave, gold: 100 }).run(
+      GAME.firstWaveTick + 1,
+    );
     expect(late.state().wave).toBe(ECONOMY.giftFromWave);
     late.gift(0, 1, 30).run(1);
     expect(late.gold(0)).toBe(70);

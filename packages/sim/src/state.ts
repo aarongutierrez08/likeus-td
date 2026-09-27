@@ -61,9 +61,7 @@ function isRanked(opts: InitialStateOptions): boolean {
 
 function initialPlayers(opts: InitialStateOptions): Player[] {
   const setups = opts.players ?? [{ id: 0 }];
-  return setups
-    .map((p) => ({ id: p.id, gold: p.gold ?? opts.gold ?? startingGold(setups.length) }))
-    .sort((a, b) => a.id - b.id);
+  return setups.map((p) => ({ id: p.id, gold: p.gold ?? opts.gold ?? startingGold(setups.length) })).sort((a, b) => a.id - b.id);
 }
 
 function resolveMapId(id: string | undefined): MapId {
