@@ -14,9 +14,10 @@ describe("seeded randomness", () => {
     expect(firstWaveSpawns(123)).toEqual(firstWaveSpawns(123));
   });
 
-  it("seed zero still produces varied spawns", () => {
-    const hps = new Set(firstWaveSpawns(0).map((s) => s.hp));
-    expect(hps.size).toBeGreaterThan(1);
+  it("seed zero still produces varied spawn spacing", () => {
+    const spawns = firstWaveSpawns(0);
+    const gaps = new Set(spawns.slice(1).map((s, i) => s.tick - spawns[i]!.tick));
+    expect(gaps.size).toBeGreaterThan(1);
   });
 
   it("different seeds schedule different spawns", () => {

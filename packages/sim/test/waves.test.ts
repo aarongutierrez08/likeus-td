@@ -19,13 +19,16 @@ describe("waves", () => {
     expect(game.enemies()).toHaveLength(1);
   });
 
-  it("spawn ticks increase and hp carries seeded jitter", () => {
+  it("spawn spacing carries seeded jitter but every enemy of a kind has the same hp", () => {
     const queue = scenario({ seed: 3, waves: true })
       .run(GAME.firstWaveTick + 1)
       .state().spawnQueue;
-    const hps = new Set(queue.map((s) => s.hp));
-    expect(hps.size).toBeGreaterThan(1);
+    const gaps = new Set(queue.slice(1).map((s, i) => s.tick - queue[i]!.tick));
+    expect(gaps.size).toBeGreaterThan(1);
     for (let i = 1; i < queue.length; i++) expect(queue[i]!.tick).toBeGreaterThan(queue[i - 1]!.tick);
+    const hpByKind = new Map<string, Set<number>>();
+    for (const s of queue) hpByKind.set(s.kind, (hpByKind.get(s.kind) ?? new Set()).add(s.hp));
+    for (const hps of hpByKind.values()) expect(hps.size).toBe(1);
   });
 
   it("startWave skips straight to that wave", () => {

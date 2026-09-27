@@ -23,9 +23,7 @@ export function scheduleWave(state: GameState): void {
     for (let i = 0; i < group.count; i++) {
       if (!first) t += group.spacing + rollJitter(state, pct(group.spacing, GAME.spacingJitterPct));
       first = false;
-      const baseHp = pct(base.hp, wave.hpPct);
-      const hp = baseHp + rollJitter(state, pct(baseHp, GAME.hpJitterPct));
-      state.spawnQueue.push({ tick: t, kind: group.kind, hp, wave: state.wave });
+      state.spawnQueue.push({ tick: t, kind: group.kind, hp: pct(base.hp, wave.hpPct), wave: state.wave });
     }
   }
   state.nextWaveTick = null;
