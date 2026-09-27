@@ -34,6 +34,7 @@ export interface ScenarioOptions {
   startWave?: number;
   /** Explicitly mark the game as not eligible for records. */
   ranked?: boolean;
+  map?: string;
 }
 
 export interface Cell {
@@ -82,6 +83,7 @@ export class Scenario {
   private readonly startWave: number | undefined;
   private readonly rankedOption: boolean | undefined;
   private readonly players: number[];
+  private readonly mapId: string | undefined;
 
   constructor(opts: ScenarioOptions) {
     this.current = createInitialState({ seed: opts.seed });
@@ -89,6 +91,7 @@ export class Scenario {
     this.startWave = opts.startWave;
     this.rankedOption = opts.ranked;
     this.players = opts.players ?? [DEFAULT_PLAYER];
+    this.mapId = opts.map;
     this.wavesOn = opts.waves ?? false;
     this.bot = opts.bot ? createBot("trivial") : undefined;
   }
@@ -244,7 +247,13 @@ export class Scenario {
         const setupCost = this.pendingTowers.filter((t) => t.owner === id).reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
         return anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
       });
-    this.current = createInitialState({ seed: this.current.seed, players, startWave: this.startWave, ranked: this.rankedOption });
+    this.current = createInitialState({
+      seed: this.current.seed,
+      mapId: this.mapId,
+      players,
+      startWave: this.startWave,
+      ranked: this.rankedOption,
+    });
     if (!this.wavesOn) this.current = { ...this.current, nextWaveTick: WAVES_OFF };
     if (this.pendingTowers.length > 0) this.placeTowers();
     if (this.pendingEnemies.length > 0) this.spawnEnemies();

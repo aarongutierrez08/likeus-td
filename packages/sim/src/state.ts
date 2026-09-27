@@ -49,7 +49,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
       kills: 0,
       leaks: 0,
       goldEarned: 0,
-      damageByTower: { archer: 0, cannon: 0, aura: 0 },
+      damageByTower: { archer: 0, cannon: 0, aura: 0, mine: 0 },
     },
   };
 }

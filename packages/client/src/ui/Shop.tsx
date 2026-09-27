@@ -2,11 +2,12 @@ import { For } from "solid-js";
 import { FP, TICKS_PER_SECOND, TOWERS, TOWER_KINDS, type TowerKind } from "@td/sim";
 import type { GameStore } from "../game/store";
 
-const LABELS: Record<TowerKind, string> = { archer: "Arquero", cannon: "Cañón", aura: "Aura +25%" };
-const SWATCH: Record<TowerKind, string> = { archer: "var(--archer)", cannon: "var(--cannon)", aura: "var(--aura)" };
+const LABELS: Record<TowerKind, string> = { archer: "Arquero", cannon: "Cañón", aura: "Aura +25%", mine: "Mina" };
+const SWATCH: Record<TowerKind, string> = { archer: "var(--archer)", cannon: "var(--cannon)", aura: "var(--aura)", mine: "var(--gold)" };
 
 function describe(kind: TowerKind): string {
   const def = TOWERS[kind];
+  if (def.income > 0) return `+${def.income} oro por oleada, solo para vos`;
   if (def.damage === 0) return `+${def.auraBonusPct}% daño en ${def.auraRadius * 2 + 1}×${def.auraRadius * 2 + 1}`;
   const perSecond = (def.damage * TICKS_PER_SECOND) / def.cooldown;
   const splash = def.splash > 0 ? ` · área ${def.splash / FP}` : "";

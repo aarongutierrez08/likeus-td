@@ -9,6 +9,7 @@ import {
   mayManage,
   sellRefund,
   towerDamage,
+  towerIncome,
   upgradeCost,
   type Tower,
 } from "@td/sim";
@@ -19,11 +20,12 @@ export interface TowerActions {
   sell: (towerId: number) => void;
 }
 
-const LABELS: Record<Tower["kind"], string> = { archer: "Arquero", cannon: "Cañón", aura: "Aura" };
+const LABELS: Record<Tower["kind"], string> = { archer: "Arquero", cannon: "Cañón", aura: "Aura", mine: "Mina" };
 
 function stats(tower: Tower): string {
   const def = TOWERS[tower.kind];
-  if (def.damage === 0) return `+${auraBonusOf(tower)}% daño a torres en ${def.auraRadius * 2 + 1}×${def.auraRadius * 2 + 1}`;
+  if (def.income > 0) return `+${towerIncome(tower)} oro por oleada`;
+  if (def.damage === 0) return `+${auraBonusOf(tower)} % daño a torres en ${def.auraRadius * 2 + 1}×${def.auraRadius * 2 + 1}`;
   const damage = towerDamage(tower);
   const perSecond = ((damage * TICKS_PER_SECOND) / def.cooldown).toFixed(0);
   const splash = def.splash > 0 ? ` · área ${def.splash / FP}` : "";

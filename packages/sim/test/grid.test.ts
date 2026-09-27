@@ -1,20 +1,36 @@
 import { describe, expect, it } from "vitest";
-import { FP, MAPS, TICKS_PER_SECOND, isBuildable, pathCells } from "../src/index";
+import { FP, MAPS, MAP_IDS, TICKS_PER_SECOND, isBuildable, isInside, pathCells } from "../src/index";
 import { scenario } from "./helpers/scenario";
 
 const exit = MAPS.s.waypoints[MAPS.s.waypoints.length - 1]!;
 
 describe("map", () => {
-  it("map s is 20x12 and its path connects spawn to exit one cell at a time", () => {
+  it("map s is 20x12", () => {
     expect(MAPS.s.width).toBe(20);
     expect(MAPS.s.height).toBe(12);
-    const cells = pathCells("s");
-    expect(cells[0]).toEqual(MAPS.s.waypoints[0]);
-    expect(cells[cells.length - 1]).toEqual(exit);
-    for (let i = 1; i < cells.length; i++) {
-      const previous = cells[i - 1]!;
-      const current = cells[i]!;
-      expect(Math.abs(previous.x - current.x) + Math.abs(previous.y - current.y)).toBe(1);
+  });
+
+  it("every map's path stays inside the grid and connects spawn to exit one cell at a time", () => {
+    for (const id of MAP_IDS) {
+      const map = MAPS[id];
+      const cells = pathCells(id);
+      expect(cells[0]).toEqual(map.waypoints[0]);
+      expect(cells[cells.length - 1]).toEqual(map.waypoints[map.waypoints.length - 1]);
+      for (const c of cells) expect(isInside(id, c.x, c.y)).toBe(true);
+      for (let i = 1; i < cells.length; i++) {
+        const previous = cells[i - 1]!;
+        const current = cells[i]!;
+        expect(Math.abs(previous.x - current.x) + Math.abs(previous.y - current.y)).toBe(1);
+      }
+      expect(new Set(cells.map((c) => `${c.x},${c.y}`)).size).toBe(cells.length);
+    }
+  });
+
+  it("a game can be created on every map and its enemies walk to the exit", () => {
+    for (const id of MAP_IDS) {
+      const game = scenario({ seed: 1, map: id }).enemy("fast", { x: MAPS[id].waypoints[0].x, y: MAPS[id].waypoints[0].y }).run(2000);
+      expect(game.alive(0)).toBe(false);
+      expect(game.lives()).toBe(19);
     }
   });
 

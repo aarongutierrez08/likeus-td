@@ -1,6 +1,7 @@
 import { ENEMIES } from "../balance/enemies";
 import { GAME } from "../balance/game";
 import { WAVES } from "../balance/waves";
+import { towerIncome } from "../commands";
 import { interestOn, scaledEnemyHp } from "../economy";
 import { rollJitter } from "../rng";
 import type { GameState } from "../types";
@@ -52,6 +53,12 @@ export function closeWaves(state: GameState): void {
     const wave = state.wavesClosed + 1;
     const pending = state.spawnQueue.some((e) => e.wave === wave) || state.enemies.some((e) => e.wave === wave);
     if (pending) return;
+    for (const tower of state.towers) {
+      const income = towerIncome(tower);
+      if (income === 0) continue;
+      const owner = state.players.find((p) => p.id === tower.owner);
+      if (owner) owner.gold += income;
+    }
     for (const player of state.players) player.gold += interestOn(player.gold);
     state.wavesClosed = wave;
     if (wave < WAVES.length) state.nextWaveTick = state.tick + 1 + GAME.waveGapTicks;

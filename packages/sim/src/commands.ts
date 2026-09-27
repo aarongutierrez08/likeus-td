@@ -52,6 +52,12 @@ export function towerDamage(tower: Tower): number {
   return Math.floor((def.damage * (100 + UPGRADE.damagePctPerLevel * (tower.level - 1))) / 100);
 }
 
+/** Gold this tower pays its owner at a wave close (ADR 007: not attenuated, owner only). */
+export function towerIncome(tower: Tower): number {
+  const def = TOWERS[tower.kind];
+  return Math.floor((def.income * (100 + UPGRADE.incomePctPerLevel * (tower.level - 1))) / 100);
+}
+
 export function auraBonusOf(tower: Tower): number {
   const def = TOWERS[tower.kind];
   if (def.auraRadius === 0) return 0;

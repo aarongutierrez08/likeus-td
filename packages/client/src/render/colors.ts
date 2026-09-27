@@ -18,6 +18,7 @@ export const TOWER_COLORS: Record<TowerKind, number> = {
   archer: 0x6cc46c,
   cannon: 0xf0954a,
   aura: 0xb07cf0,
+  mine: 0xf4c542,
 };
 
 export const ENEMY_COLORS: Record<EnemyKind, number> = {

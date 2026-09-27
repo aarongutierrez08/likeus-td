@@ -1,6 +1,6 @@
 import type { MapId } from "./balance/maps";
 
-export type TowerKind = "archer" | "cannon" | "aura";
+export type TowerKind = "archer" | "cannon" | "aura" | "mine";
 export type EnemyKind = "normal" | "fast" | "tank";
 export type GameStatus = "playing" | "won" | "lost";
 

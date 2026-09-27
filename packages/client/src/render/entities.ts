@@ -55,6 +55,7 @@ export class EntityLayer {
       g.rect(pad, pad, this.base - pad * 2, this.base - pad * 2).fill(TOWER_COLORS[t.kind]);
       if (t.kind === "aura") g.circle(this.base / 2, this.base / 2, this.base * 0.18).fill(COLORS.background);
       if (t.kind === "cannon") g.circle(this.base / 2, this.base / 2, this.base * 0.14).fill(COLORS.background);
+      if (t.kind === "mine") g.rect(this.base * 0.35, this.base * 0.35, this.base * 0.3, this.base * 0.3).fill(COLORS.background);
       const pip = this.base * 0.1;
       for (let i = 1; i < t.level; i++) g.rect(pad + pip * (2 * i - 1), this.base - pad - pip * 2, pip, pip).fill(COLORS.background);
       g.position.set(t.x * this.base, t.y * this.base);

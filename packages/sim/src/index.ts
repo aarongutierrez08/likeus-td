@@ -9,6 +9,7 @@ export {
   upgradeCost,
   investedIn,
   towerDamage,
+  towerIncome,
   auraBonusOf,
   mayManage,
   validateBuild,
@@ -21,7 +22,7 @@ export { dumpState } from "./dump";
 export { createBot, type Bot, type BotMode } from "./bot/index";
 export { getMap, isInside, isPathCell, isBuildable, pathCells, distanceToPath } from "./grid";
 export { pathLength, positionAt, cellCenterFP } from "./path";
-export { MAPS, DEFAULT_MAP, isMapId, type MapId, type MapDef, type Point } from "./balance/maps";
+export { MAPS, MAP_IDS, DEFAULT_MAP, isMapId, type MapId, type MapDef, type Point } from "./balance/maps";
 export { TOWERS, TOWER_KINDS, SELL_REFUND_PCT, UPGRADE, type TowerDef } from "./balance/towers";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef } from "./balance/enemies";
 export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
