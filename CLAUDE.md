@@ -38,4 +38,4 @@ Podés editar CLAUDE.md, .claude/rules/ y .claude/skills/ sin pedir permiso, con
 - No va nada circunstancial (versiones, paths, gotchas del entorno): eso es auto memory.
 - Si sacás algo, mejor: estos archivos deben achicarse tanto como crecer.
 - Al final de la respuesta, avisá en una línea qué cambiaste en la memoria y por qué.
-- Decisión de arquitectura nueva = ADR de una página en docs/adr/. No existe otra documentación.
+- Decisión de arquitectura nueva = ADR de una página en docs/adr/. La única otra documentación es `docs/guia-tecnica.md`, para humanos: actualizarla cuando cambia el stack, una decisión o el flujo de trabajo, sin detalles de implementación.
