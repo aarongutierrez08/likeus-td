@@ -80,7 +80,14 @@ export interface UpgradeCommand {
   towerId: number;
 }
 
-export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand | UpgradeCommand;
+/** Issued by the server when a seat expires; never by a client. */
+export interface LeaveCommand {
+  type: "leave";
+  tick: number;
+  playerId: number;
+}
+
+export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand | UpgradeCommand | LeaveCommand;
 
 export interface Player {
   id: number;

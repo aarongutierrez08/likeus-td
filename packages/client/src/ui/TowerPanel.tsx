@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { FP, TICKS_PER_SECOND, TOWERS, UPGRADE, auraBonusOf, sellRefund, towerDamage, upgradeCost, type Tower } from "@td/sim";
+import { FP, TEAM_OWNER, TICKS_PER_SECOND, TOWERS, UPGRADE, auraBonusOf, mayManage, sellRefund, towerDamage, upgradeCost, type Tower } from "@td/sim";
 import type { GameStore } from "../game/store";
 
 export interface TowerActions {
@@ -24,7 +24,10 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
     const id = props.store.selectedTowerId();
     return id === null ? undefined : props.store.state().towers.find((t) => t.id === id);
   };
-  const mine = () => tower()?.owner === props.store.you;
+  const mine = () => {
+    const t = tower();
+    return t !== undefined && mayManage(t, props.store.you);
+  };
   const next = () => {
     const t = tower();
     return t && t.level < UPGRADE.maxLevel ? { ...t, level: t.level + 1 } : undefined;
@@ -37,6 +40,9 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
             <b>
               {LABELS[t().kind]} nv{t().level}
             </b>
+            <Show when={t().owner === TEAM_OWNER}>
+              <span class="muted">del equipo</span>
+            </Show>
             <Show when={!mine()}>
               <span class="muted">de {props.ownerName?.(t().owner) ?? `Jugador ${t().owner + 1}`}</span>
             </Show>

@@ -148,6 +148,11 @@ export class Scenario {
     return this;
   }
 
+  leave(playerId: number): this {
+    this.queued.push({ type: "leave", tick: 0, playerId });
+    return this;
+  }
+
   run(ticks: number): this {
     this.materialize();
     for (let i = 0; i < ticks; i++) this.tick();

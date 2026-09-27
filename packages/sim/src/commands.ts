@@ -1,9 +1,23 @@
 import { SELL_REFUND_PCT, TOWERS, UPGRADE } from "./balance/towers";
 import { isBuildable, isInside } from "./grid";
 import { ECONOMY } from "./balance/economy";
+import { TEAM_OWNER } from "./constants";
 import { WAVES } from "./balance/waves";
 import { callQuorum, callWaveBonus, startingGold } from "./economy";
-import type { BuildCommand, CallWaveCommand, Command, GameState, GiftCommand, JoinCommand, Player, SellCommand, Tower, TowerKind, UpgradeCommand } from "./types";
+import type {
+  BuildCommand,
+  CallWaveCommand,
+  Command,
+  GameState,
+  GiftCommand,
+  JoinCommand,
+  LeaveCommand,
+  Player,
+  SellCommand,
+  Tower,
+  TowerKind,
+  UpgradeCommand,
+} from "./types";
 
 export type RejectReason =
   | "outside"
@@ -74,12 +88,20 @@ export function validateCallWave(state: GameState, cmd: CallWaveCommand): Reject
   return null;
 }
 
+export function mayManage(tower: Tower, playerId: number): boolean {
+  return tower.owner === playerId || tower.owner === TEAM_OWNER;
+}
+
 export function validateSell(state: GameState, cmd: SellCommand): RejectReason | null {
   if (!findPlayer(state, cmd.playerId)) return "no_player";
   const tower = state.towers.find((t) => t.id === cmd.towerId);
   if (!tower) return "no_tower";
-  if (tower.owner !== cmd.playerId) return "not_owner";
+  if (!mayManage(tower, cmd.playerId)) return "not_owner";
   return null;
+}
+
+export function validateLeave(state: GameState, cmd: LeaveCommand): RejectReason | null {
+  return findPlayer(state, cmd.playerId) ? null : "no_player";
 }
 
 export function validateUpgrade(state: GameState, cmd: UpgradeCommand): RejectReason | null {
@@ -87,7 +109,7 @@ export function validateUpgrade(state: GameState, cmd: UpgradeCommand): RejectRe
   if (!player) return "no_player";
   const tower = state.towers.find((t) => t.id === cmd.towerId);
   if (!tower) return "no_tower";
-  if (tower.owner !== cmd.playerId) return "not_owner";
+  if (!mayManage(tower, cmd.playerId)) return "not_owner";
   if (tower.level >= UPGRADE.maxLevel) return "max_level";
   if (player.gold < upgradeCost(tower.kind)) return "no_gold";
   return null;
@@ -117,6 +139,8 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateSell(state, cmd);
     case "upgrade":
       return validateUpgrade(state, cmd);
+    case "leave":
+      return validateLeave(state, cmd);
   }
 }
 
@@ -168,6 +192,18 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       const tower = state.towers.find((t) => t.id === cmd.towerId)!;
       tower.level++;
       findPlayer(state, cmd.playerId)!.gold -= upgradeCost(tower.kind);
+      return true;
+    }
+    case "leave": {
+      const leaving = findPlayer(state, cmd.playerId)!;
+      state.players = state.players.filter((p) => p.id !== cmd.playerId);
+      for (const tower of state.towers) if (tower.owner === cmd.playerId) tower.owner = TEAM_OWNER;
+      const remaining = state.players.length;
+      if (remaining > 0) {
+        const share = Math.floor(leaving.gold / remaining);
+        for (const player of state.players) player.gold += share;
+        state.players[0]!.gold += leaving.gold - share * remaining;
+      }
       return true;
     }
   }

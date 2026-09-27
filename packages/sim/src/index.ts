@@ -1,4 +1,4 @@
-export { BALANCE_VERSION, FP, TICKS_PER_SECOND } from "./constants";
+export { BALANCE_VERSION, FP, TEAM_OWNER, TICKS_PER_SECOND } from "./constants";
 export type * from "./types";
 export { createInitialState, type InitialStateOptions, type PlayerSetup } from "./state";
 export { step, cloneState } from "./step";
@@ -10,6 +10,7 @@ export {
   investedIn,
   towerDamage,
   auraBonusOf,
+  mayManage,
   validateBuild,
   validateCommand,
   type RejectReason,
