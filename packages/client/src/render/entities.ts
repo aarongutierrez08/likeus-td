@@ -12,6 +12,11 @@ interface EnemySprite {
 }
 
 /** Keeps one display object per entity id and syncs it with the state every frame. */
+export interface KillEvent {
+  x: number;
+  y: number;
+}
+
 export class EntityLayer {
   readonly towers = new Container();
   readonly enemies = new Container();
@@ -19,13 +24,23 @@ export class EntityLayer {
   private readonly towerSprites = new Map<number, { g: Graphics; level: number }>();
   private readonly enemySprites = new Map<number, EnemySprite>();
 
+  private exitX = Number.MAX_SAFE_INTEGER;
+  private exitY = Number.MAX_SAFE_INTEGER;
+
   constructor(private readonly base: number) {}
 
-  sync(state: GameState, showRanges: boolean): void {
+  setExit(cell: { x: number; y: number }): void {
+    this.exitX = cell.x * this.base;
+    this.exitY = cell.y * this.base;
+  }
+
+  /** Returns the world positions of enemies that were killed since the previous sync. */
+  sync(state: GameState, showRanges: boolean): KillEvent[] {
     this.syncTowers(state.towers);
-    this.syncEnemies(state);
+    const kills = this.syncEnemies(state);
     this.ranges.clear();
     if (showRanges) this.drawRanges(state.towers);
+    return kills;
   }
 
   private syncTowers(towers: readonly Tower[]): void {
@@ -53,7 +68,7 @@ export class EntityLayer {
     }
   }
 
-  private syncEnemies(state: GameState): void {
+  private syncEnemies(state: GameState): KillEvent[] {
     const seen = new Set<number>();
     for (const e of state.enemies) {
       seen.add(e.id);
@@ -71,11 +86,19 @@ export class EntityLayer {
         this.drawHpBar(sprite.hp, e.kind, ratio);
       }
     }
+    const kills: KillEvent[] = [];
     for (const [id, sprite] of this.enemySprites) {
       if (seen.has(id)) continue;
+      if (sprite.lastHpRatio < 1 && !this.leaked(sprite)) kills.push({ x: sprite.root.position.x, y: sprite.root.position.y });
       sprite.root.destroy({ children: true });
       this.enemySprites.delete(id);
     }
+    return kills;
+  }
+
+  /** An enemy that vanished near the exit cell walked out; it did not die. */
+  private leaked(sprite: EnemySprite): boolean {
+    return sprite.root.position.x >= this.exitX && sprite.root.position.y >= this.exitY;
   }
 
   private createEnemySprite(e: Enemy): EnemySprite {

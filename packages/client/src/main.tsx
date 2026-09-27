@@ -1,6 +1,6 @@
 import { render } from "solid-js/web";
 import { Show, createEffect, createRoot, createSignal } from "solid-js";
-import { ECONOMY, createBot, createInitialState, hashState, validateBuild, validateCommand, type Command, type GameState, type MapId, type TowerKind } from "@td/sim";
+import { ECONOMY, ENEMIES, attenuatedBounty, createBot, createInitialState, hashState, validateBuild, validateCommand, type Command, type GameState, type MapId, type TowerKind } from "@td/sim";
 import type { CommandReject, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
 import { createGameStore, type GameStore } from "./game/store";
@@ -11,6 +11,7 @@ import { createRenderer, type Renderer } from "./render/app";
 import { Chat } from "./ui/Chat";
 import { DebugPanel, type DebugActions } from "./ui/DebugPanel";
 import { Dump } from "./ui/Dump";
+import { createFloatingLabels } from "./ui/FloatingLabels";
 import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { Shop } from "./ui/Shop";
@@ -56,6 +57,7 @@ const DEFAULT_TOWER: TowerKind = "archer";
 interface Game {
   store: GameStore;
   runner: GameRunner;
+  labels: ReturnType<typeof createFloatingLabels>;
 }
 
 const mapEl = document.getElementById("map")!;
@@ -78,6 +80,16 @@ function makeNotifier(game: Game): (msg: string) => void {
     game.store.setNotice(msg);
     clearTimeout(timer);
     timer = window.setTimeout(() => game.store.setNotice(null), NOTICE_MS);
+  };
+}
+
+/** Every kill pays the same share to every player, so one label per kill is enough. */
+function killLabel(game: Game): (positions: { x: number; y: number }[]) => void {
+  return (positions) => {
+    const state = game.store.state();
+    const share = attenuatedBounty(ENEMIES.normal.bounty, state.players.length);
+    const rect = mapEl.getBoundingClientRect();
+    for (const p of positions) game.labels.push(p.x + rect.left, p.y + rect.top, `+${share}`);
   };
 }
 
@@ -155,6 +167,7 @@ function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?:
       <Show when={props.dump}>
         <Dump store={props.game.store} />
       </Show>
+      <props.game.labels.View />
     </>
   );
 }
@@ -173,12 +186,13 @@ async function bootSolo(params: UrlParams): Promise<void> {
     bot: params.bot ? createBot("trivial") : undefined,
     onState: store.setState,
   });
-  const game: Game = { store, runner };
+  const game: Game = { store, runner, labels: createFloatingLabels() };
   exposeForTools(game);
   const notify = makeNotifier(game);
 
   const renderer = await createRenderer(mapEl, {
     mapId: initial.mapId as MapId,
+    onKills: killLabel(game),
     onCellTap: (cell) => {
       if (selectTowerAt(game, cell)) return;
       const tower = store.selectedTower();
@@ -239,12 +253,13 @@ function bootCoop(params: UrlParams): void {
       onState: store.setState,
       onDesync: (tick, hash) => connection.send("desync", { tick, hash }),
     });
-    const created: Game = { store, runner };
+    const created: Game = { store, runner, labels: createFloatingLabels() };
     const notify = makeNotifier(created);
     exposeForTools(created);
     setGame(created);
     void createRenderer(mapEl, {
       mapId: snapshot.state.mapId as MapId,
+      onKills: killLabel(created),
       onCellTap: (cell) => {
         if (selectTowerAt(created, cell)) return;
         const tower = store.selectedTower();

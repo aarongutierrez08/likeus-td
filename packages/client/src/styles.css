@@ -515,6 +515,51 @@ body {
   color: var(--accent);
 }
 
+.shop button .info {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.topbar .mates {
+  display: inline-flex;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.topbar .mates .offline {
+  opacity: 0.5;
+}
+
+#hud > .floating {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.floating span {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 14px;
+  text-shadow: 0 1px 2px #000;
+  animation: float-up 0.9s ease-out forwards;
+}
+
+@keyframes float-up {
+  from {
+    opacity: 1;
+    margin-top: 0;
+  }
+  to {
+    opacity: 0;
+    margin-top: -28px;
+  }
+}
+
 .tower-panel {
   position: absolute;
   top: calc(var(--topbar-h) + 8px);

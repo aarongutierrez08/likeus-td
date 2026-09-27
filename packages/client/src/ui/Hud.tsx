@@ -56,9 +56,20 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
         </Show>
         <Show when={room()}>
           {(info) => (
-            <span class="dev">
-              sala {info().code} · {info().players.filter((p) => p.connected).length}/{info().players.length} jugadores
-            </span>
+            <>
+              <span class="dev">
+                sala {info().code} · {info().players.filter((p) => p.connected).length}/{info().players.length} jugadores
+              </span>
+              <span class="mates">
+                <For each={s().players.filter((p) => p.id !== props.store.you)}>
+                  {(p) => (
+                    <span classList={{ offline: !info().players.find((i) => i.playerId === p.id)?.connected }}>
+                      {info().players.find((i) => i.playerId === p.id)?.name ?? `Jugador ${p.id + 1}`} {p.gold}
+                    </span>
+                  )}
+                </For>
+              </span>
+            </>
           )}
         </Show>
         <span class="status" classList={{ won: s().status === "won", lost: s().status === "lost" }}>

@@ -1,9 +1,17 @@
 import { For } from "solid-js";
-import { TOWERS, TOWER_KINDS, type TowerKind } from "@td/sim";
+import { FP, TICKS_PER_SECOND, TOWERS, TOWER_KINDS, type TowerKind } from "@td/sim";
 import type { GameStore } from "../game/store";
 
 const LABELS: Record<TowerKind, string> = { archer: "Arquero", cannon: "Cañón", aura: "Aura +25%" };
 const SWATCH: Record<TowerKind, string> = { archer: "var(--archer)", cannon: "var(--cannon)", aura: "var(--aura)" };
+
+function describe(kind: TowerKind): string {
+  const def = TOWERS[kind];
+  if (def.damage === 0) return `+${def.auraBonusPct}% daño en ${def.auraRadius * 2 + 1}×${def.auraRadius * 2 + 1}`;
+  const perSecond = (def.damage * TICKS_PER_SECOND) / def.cooldown;
+  const splash = def.splash > 0 ? ` · área ${def.splash / FP}` : "";
+  return `${def.damage} daño · ${perSecond.toFixed(0)}/s · alcance ${def.range / FP}${splash}`;
+}
 
 export function Shop(props: { store: GameStore }) {
   const gold = () => props.store.gold();
@@ -20,6 +28,7 @@ export function Shop(props: { store: GameStore }) {
           >
             <span class="name">{LABELS[kind]}</span>
             <span class="cost">{TOWERS[kind].cost} oro</span>
+            <span class="info">{describe(kind)}</span>
           </button>
         )}
       </For>
