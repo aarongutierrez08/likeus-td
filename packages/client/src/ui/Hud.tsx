@@ -105,11 +105,6 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
           {s().status === "playing" ? (props.store.paused() ? "pausa" : "") : s().status === "won" ? "VICTORIA" : "DERROTA"}
         </span>
       </div>
-      <Show when={s().status !== "playing"}>
-        <div class="overlay">
-          <span>{s().status === "won" ? "Victoria" : "Derrota"}</span>
-        </div>
-      </Show>
       <Show when={props.store.notice()}>{(msg) => <div class="toast">{msg()}</div>}</Show>
     </>
   );

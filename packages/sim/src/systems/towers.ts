@@ -100,7 +100,10 @@ export function collectDead(state: GameState): void {
     const killer = state.towers.find((t) => t.id === enemy.lastHitBy);
     if (killer) killer.kills++;
     const share = attenuatedBounty(ENEMIES[enemy.kind].bounty, state.players.length);
-    for (const player of state.players) player.gold += share;
+    for (const player of state.players) {
+      player.gold += share;
+      player.earned += share;
+    }
     state.stats.goldEarned += share * state.players.length;
   }
   state.enemies = alive;

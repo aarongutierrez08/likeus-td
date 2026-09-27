@@ -92,6 +92,8 @@ export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand
 export interface Player {
   id: number;
   gold: number;
+  /** Gold earned in play: bounties, interest, mines, wave bonus. Gifts and sales are transfers, not earnings. */
+  earned: number;
 }
 
 export interface GameStats {

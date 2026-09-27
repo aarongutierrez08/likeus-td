@@ -25,6 +25,7 @@ import { createRenderer, type Renderer } from "./render/app";
 import { Chat } from "./ui/Chat";
 import { DebugPanel, type DebugActions } from "./ui/DebugPanel";
 import { Dump } from "./ui/Dump";
+import { EndScreen, type EndActions } from "./ui/EndScreen";
 import { createFloatingLabels } from "./ui/FloatingLabels";
 import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
@@ -168,6 +169,8 @@ function GameView(props: {
   sendChat?: (text: string) => void;
   economy: EconomyActions;
   onGiveUp?: () => void;
+  end: EndActions;
+  endWaitingFor?: () => string | undefined;
 }) {
   const actions = () => debugActions(props.game);
   return (
@@ -189,6 +192,15 @@ function GameView(props: {
         <Dump store={props.game.store} />
       </Show>
       <props.game.labels.View />
+      <Show when={props.game.store.state().status !== "playing"}>
+        <EndScreen
+          state={props.game.store.state()}
+          you={props.game.store.you}
+          names={props.net ? new Map(props.net.roomInfo()?.players.map((p) => [p.playerId, p.name]) ?? []) : undefined}
+          actions={props.end}
+          waitingFor={props.endWaitingFor?.()}
+        />
+      </Show>
       <Show when={props.net?.dropped()}>
         <div class="overlay reconnecting">
           <span>
@@ -258,7 +270,18 @@ async function bootSolo(params: UrlParams): Promise<void> {
     },
     upgrade: (towerId) => localCommand({ type: "upgrade", tick: 0, playerId: 0, towerId }),
   };
-  render(() => <GameView game={game} dump={params.dump} economy={economy} />, hudEl);
+  const withSeed = (seed: number | null): string => {
+    const query = new URLSearchParams(location.search);
+    query.delete("tick");
+    if (seed === null) query.delete("seed");
+    else query.set("seed", String(seed));
+    return `?${query.toString()}`;
+  };
+  const end: EndActions = {
+    again: () => location.assign(withSeed(null)),
+    repeat: () => location.assign(withSeed(initial.seed)),
+  };
+  render(() => <GameView game={game} dump={params.dump} economy={economy} end={end} />, hudEl);
 
   if (params.tick > 0) runner.fastForward(params.tick);
   if (params.speed === 0) {
@@ -404,12 +427,20 @@ function bootCoop(params: UrlParams): void {
     listRooms: () => connection.listRooms(),
     start: () => connection.send("start", {}),
     kick: (playerId) => connection.send("kick", { playerId }),
+    setReady: (ready) => connection.send("ready", { ready }),
     leave: async () => {
       await connection.leave();
       location.assign("?mode=coop");
     },
   };
 
+  const isCreator = (): boolean => net.roomInfo()?.you === net.roomInfo()?.creator;
+  const me = () => net.roomInfo()?.players.find((p) => p.playerId === net.roomInfo()?.you);
+  const notReadyNames = (): string[] => {
+    const info = net.roomInfo();
+    if (!info) return [];
+    return info.players.filter((p) => p.playerId !== info.creator && p.connected && !p.ready).map((p) => p.name);
+  };
   bindKeyboard(() => currentGame);
   render(
     () => (
@@ -440,6 +471,15 @@ function bootCoop(params: UrlParams): void {
                     : undefined,
               }}
               onGiveUp={() => void actions.leave()}
+              end={{
+                again: isCreator() ? () => connection.send("restart", {}) : undefined,
+                leave: () => void actions.leave(),
+                ready: isCreator()
+                  ? undefined
+                  : { mine: me()?.ready ?? false, toggle: () => connection.send("ready", { ready: !me()?.ready }) },
+                notReady: isCreator() ? notReadyNames() : undefined,
+              }}
+              endWaitingFor={() => (isCreator() ? undefined : "El anfitrión empieza cuando todos estén listos")}
             />
           )}
         </Show>

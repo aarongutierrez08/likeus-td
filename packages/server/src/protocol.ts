@@ -21,6 +21,8 @@ export interface PlayerInfo {
   playerId: number;
   name: string;
   connected: boolean;
+  /** Marked in the lobby and on the end screen; start and restart wait for every connected player. */
+  ready: boolean;
 }
 
 export interface CreateRoomOptions {
@@ -183,4 +185,7 @@ export interface ClientMessages {
   desync: DesyncReport;
   report: ReportRequest;
   setSpeed: { speed: Speed };
+  /** Creator only: back to the lobby with the same players and a fresh seed. */
+  restart: Record<string, never>;
+  ready: { ready: boolean };
 }

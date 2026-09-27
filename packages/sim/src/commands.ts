@@ -171,7 +171,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       return true;
     case "join":
       if (!findPlayer(state, cmd.playerId)) {
-        state.players.push({ id: cmd.playerId, gold: startingGold(state.players.length + 1) });
+        state.players.push({ id: cmd.playerId, gold: startingGold(state.players.length + 1), earned: 0 });
         state.players.sort((a, b) => a.id - b.id);
       }
       return true;
@@ -179,7 +179,10 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       state.waveCalls.push(cmd.playerId);
       if (state.waveCalls.length >= callQuorum(state.players.length)) {
         const bonus = callWaveBonus((state.nextWaveTick ?? state.tick) - state.tick);
-        for (const player of state.players) player.gold += bonus;
+        for (const player of state.players) {
+          player.gold += bonus;
+          player.earned += bonus;
+        }
         state.nextWaveTick = state.tick;
       }
       return true;

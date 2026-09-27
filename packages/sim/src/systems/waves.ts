@@ -57,9 +57,15 @@ export function closeWaves(state: GameState): void {
       const income = towerIncome(tower);
       if (income === 0) continue;
       const owner = state.players.find((p) => p.id === tower.owner);
-      if (owner) owner.gold += income;
+      if (!owner) continue;
+      owner.gold += income;
+      owner.earned += income;
     }
-    for (const player of state.players) player.gold += interestOn(player.gold);
+    for (const player of state.players) {
+      const interest = interestOn(player.gold);
+      player.gold += interest;
+      player.earned += interest;
+    }
     state.wavesClosed = wave;
     if (wave < WAVES.length) state.nextWaveTick = state.tick + 1 + GAME.waveGapTicks;
   }

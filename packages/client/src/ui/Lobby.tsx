@@ -11,6 +11,7 @@ export interface LobbyActions {
   start(): void;
   kick(playerId: number): void;
   leave(): Promise<void>;
+  setReady(ready: boolean): void;
 }
 
 export function Lobby(props: { net: NetStore; actions: LobbyActions; defaultName: string; initialCode?: string | undefined }) {
@@ -106,6 +107,8 @@ function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string
 
 function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNullable<ReturnType<NetStore["roomInfo"]>> }) {
   const isCreator = () => props.info.you === props.info.creator;
+  const me = () => props.info.players.find((p) => p.playerId === props.info.you);
+  const notReady = () => props.info.players.filter((p) => p.playerId !== props.info.creator && p.connected && !p.ready);
   return (
     <div class="lobby">
       <h2>
@@ -121,7 +124,10 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
                 {p.playerId === props.info.creator ? " (anfitrión)" : ""}
                 {p.playerId === props.info.you ? " (vos)" : ""}
               </span>
-              <span class="muted">{p.connected ? "conectado" : "desconectado"}</span>
+              <span class="muted">
+                {p.connected ? "conectado" : "desconectado"}
+                {p.playerId !== props.info.creator && p.connected ? (p.ready ? " · listo" : " · no listo") : ""}
+              </span>
               <Show when={isCreator() && p.playerId !== props.info.you}>
                 <button type="button" class="small" onClick={() => props.actions.kick(p.playerId)}>
                   Expulsar
@@ -132,10 +138,25 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
         </For>
       </ul>
       <div class="row">
-        <Show when={isCreator()} fallback={<span class="muted">Esperando a que el anfitrión empiece…</span>}>
-          <button type="button" class="primary" onClick={() => props.actions.start()}>
+        <Show
+          when={isCreator()}
+          fallback={
+            <button type="button" class="primary" onClick={() => props.actions.setReady(!me()?.ready)}>
+              {me()?.ready ? "Listo ✓ (cancelar)" : "Listo"}
+            </button>
+          }
+        >
+          <button type="button" class="primary" disabled={notReady().length > 0} onClick={() => props.actions.start()}>
             Empezar
           </button>
+          <Show when={notReady().length > 0}>
+            <span class="muted">
+              Falta que estén listos:{" "}
+              {notReady()
+                .map((p) => p.name)
+                .join(", ")}
+            </span>
+          </Show>
         </Show>
         <button type="button" onClick={() => void props.actions.leave()}>
           Salir

@@ -76,6 +76,10 @@ try {
   await b.waitForSelector(".lobby .players li:nth-child(2)");
   done("segundo jugador unido por código");
 
+  await b.getByRole("button", { name: /^Listo/ }).click();
+  await a.waitForFunction(() => !document.querySelector<HTMLButtonElement>(".lobby button.primary")?.disabled);
+  done("B marcó listo y A tiene Empezar habilitado");
+
   await a.getByRole("button", { name: "Empezar" }).click();
   await a.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);
   await b.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);

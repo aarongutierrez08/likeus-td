@@ -98,8 +98,12 @@ async function createRoom(options: { name?: string; private?: boolean; seed?: nu
   return watch(await client().create(ROOM_NAME, options));
 }
 
+/** Joins and marks ready, waiting until the server confirms it so a following "start" is never racy. */
 async function joinRoom(code: string, name: string): Promise<Inbox> {
-  return watch(await client().joinById(code, { name }));
+  const inbox = watch(await client().joinById(code, { name }));
+  inbox.room.send("ready", { ready: true });
+  await inbox.next<PlayerInfo[]>("players", (list) => list.some((p) => p.name === name && p.ready));
+  return inbox;
 }
 
 async function listRooms(): Promise<RoomListing> {
@@ -130,13 +134,19 @@ describe("game room", () => {
     await expect(client().joinById("ZZZZ", { name: "x" })).rejects.toThrow();
   });
 
-  it("only the creator can start, and no ticks flow before that", async () => {
+  it("only the creator can start, once every guest is ready, and no ticks flow before that", async () => {
     const host = await createRoom({ name: "host" });
-    const guest = await joinRoom(host.room.roomId, "guest");
+    const guest = watch(await client().joinById(host.room.roomId, { name: "guest" }));
     guest.room.send("start", {});
     await guest.none("tick", 200);
     host.room.send("start", {});
+    await guest.none("tick", 200);
+    guest.room.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.some((p) => p.playerId === 1 && p.ready));
+    host.room.send("start", {});
     expect(await host.next<string>("phase")).toBe("playing");
+    const cleared = await host.next<PlayerInfo[]>("players", (list) => list.length === 2 && list.every((p) => !p.ready));
+    expect(cleared).toHaveLength(2);
     const tick = await guest.next<TickMessage>("tick");
     expect(tick.tick).toBeGreaterThanOrEqual(0);
   });
@@ -344,6 +354,41 @@ describe("game room", () => {
     const from = latest;
     await new Promise((r) => setTimeout(r, 500));
     expect(latest - from).toBeGreaterThan(25);
+  });
+
+  it("the creator can restart: back to the lobby with a new seed, then play again", async () => {
+    const host = await createRoom({ name: "host" });
+    const first = await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    await host.next<SnapshotMessage>("snapshot");
+    expect(await guest.next<string>("phase")).toBe("playing");
+    await guest.next<SnapshotMessage>("snapshot");
+    await host.next<TickMessage>("tick", (t) => t.tick > 5);
+    guest.room.send("restart", {});
+    await guest.none("phase", 200);
+    host.room.send("restart", {});
+    await guest.none("phase", 200);
+    guest.room.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.some((p) => p.playerId === 1 && p.ready));
+    host.room.send("restart", {});
+    expect(await guest.next<string>("phase")).toBe("lobby");
+    const again = await guest.next<SnapshotMessage>("snapshot");
+    expect(again.state.tick).toBe(0);
+    expect(again.state.seed).not.toBe(first.state.seed);
+    expect(again.players.map((p) => p.name)).toEqual(["host", "guest"]);
+    expect(again.players.every((p) => !p.ready)).toBe(true);
+    let ticksAfterRestart = 0;
+    guest.tap<TickMessage>("tick", () => ticksAfterRestart++);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(ticksAfterRestart).toBe(0);
+    guest.room.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.some((p) => p.playerId === 1 && p.ready));
+    host.room.send("start", {});
+    const started = await guest.next<SnapshotMessage>("snapshot");
+    expect(started.state.players.map((p) => p.id)).toEqual([0, 1]);
+    await guest.next<TickMessage>("tick");
   });
 
   it("answers a desync report with a fresh snapshot", async () => {

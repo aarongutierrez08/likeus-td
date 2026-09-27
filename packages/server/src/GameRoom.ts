@@ -88,6 +88,7 @@ export class GameRoom extends Room {
     reportsDir: process.env["REPORTS_DIR"],
   });
   private readonly lastReportAt = new Map<string, number>();
+  private endedTimer: ReturnType<typeof this.clock.setTimeout> | null = null;
 
   override async onCreate(options: CreateRoomOptions): Promise<void> {
     this.roomId = await uniqueRoomCode();
@@ -104,6 +105,8 @@ export class GameRoom extends Room {
     this.onMessage<DesyncReport>("desync", (client, report) => this.handleDesync(client, report));
     this.onMessage<ReportRequest>("report", (client, request) => void this.handleReport(client, request));
     this.onMessage<{ speed?: unknown }>("setSpeed", (client, msg) => this.handleSetSpeed(client, msg));
+    this.onMessage("restart", (client) => void this.handleRestart(client));
+    this.onMessage<{ ready?: unknown }>("ready", (client, msg) => this.handleReady(client, msg));
   }
 
   override async onJoin(client: Client, options?: JoinRoomOptions): Promise<void> {
@@ -112,6 +115,7 @@ export class GameRoom extends Room {
       playerId,
       name: sanitizeName(options?.name, playerId),
       connected: true,
+      ready: false,
       sessionId: client.sessionId,
     };
     this.players.set(client.sessionId, player);
@@ -149,7 +153,8 @@ export class GameRoom extends Room {
 
   /** The real sim starts here with everyone present; the lobby sim was a placeholder. */
   private handleStart(client: Client): void {
-    if (!this.isCreator(client) || this.phase !== "lobby") return;
+    if (!this.isCreator(client) || this.phase !== "lobby" || !this.everyoneReady(client)) return;
+    this.clearReady();
     const players = [...this.players.values()].map((p) => ({ id: p.playerId }));
     this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players });
     this.initialState = this.sim;
@@ -213,7 +218,7 @@ export class GameRoom extends Room {
     this.setSimulationInterval(undefined);
     this.setPhase("ended");
     void this.lock();
-    this.clock.setTimeout(() => void this.disconnect(), ENDED_ROOM_TTL_MS);
+    this.endedTimer = this.clock.setTimeout(() => void this.disconnect(), ENDED_ROOM_TTL_MS);
     console.log(`room ${this.roomId} ${this.sim.status} at tick ${this.sim.tick}, record eligible: ${canSubmitRecord(this.sim)}`);
   }
 
@@ -229,6 +234,43 @@ export class GameRoom extends Room {
     if (reason !== null) return this.reject(client, reason);
     this.commandsThisTick.set(player.playerId, sent + 1);
     this.pending.push(command);
+  }
+
+  /** Same room, same players, fresh seed: back to the lobby so the creator starts when everyone is ready. */
+  private async handleRestart(client: Client): Promise<void> {
+    if (!this.isCreator(client) || this.phase === "lobby" || !this.everyoneReady(client)) return;
+    this.clearReady();
+    this.setSimulationInterval(undefined);
+    this.endedTimer?.clear();
+    this.endedTimer = null;
+    this.pending = [];
+    this.history.length = 0;
+    this.initialState = null;
+    this.seed = pickSeed(undefined);
+    this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players: [] });
+    void this.unlock();
+    this.setPhase("lobby");
+    for (const player of this.players.values()) {
+      const target = this.clients.find((c) => c.sessionId === player.sessionId);
+      target?.send("snapshot", this.snapshotFor(player));
+    }
+    await this.publishMetadata();
+  }
+
+  private handleReady(client: Client, msg: { ready?: unknown }): void {
+    const player = this.players.get(client.sessionId);
+    if (!player || typeof msg?.ready !== "boolean" || player.ready === msg.ready) return;
+    player.ready = msg.ready;
+    this.broadcastPlayers();
+  }
+
+  /** The creator counts as ready by acting; every other connected player must have marked it. */
+  private everyoneReady(creator: Client): boolean {
+    return [...this.players.values()].every((p) => p.sessionId === creator.sessionId || !p.connected || p.ready);
+  }
+
+  private clearReady(): void {
+    for (const player of this.players.values()) player.ready = false;
   }
 
   /** Only the creator sets the pace; everyone hears about it so the HUD can show it. */
@@ -405,7 +447,7 @@ export class GameRoom extends Room {
 
   private playerList(): PlayerInfo[] {
     return [...this.players.values()]
-      .map(({ playerId, name, connected }) => ({ playerId, name, connected }))
+      .map(({ playerId, name, connected, ready }) => ({ playerId, name, connected, ready }))
       .sort((a, b) => a.playerId - b.playerId);
   }
 
