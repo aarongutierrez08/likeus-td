@@ -12,7 +12,7 @@ Las vidas son del equipo; el oro es de cada jugador. Con N jugadores en la parti
 - Cada enemigo spawnea con `floor(hp · (N+1)(N+19) / 40)`: la parte `(N+1)/2` compensa el oro total y el `(N+19)/20` la sinergia de combinar torres. La cantidad de enemigos por oleada no cambia.
 - Con 2 o más jugadores cada uno arranca con el 75% del oro inicial de solo; quien entra tarde recibe lo mismo.
 - Al cerrar una oleada (muere o se escapa su último enemigo) cada jugador cobra `min(floor(oro · 10%), 20)`. Solo aplica también.
-- Cualquier jugador llama la siguiente oleada antes de tiempo, solo cuando la actual ya terminó (su último enemigo murió o cruzó); todos cobran 1 de oro por segundo ahorrado. Con 4 o más jugadores hacen falta dos jugadores distintos en la misma oleada.
+- La siguiente oleada empieza a contar (7,5 s) recién cuando la actual terminó: su último enemigo murió o cruzó. No hay superposición ni tope de espera. Durante ese conteo cualquier jugador puede llamarla; todos cobran 1 de oro por segundo ahorrado. Con 4 o más jugadores hacen falta dos jugadores distintos en la misma oleada.
 - Desde la oleada 3, un jugador puede regalar oro a otro hasta lo que tiene.
 - El oro de torres de economía (cuando existan) será solo del dueño y no se atenúa.
 Los porcentajes viven en `packages/sim/src/balance/economy.ts`; el modo solo es N = 1 y todas las fórmulas dan identidad, salvo el interés, que es nuevo también en solo.

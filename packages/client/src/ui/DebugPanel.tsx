@@ -31,7 +31,7 @@ export function DebugPanel(props: { store: GameStore; actions: DebugActions; rem
         </label>
       </div>
       <div class="row">
-        seed {s().seed} · rng {s().rng} · próx. oleada tick {s().nextWaveTick} · cola {s().spawnQueue.length} · hash {hashState(s())}
+        seed {s().seed} · rng {s().rng} · próx. oleada tick {s().nextWaveTick ?? "-"} · cola {s().spawnQueue.length} · hash {hashState(s())}
       </div>
       <table>
         <thead>

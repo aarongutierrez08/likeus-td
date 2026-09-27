@@ -105,7 +105,7 @@ describe("multiplayer economy", () => {
     expect(game.gold(0)).toBe(goldBefore);
     game.runUntil((st) => st.wavesClosed === 1, 10000);
     expect(game.state().wave).toBe(1);
-    const saved = Math.floor((game.state().nextWaveTick - game.state().tick) / TICKS_PER_SECOND);
+    const saved = Math.floor((game.state().nextWaveTick! - game.state().tick) / TICKS_PER_SECOND);
     expect(saved).toBeGreaterThan(0);
     const goldAtClose = game.gold(0);
     game.callWave().run(1);

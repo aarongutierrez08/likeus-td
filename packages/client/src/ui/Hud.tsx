@@ -12,10 +12,14 @@ export interface EconomyActions {
 export function Hud(props: { store: GameStore; net?: NetStore; economy?: EconomyActions }) {
   const s = () => props.store.state();
   const room = () => props.net?.roomInfo() ?? null;
-  const wavePending = () =>
-    s().status === "playing" && s().wave < WAVES.length && s().nextWaveTick > s().tick && s().wavesClosed === s().wave;
+  const countdownTicks = () => (s().nextWaveTick === null ? null : s().nextWaveTick! - s().tick);
+  const wavePending = () => {
+    const left = countdownTicks();
+    return s().status === "playing" && s().wave < WAVES.length && left !== null && left > 0 && s().wavesClosed === s().wave;
+  };
   const alreadyCalled = () => s().waveCalls.includes(props.store.you);
-  const bonus = () => callWaveBonus(s().nextWaveTick - s().tick);
+  const bonus = () => callWaveBonus(countdownTicks() ?? 0);
+  const countdownSeconds = () => Math.ceil((countdownTicks() ?? 0) / TICKS_PER_SECOND);
   const others = () => s().players.filter((p) => p.id !== props.store.you);
   const canGift = () => s().wave >= ECONOMY.giftFromWave && others().length > 0;
   const seconds = () => (s().tick / TICKS_PER_SECOND).toFixed(1);
@@ -33,6 +37,11 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
         <span>
           Tick {s().tick} ({seconds()}s)
         </span>
+        <Show when={wavePending()}>
+          <span class="countdown">
+            {s().wave === 0 ? "Primera" : "Próxima"} oleada en {countdownSeconds()} s
+          </span>
+        </Show>
         <Show when={props.economy && wavePending()}>
           <button type="button" class="inline" disabled={alreadyCalled()} onClick={() => props.economy!.callWave()}>
             {alreadyCalled() ? "Oleada pedida" : `Llamar oleada +${bonus()}`}

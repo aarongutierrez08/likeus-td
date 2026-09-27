@@ -99,7 +99,8 @@ export interface GameState {
   lives: number;
   /** Number of waves started so far (1-based index of the current wave). */
   wave: number;
-  nextWaveTick: number;
+  /** Tick when the next wave starts, or null while the current wave still has enemies (ADR 007). */
+  nextWaveTick: number | null;
   /** Waves whose last enemy already died or leaked; interest was paid for them. */
   wavesClosed: number;
   /** Players who asked to call the next wave since the current one started. */

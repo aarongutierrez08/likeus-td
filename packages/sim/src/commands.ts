@@ -47,8 +47,9 @@ export function validateJoin(_state: GameState, _cmd: JoinCommand): RejectReason
 
 export function validateCallWave(state: GameState, cmd: CallWaveCommand): RejectReason | null {
   if (!findPlayer(state, cmd.playerId)) return "no_player";
-  if (state.wave >= WAVES.length || state.nextWaveTick <= state.tick) return "wave_not_pending";
+  if (state.wave >= WAVES.length) return "wave_not_pending";
   if (state.wavesClosed < state.wave) return "wave_in_progress";
+  if (state.nextWaveTick === null || state.nextWaveTick <= state.tick) return "wave_not_pending";
   if (state.waveCalls.includes(cmd.playerId)) return "already_called";
   return null;
 }
@@ -113,7 +114,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
     case "callWave":
       state.waveCalls.push(cmd.playerId);
       if (state.waveCalls.length >= callQuorum(state.players.length)) {
-        const bonus = callWaveBonus(state.nextWaveTick - state.tick);
+        const bonus = callWaveBonus((state.nextWaveTick ?? state.tick) - state.tick);
         for (const player of state.players) player.gold += bonus;
         state.nextWaveTick = state.tick;
       }

@@ -510,3 +510,7 @@ body {
   border-color: var(--cannon);
   background: #3a2a1e;
 }
+
+.topbar .countdown {
+  color: var(--accent);
+}

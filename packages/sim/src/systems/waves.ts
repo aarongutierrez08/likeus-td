@@ -11,7 +11,7 @@ function pct(value: number, percent: number): number {
 
 /** Starts the next wave when its tick arrives, queueing every spawn with RNG jitter. */
 export function scheduleWave(state: GameState): void {
-  if (state.wave >= WAVES.length || state.tick < state.nextWaveTick) return;
+  if (state.wave >= WAVES.length || state.nextWaveTick === null || state.tick < state.nextWaveTick) return;
   const wave = WAVES[state.wave]!;
   state.wave++;
   state.waveCalls = [];
@@ -27,7 +27,7 @@ export function scheduleWave(state: GameState): void {
       state.spawnQueue.push({ tick: t, kind: group.kind, hp, wave: state.wave });
     }
   }
-  state.nextWaveTick = t + GAME.waveGapTicks;
+  state.nextWaveTick = null;
 }
 
 export function spawnDue(state: GameState): void {
@@ -54,6 +54,7 @@ export function closeWaves(state: GameState): void {
     if (pending) return;
     for (const player of state.players) player.gold += interestOn(player.gold);
     state.wavesClosed = wave;
+    if (wave < WAVES.length) state.nextWaveTick = state.tick + 1 + GAME.waveGapTicks;
   }
 }
 

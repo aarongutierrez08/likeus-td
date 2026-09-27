@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GAME, WAVES } from "../src/index";
+import { GAME, TICKS_PER_SECOND, WAVES } from "../src/index";
 import { scenario } from "./helpers/scenario";
 
 const enemiesIn = (wave: number): number => WAVES[wave - 1]!.groups.reduce((n, g) => n + g.count, 0);
@@ -30,6 +30,37 @@ describe("waves", () => {
     const game = scenario({ seed: 3, waves: true, startWave: 7 }).run(GAME.firstWaveTick + 1);
     expect(game.state().wave).toBe(7);
     expect(game.state().spawnQueue.length + game.enemies().length).toBe(enemiesIn(7));
+  });
+
+  it("the next wave counts down only after the current one is over", () => {
+    const game = scenario({ seed: 3, waves: true }).run(GAME.firstWaveTick + 1);
+    expect(game.state().wave).toBe(1);
+    expect(game.state().nextWaveTick).toBeNull();
+    game.run(GAME.waveGapTicks * 3);
+    expect(game.state().wave).toBe(1);
+    expect(game.state().nextWaveTick).toBeNull();
+  });
+
+  it("once a wave is over the next one starts after the gap, or right away when called", () => {
+    const defended = scenario({ seed: 3, waves: true, gold: 0 });
+    for (let x = 0; x < 8; x++) defended.tower("archer", { x, y: 0 });
+    defended.runUntil((st) => st.wavesClosed === 1, 10000);
+    const closedAt = defended.state().tick;
+    expect(defended.state().nextWaveTick).toBe(closedAt + GAME.waveGapTicks);
+    defended.run(GAME.waveGapTicks);
+    expect(defended.state().tick).toBe(defended.state().nextWaveTick);
+    expect(defended.state().wave).toBe(1);
+    defended.run(1);
+    expect(defended.state().wave).toBe(2);
+    expect(defended.state().nextWaveTick).toBeNull();
+
+    const called = scenario({ seed: 3, waves: true, gold: 0 });
+    for (let x = 0; x < 8; x++) called.tower("archer", { x, y: 0 });
+    called.runUntil((st) => st.wavesClosed === 1, 10000);
+    const goldAtClose = called.gold(0);
+    called.callWave().run(1);
+    expect(called.state().wave).toBe(2);
+    expect(called.gold(0)).toBe(goldAtClose + Math.floor(GAME.waveGapTicks / TICKS_PER_SECOND));
   });
 
   it("clearing the tenth wave wins the game and freezes it", () => {
