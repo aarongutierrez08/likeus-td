@@ -505,3 +505,8 @@ body {
 .gift input {
   width: 56px;
 }
+
+.topbar button.inline.sell {
+  border-color: var(--cannon);
+  background: #3a2a1e;
+}

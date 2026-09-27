@@ -64,7 +64,14 @@ export interface GiftCommand {
   amount: number;
 }
 
-export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand;
+export interface SellCommand {
+  type: "sell";
+  tick: number;
+  playerId: number;
+  towerId: number;
+}
+
+export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand;
 
 export interface Player {
   id: number;

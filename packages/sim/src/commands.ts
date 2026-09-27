@@ -1,9 +1,9 @@
-import { TOWERS } from "./balance/towers";
+import { SELL_REFUND_PCT, TOWERS } from "./balance/towers";
 import { isBuildable, isInside } from "./grid";
 import { ECONOMY } from "./balance/economy";
 import { WAVES } from "./balance/waves";
 import { callQuorum, callWaveBonus, startingGold } from "./economy";
-import type { BuildCommand, CallWaveCommand, Command, GameState, GiftCommand, JoinCommand, Player } from "./types";
+import type { BuildCommand, CallWaveCommand, Command, GameState, GiftCommand, JoinCommand, Player, SellCommand, TowerKind } from "./types";
 
 export type RejectReason =
   | "outside"
@@ -15,7 +15,13 @@ export type RejectReason =
   | "wave_not_pending"
   | "already_called"
   | "gift_too_early"
-  | "bad_amount";
+  | "bad_amount"
+  | "no_tower"
+  | "not_owner";
+
+export function sellRefund(kind: TowerKind): number {
+  return Math.floor((TOWERS[kind].cost * SELL_REFUND_PCT) / 100);
+}
 
 export function findPlayer(state: GameState, playerId: number): Player | undefined {
   return state.players.find((p) => p.id === playerId);
@@ -45,6 +51,14 @@ export function validateCallWave(state: GameState, cmd: CallWaveCommand): Reject
   return null;
 }
 
+export function validateSell(state: GameState, cmd: SellCommand): RejectReason | null {
+  if (!findPlayer(state, cmd.playerId)) return "no_player";
+  const tower = state.towers.find((t) => t.id === cmd.towerId);
+  if (!tower) return "no_tower";
+  if (tower.owner !== cmd.playerId) return "not_owner";
+  return null;
+}
+
 export function validateGift(state: GameState, cmd: GiftCommand): RejectReason | null {
   const from = findPlayer(state, cmd.playerId);
   if (!from) return "no_player";
@@ -65,6 +79,8 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateCallWave(state, cmd);
     case "gift":
       return validateGift(state, cmd);
+    case "sell":
+      return validateSell(state, cmd);
   }
 }
 
@@ -104,5 +120,12 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       findPlayer(state, cmd.playerId)!.gold -= cmd.amount;
       findPlayer(state, cmd.to)!.gold += cmd.amount;
       return true;
+    case "sell": {
+      const index = state.towers.findIndex((t) => t.id === cmd.towerId);
+      const tower = state.towers[index]!;
+      state.towers.splice(index, 1);
+      findPlayer(state, cmd.playerId)!.gold += sellRefund(tower.kind);
+      return true;
+    }
   }
 }

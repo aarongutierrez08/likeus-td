@@ -84,7 +84,12 @@ export interface GiftRequest {
   amount: number;
 }
 
-export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest;
+export interface SellRequest {
+  type: "sell";
+  towerId: number;
+}
+
+export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest | SellRequest;
 
 export interface DesyncReport {
   tick: number;

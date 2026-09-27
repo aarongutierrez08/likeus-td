@@ -297,6 +297,9 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
     case "gift":
       if (!Number.isInteger(v["to"]) || !Number.isInteger(v["amount"])) return null;
       return { type: "gift", tick, playerId, to: v["to"] as number, amount: v["amount"] as number };
+    case "sell":
+      if (!Number.isInteger(v["towerId"])) return null;
+      return { type: "sell", tick, playerId, towerId: v["towerId"] as number };
     default:
       return null;
   }

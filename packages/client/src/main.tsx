@@ -40,6 +40,8 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   already_called: "Ya pediste esta oleada",
   gift_too_early: `Los regalos se habilitan en la oleada ${ECONOMY.giftFromWave}`,
   bad_amount: "Cantidad inválida",
+  no_tower: "Esa torre ya no existe",
+  not_owner: "Esa torre no es tuya",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -76,10 +78,21 @@ function makeNotifier(game: Game): (msg: string) => void {
   };
 }
 
+/** Tapping a tower selects it (so it can be sold); tapping elsewhere clears the selection. Returns true when a tower was selected. */
+function selectTowerAt(game: Game, cell: { x: number; y: number }): boolean {
+  const tower = game.store.state().towers.find((t) => t.x === cell.x && t.y === cell.y);
+  game.store.setSelectedTowerId(tower?.id ?? null);
+  return tower !== undefined;
+}
+
 /** Keeps the Pixi scene in sync with the store; a root so the effects have an owner. */
 function bindRenderer(renderer: Renderer, game: Game): void {
   createRoot(() => {
     createEffect(() => renderer.setHoverTower(game.store.selectedTower()));
+    createEffect(() => {
+      const tower = game.store.selectedOwnTower();
+      renderer.setSelectedCell(tower ? { x: tower.x, y: tower.y } : null);
+    });
     createEffect(() => {
       renderer.sync(game.store.state(), game.store.showRanges());
       document.documentElement.dataset["tick"] = String(game.store.state().tick);
@@ -158,6 +171,7 @@ async function bootSolo(params: UrlParams): Promise<void> {
   const renderer = await createRenderer(mapEl, {
     mapId: initial.mapId as MapId,
     onCellTap: (cell) => {
+      if (selectTowerAt(game, cell)) return;
       const tower = store.selectedTower();
       if (!tower) return;
       const cmd = { type: "build" as const, tick: runner.state.tick, playerId: 0, tower, x: cell.x, y: cell.y };
@@ -178,6 +192,10 @@ async function bootSolo(params: UrlParams): Promise<void> {
   const economy: EconomyActions = {
     callWave: () => localCommand({ type: "callWave", tick: 0, playerId: 0 }),
     gift: (to, amount) => localCommand({ type: "gift", tick: 0, playerId: 0, to, amount }),
+    sell: (towerId) => {
+      store.setSelectedTowerId(null);
+      localCommand({ type: "sell", tick: 0, playerId: 0, towerId });
+    },
   };
   render(() => <GameView game={game} dump={params.dump} economy={economy} />, hudEl);
 
@@ -218,6 +236,7 @@ function bootCoop(params: UrlParams): void {
     void createRenderer(mapEl, {
       mapId: snapshot.state.mapId as MapId,
       onCellTap: (cell) => {
+        if (selectTowerAt(created, cell)) return;
         const tower = store.selectedTower();
         if (!tower || net.roomInfo()?.phase !== "playing") return;
         const cmd = { type: "build" as const, tick: runner.state.tick, playerId: snapshot.you, tower, x: cell.x, y: cell.y };
@@ -292,6 +311,10 @@ function bootCoop(params: UrlParams): void {
               economy={{
                 callWave: () => connection.send("cmd", { type: "callWave" }),
                 gift: (to, amount) => connection.send("cmd", { type: "gift", to, amount }),
+                sell: (towerId) => {
+                  g().store.setSelectedTowerId(null);
+                  connection.send("cmd", { type: "sell", towerId });
+                },
               }}
             />
           )}

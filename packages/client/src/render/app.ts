@@ -15,6 +15,7 @@ export interface RendererOptions {
 export interface Renderer {
   sync(state: GameState, showRanges: boolean): void;
   setHoverTower(kind: TowerKind | null): void;
+  setSelectedCell(cell: Point | null): void;
 }
 
 export async function createRenderer(container: HTMLElement, opts: RendererOptions): Promise<Renderer> {
@@ -32,9 +33,10 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   const world = new Container();
   const mapLayer = new Graphics();
   const hover = new Graphics();
+  const selection = new Graphics();
   const entities = new EntityLayer(BASE);
   drawMap(mapLayer, opts.mapId, BASE);
-  world.addChild(mapLayer, entities.ranges, entities.towers, entities.enemies, hover);
+  world.addChild(mapLayer, entities.ranges, entities.towers, entities.enemies, selection, hover);
   app.stage.addChild(world);
 
   const layout = (): void => {
@@ -91,6 +93,10 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     },
     setHoverTower(kind) {
       hoverTower = kind;
+    },
+    setSelectedCell(cell) {
+      selection.clear();
+      if (cell) selection.rect(cell.x * BASE, cell.y * BASE, BASE, BASE).stroke({ width: 3, color: COLORS.hover });
     },
   };
 }

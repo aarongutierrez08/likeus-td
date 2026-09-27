@@ -1,11 +1,12 @@
 import { For, Show, createSignal } from "solid-js";
-import { ECONOMY, TICKS_PER_SECOND, WAVES, callWaveBonus } from "@td/sim";
+import { ECONOMY, TICKS_PER_SECOND, WAVES, callWaveBonus, sellRefund } from "@td/sim";
 import type { GameStore } from "../game/store";
 import type { NetStore } from "../net/store";
 
 export interface EconomyActions {
   callWave: () => void;
   gift: (to: number, amount: number) => void;
+  sell: (towerId: number) => void;
 }
 
 export function Hud(props: { store: GameStore; net?: NetStore; economy?: EconomyActions }) {
@@ -35,6 +36,13 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
           <button type="button" class="inline" disabled={alreadyCalled()} onClick={() => props.economy!.callWave()}>
             {alreadyCalled() ? "Oleada pedida" : `Llamar oleada +${bonus()}`}
           </button>
+        </Show>
+        <Show when={props.economy && props.store.selectedOwnTower()}>
+          {(tower) => (
+            <button type="button" class="inline sell" onClick={() => props.economy!.sell(tower().id)}>
+              Vender {tower().kind} +{sellRefund(tower().kind)}
+            </button>
+          )}
         </Show>
         <Show when={props.economy && canGift()}>
           <GiftControl others={others().map((p) => p.id)} names={room()?.players ?? []} max={props.store.gold()} gift={props.economy!.gift} />

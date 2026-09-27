@@ -138,6 +138,11 @@ export class Scenario {
     return this;
   }
 
+  sell(towerId: number, player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "sell", tick: 0, playerId: player, towerId });
+    return this;
+  }
+
   run(ticks: number): this {
     this.materialize();
     for (let i = 0; i < ticks; i++) this.tick();
