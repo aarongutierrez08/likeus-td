@@ -1,4 +1,4 @@
-# TD cooperativo web
+# Likeus TD
 
 Tower defense minimalista, co-op hasta 8, web. Monorepo pnpm, TypeScript strict en todo.
 

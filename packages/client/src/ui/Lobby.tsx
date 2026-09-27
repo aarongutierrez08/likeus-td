@@ -34,7 +34,7 @@ function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string
   void refresh();
   return (
     <div class="lobby">
-      <h2>Co-op</h2>
+      <h2>Likeus TD · Co-op</h2>
       <label class="field">
         Nombre
         <input type="text" maxLength={16} value={name()} onInput={(e) => setName(e.currentTarget.value)} />
