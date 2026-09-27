@@ -16,10 +16,11 @@ export function createNetStore() {
   const [chat, setChat] = createSignal<ChatMessage[]>([]);
   const [error, setError] = createSignal<string | null>(null);
   const [busy, setBusy] = createSignal(false);
+  const [dropped, setDropped] = createSignal(false);
   const pushChat = (msg: ChatMessage): void => {
     setChat((list) => [...list.slice(-(MAX_CHAT_HISTORY - 1)), msg]);
   };
-  return { roomInfo, setRoomInfo, chat, pushChat, error, setError, busy, setBusy };
+  return { roomInfo, setRoomInfo, chat, pushChat, error, setError, busy, setBusy, dropped, setDropped };
 }
 
 export type NetStore = ReturnType<typeof createNetStore>;

@@ -28,7 +28,7 @@ function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string
     try {
       setRooms(await props.actions.listRooms());
     } catch {
-      props.net.setError("No se pudo conectar con el servidor");
+      props.net.setError((current) => current ?? "No se pudo conectar con el servidor");
     }
   };
   void refresh();

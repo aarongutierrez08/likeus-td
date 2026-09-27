@@ -147,7 +147,7 @@ function bindKeyboard(getGame: () => Game | null): void {
   });
 }
 
-function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?: (text: string) => void; economy: EconomyActions }) {
+function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?: (text: string) => void; economy: EconomyActions; onGiveUp?: () => void }) {
   const actions = debugActions(props.game);
   return (
     <>
@@ -168,6 +168,16 @@ function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?:
         <Dump store={props.game.store} />
       </Show>
       <props.game.labels.View />
+      <Show when={props.net?.dropped()}>
+        <div class="overlay reconnecting">
+          <span>
+            Conexión perdida. Reconectando…
+            <button type="button" onClick={() => props.onGiveUp?.()}>
+              Volver al lobby
+            </button>
+          </span>
+        </div>
+      </Show>
     </>
   );
 }
@@ -236,6 +246,8 @@ function bootCoop(params: UrlParams): void {
   const net = createNetStore();
   const connection = new Connection();
   const [game, setGame] = createSignal<Game | null>(null);
+  const [lastCode, setLastCode] = createSignal<string | undefined>(params.room);
+  let renderer: Renderer | null = null;
   const defaultName = params.name ?? "Jugador";
 
   const updateUrl = (code: string): void => {
@@ -269,8 +281,24 @@ function bootCoop(params: UrlParams): void {
         if (reason) return notify(REJECT_MESSAGES[reason]);
         connection.send("cmd", { type: "build", tower, x: cell.x, y: cell.y });
       },
-    }).then((renderer) => bindRenderer(renderer, created));
+    }).then((r) => {
+      renderer = r;
+      bindRenderer(r, created);
+    });
     return created;
+  };
+
+  /** The room is gone (kicked, server restarted, network): back to the lobby with the code ready to retry. */
+  const leaveGame = (message: string): void => {
+    renderer?.destroy();
+    renderer = null;
+    setGame(null);
+    net.setDropped(false);
+    net.setRoomInfo(null);
+    net.setError(message);
+    const query = new URLSearchParams({ mode: "coop" });
+    if (params.name) query.set("name", params.name);
+    history.replaceState(null, "", `?${query.toString()}`);
   };
 
   const handlers: RoomHandlers = {
@@ -288,10 +316,10 @@ function bootCoop(params: UrlParams): void {
       const current = game();
       if (current) makeNotifier(current)(REJECT_MESSAGES[msg.reason]);
     },
+    dropped: () => net.setDropped(true),
+    reconnected: () => net.setDropped(false),
     left: (_code, kicked) => {
-      net.setRoomInfo(null);
-      net.setError(kicked ? "Te expulsaron de la sala" : "Se perdió la conexión con la sala");
-      history.replaceState(null, "", "?mode=coop");
+      leaveGame(kicked ? "Te expulsaron de la sala" : "Se perdió la conexión con la sala. Si el server sigue en pie, volvé a entrar con el código.");
     },
   };
 
@@ -299,7 +327,9 @@ function bootCoop(params: UrlParams): void {
     net.setBusy(true);
     net.setError(null);
     try {
-      updateUrl(await task());
+      const code = await task();
+      setLastCode(code);
+      updateUrl(code);
     } catch (err) {
       net.setError(err instanceof Error && err.message ? `No se pudo entrar: ${err.message}` : "No se pudo entrar a la sala");
     } finally {
@@ -324,7 +354,7 @@ function bootCoop(params: UrlParams): void {
     () => (
       <>
         <Show when={net.roomInfo()?.phase === "lobby" || !game()}>
-          <Lobby net={net} actions={actions} defaultName={defaultName} initialCode={params.room} />
+          <Lobby net={net} actions={actions} defaultName={defaultName} initialCode={lastCode()} />
         </Show>
         <Show when={game()}>
           {(g) => (
@@ -342,6 +372,7 @@ function bootCoop(params: UrlParams): void {
                 },
                 upgrade: (towerId) => connection.send("cmd", { type: "upgrade", towerId }),
               }}
+              onGiveUp={() => void actions.leave()}
             />
           )}
         </Show>

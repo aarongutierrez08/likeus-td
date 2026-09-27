@@ -18,6 +18,7 @@ export interface Renderer {
   sync(state: GameState, showRanges: boolean): void;
   setHoverTower(kind: TowerKind | null): void;
   setSelectedCell(cell: Point | null): void;
+  destroy(): void;
 }
 
 export async function createRenderer(container: HTMLElement, opts: RendererOptions): Promise<Renderer> {
@@ -107,6 +108,10 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     setSelectedCell(cell) {
       selection.clear();
       if (cell) selection.rect(cell.x * BASE, cell.y * BASE, BASE, BASE).stroke({ width: 3, color: COLORS.hover });
+    },
+    destroy() {
+      app.renderer.off("resize", layout);
+      app.destroy(true, { children: true });
     },
   };
 }

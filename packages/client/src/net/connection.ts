@@ -18,8 +18,14 @@ export interface RoomHandlers {
   phase(phase: Phase): void;
   chat(msg: ChatMessage): void;
   rejected(msg: RejectedMessage): void;
+  /** The socket dropped; the SDK is retrying on its own. */
+  dropped(): void;
+  reconnected(): void;
   left(code: number, kicked: boolean): void;
 }
+
+/** Retries with exponential backoff up to ~30 s, matching the seat the server keeps for that long. */
+const MAX_RECONNECT_RETRIES = 10;
 
 const TOKEN_KEY_PREFIX = "td:reconnect:";
 
@@ -117,6 +123,9 @@ export class Connection {
     room.onMessage<Phase>("phase", handlers.phase);
     room.onMessage<ChatMessage>("chat", handlers.chat);
     room.onMessage<RejectedMessage>("rejected", handlers.rejected);
+    room.reconnection.maxRetries = MAX_RECONNECT_RETRIES;
+    room.onDrop(() => handlers.dropped());
+    room.onReconnect(() => handlers.reconnected());
     room.onLeave((code) => {
       const kicked = code === KICKED_CLOSE_CODE;
       if (kicked) writeToken(room.roomId, null);
