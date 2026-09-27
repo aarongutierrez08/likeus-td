@@ -134,7 +134,12 @@ export class GameRoom extends Room {
     this.setSimulationInterval((deltaMs) => this.advance(deltaMs), TICK_MS);
   }
 
+  /** With nobody online the sim waits: a dropped team must find the game where it left it. */
   private advance(deltaMs: number): void {
+    if (this.connectedCount() === 0) {
+      this.accumulator = 0;
+      return;
+    }
     this.accumulator += deltaMs;
     let ticks = 0;
     while (this.accumulator >= TICK_MS && ticks < MAX_CATCH_UP_TICKS && this.sim.status === "playing") {
@@ -233,6 +238,7 @@ export class GameRoom extends Room {
 
   private async removePlayer(player: Player): Promise<void> {
     this.players.delete(player.sessionId);
+    if (this.phase === "playing") this.pending.push({ type: "leave", tick: this.sim.tick, playerId: player.playerId });
     if (player.playerId === this.creatorPlayerId) this.creatorPlayerId = this.lowestPlayerId();
     this.broadcastPlayers();
     await this.publishMetadata();
@@ -260,10 +266,15 @@ export class GameRoom extends Room {
 
   private broadcastPlayers(): void {
     this.broadcast("players", this.playerList());
+    void this.publishMetadata();
   }
 
   private lowestPlayerId(): number {
     return this.playerList()[0]?.playerId ?? 0;
+  }
+
+  private connectedCount(): number {
+    return [...this.players.values()].filter((p) => p.connected).length;
   }
 
   private publishMetadata(): Promise<void> {
@@ -272,6 +283,7 @@ export class GameRoom extends Room {
       seed: this.sim.seed,
       phase: this.phase,
       players: this.players.size,
+      connected: this.connectedCount(),
       wave: this.sim.wave,
     };
     return this.setMetadata(metadata);

@@ -37,7 +37,10 @@ export interface RoomMetadata {
   code: string;
   seed: number;
   phase: Phase;
+  /** Seats taken, reconnection reservations included: what decides whether you can join. */
   players: number;
+  /** Players currently online. */
+  connected: number;
   wave: number;
 }
 

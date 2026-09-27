@@ -244,6 +244,24 @@ describe("game room", () => {
     expect(restored.map((p) => p.name)).toEqual(["host", "guest"]);
   });
 
+  it("pauses the sim while nobody is connected and resumes on reconnection", async () => {
+    const hostClient = client();
+    const host = watch(await hostClient.create(ROOM_NAME, { name: "host" }));
+    await host.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    await host.next<SnapshotMessage>("snapshot");
+    const running = await host.next<TickMessage>("tick", (t) => t.tick > 5);
+    const token = host.room.reconnectionToken;
+    await host.room.leave(false);
+    await new Promise((r) => setTimeout(r, 400));
+    const back = watch(await hostClient.reconnect(token));
+    const resumed = await back.next<SnapshotMessage>("snapshot");
+    expect(resumed.state.tick - running.tick).toBeLessThan(6);
+    const listing = await listRooms();
+    expect(listing.rooms.find((r) => r.code === host.room.roomId)?.connected).toBe(1);
+    await back.next<TickMessage>("tick", (t) => t.tick > resumed.state.tick + 2);
+  });
+
   it("answers a desync report with a fresh snapshot", async () => {
     const host = await createRoom({ name: "host" });
     await host.next<SnapshotMessage>("snapshot");

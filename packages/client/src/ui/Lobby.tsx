@@ -78,7 +78,8 @@ function Menu(props: { net: NetStore; actions: LobbyActions; defaultName: string
             <li>
               <span class="code">{room.code}</span>
               <span>
-                {room.players}/{PLAYER_LIMIT} · {room.phase === "lobby" ? "en espera" : `oleada ${room.wave}`}
+                {room.players}/{PLAYER_LIMIT} asientos · {room.connected} conectado{room.connected === 1 ? "" : "s"} ·{" "}
+                {room.phase === "lobby" ? "en espera" : `oleada ${room.wave}`}
               </span>
               <button type="button" class="small" disabled={props.net.busy()} onClick={() => void props.actions.join(room.code, name())}>
                 Unirse
