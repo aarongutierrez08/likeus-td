@@ -1,7 +1,8 @@
+import { hasAttack, hasAura } from "../balance/define";
 import { ENEMIES } from "../balance/enemies";
+import { TOWERS } from "../balance/towers";
 import { auraBonusOf, towerDamage } from "../commands";
 import { attenuatedBounty } from "../economy";
-import { TOWERS } from "../balance/towers";
 import { cellCenterFP, positionAt } from "../path";
 import type { Enemy, GameState, Tower } from "../types";
 
@@ -22,7 +23,7 @@ function auraBonusFor(state: GameState, tower: Tower): number {
   let best = 0;
   for (const other of state.towers) {
     const def = TOWERS[other.kind];
-    if (def.auraRadius === 0 || other.id === tower.id) continue;
+    if (!hasAura(def) || other.id === tower.id) continue;
     if (Math.max(Math.abs(other.x - tower.x), Math.abs(other.y - tower.y)) > def.auraRadius) continue;
     best = Math.max(best, auraBonusOf(other));
   }
@@ -70,7 +71,7 @@ export function towersAttack(state: GameState): void {
   });
   for (const tower of state.towers) {
     const def = TOWERS[tower.kind];
-    if (def.damage === 0) continue;
+    if (!hasAttack(def)) continue;
     if (tower.cooldown > 0) {
       tower.cooldown--;
       continue;

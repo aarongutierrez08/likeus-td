@@ -1,8 +1,6 @@
 import { Container, Graphics } from "pixi.js";
-import { FP, TOWERS, positionAt, type Enemy, type GameState, type Tower } from "@td/sim";
-import { COLORS, ENEMY_COLORS, TOWER_COLORS } from "./colors";
-
-const ENEMY_RADIUS: Record<Enemy["kind"], number> = { normal: 0.28, fast: 0.2, tank: 0.38 };
+import { ENEMIES, FP, TOWERS, hasAttack, hasAura, hasIncome, positionAt, type Enemy, type GameState, type Tower } from "@td/sim";
+import { COLORS } from "./colors";
 
 interface EnemySprite {
   root: Container;
@@ -52,10 +50,11 @@ export class EntityLayer {
       existing?.g.destroy();
       const g = new Graphics();
       const pad = this.base * 0.15;
-      g.rect(pad, pad, this.base - pad * 2, this.base - pad * 2).fill(TOWER_COLORS[t.kind]);
-      if (t.kind === "aura") g.circle(this.base / 2, this.base / 2, this.base * 0.18).fill(COLORS.background);
-      if (t.kind === "cannon") g.circle(this.base / 2, this.base / 2, this.base * 0.14).fill(COLORS.background);
-      if (t.kind === "mine") g.rect(this.base * 0.35, this.base * 0.35, this.base * 0.3, this.base * 0.3).fill(COLORS.background);
+      const def = TOWERS[t.kind];
+      g.rect(pad, pad, this.base - pad * 2, this.base - pad * 2).fill(def.color);
+      if (hasAura(def)) g.circle(this.base / 2, this.base / 2, this.base * 0.18).fill(COLORS.background);
+      if (hasAttack(def) && def.splash > 0) g.circle(this.base / 2, this.base / 2, this.base * 0.14).fill(COLORS.background);
+      if (hasIncome(def)) g.rect(this.base * 0.35, this.base * 0.35, this.base * 0.3, this.base * 0.3).fill(COLORS.background);
       const pip = this.base * 0.1;
       for (let i = 1; i < t.level; i++) g.rect(pad + pip * (2 * i - 1), this.base - pad - pip * 2, pip, pip).fill(COLORS.background);
       g.position.set(t.x * this.base, t.y * this.base);
@@ -105,14 +104,14 @@ export class EntityLayer {
   private createEnemySprite(e: Enemy): EnemySprite {
     const root = new Container();
     const body = new Graphics();
-    body.circle(0, 0, ENEMY_RADIUS[e.kind] * this.base).fill(ENEMY_COLORS[e.kind]);
+    body.circle(0, 0, ENEMIES[e.kind].radius * this.base).fill(ENEMIES[e.kind].color);
     const hp = new Graphics();
     root.addChild(body, hp);
     return { root, body, hp, lastHpRatio: -1 };
   }
 
   private drawHpBar(g: Graphics, kind: Enemy["kind"], ratio: number): void {
-    const r = ENEMY_RADIUS[kind] * this.base;
+    const r = ENEMIES[kind].radius * this.base;
     const w = r * 2.2;
     const h = Math.max(2, this.base * 0.08);
     const y = -r - h - 2;

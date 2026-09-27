@@ -1,5 +1,18 @@
 import { Application, Container, Graphics, type FederatedPointerEvent } from "pixi.js";
-import { FP, TOWERS, getMap, isBuildable, pathCells, type GameState, type MapId, type Point, type TowerKind } from "@td/sim";
+import {
+  FP,
+  TOWERS,
+  TOWER_KINDS,
+  getMap,
+  hasAttack,
+  hasAura,
+  isBuildable,
+  pathCells,
+  type GameState,
+  type MapId,
+  type Point,
+  type TowerKind,
+} from "@td/sim";
 import { COLORS } from "./colors";
 import { EntityLayer } from "./entities";
 import { drawMap } from "./map";
@@ -52,7 +65,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   layout();
   app.renderer.on("resize", layout);
 
-  let hoverTower: TowerKind | null = "archer";
+  let hoverTower: TowerKind | null = TOWER_KINDS[0]!;
   let lastState: GameState | null = null;
   const cellFromEvent = (e: FederatedPointerEvent): Point | null => {
     const local = world.toLocal(e.global);
@@ -69,8 +82,8 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     const def = TOWERS[hoverTower];
     const cx = (cell.x + 0.5) * BASE;
     const cy = (cell.y + 0.5) * BASE;
-    if (def.range > 0) hover.circle(cx, cy, (def.range / FP) * BASE).stroke({ width: 1, color: COLORS.range, alpha: 0.5 });
-    if (def.auraRadius > 0) {
+    if (hasAttack(def)) hover.circle(cx, cy, (def.range / FP) * BASE).stroke({ width: 1, color: COLORS.range, alpha: 0.5 });
+    if (hasAura(def)) {
       const side = (def.auraRadius * 2 + 1) * BASE;
       hover.rect(cx - side / 2, cy - side / 2, side, side).stroke({ width: 1, color: COLORS.aura, alpha: 0.6 });
     }

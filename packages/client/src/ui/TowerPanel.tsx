@@ -6,6 +6,9 @@ import {
   TOWERS,
   UPGRADE,
   auraBonusOf,
+  hasAttack,
+  hasAura,
+  hasIncome,
   mayManage,
   sellRefund,
   towerDamage,
@@ -20,12 +23,11 @@ export interface TowerActions {
   sell: (towerId: number) => void;
 }
 
-const LABELS: Record<Tower["kind"], string> = { archer: "Arquero", cannon: "Cañón", aura: "Aura", mine: "Mina" };
-
 function stats(tower: Tower): string {
   const def = TOWERS[tower.kind];
-  if (def.income > 0) return `+${towerIncome(tower)} oro por oleada`;
-  if (def.damage === 0) return `+${auraBonusOf(tower)} % daño a torres en ${def.auraRadius * 2 + 1}×${def.auraRadius * 2 + 1}`;
+  if (hasIncome(def)) return `+${towerIncome(tower)} oro por oleada`;
+  if (hasAura(def)) return `+${auraBonusOf(tower)}% daño a torres en ${def.auraRadius * 2 + 1}×${def.auraRadius * 2 + 1}`;
+  if (!hasAttack(def)) return "";
   const damage = towerDamage(tower);
   const perSecond = ((damage * TICKS_PER_SECOND) / def.cooldown).toFixed(0);
   const splash = def.splash > 0 ? ` · área ${def.splash / FP}` : "";
@@ -52,7 +54,7 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
         <div class="tower-panel">
           <div class="row">
             <b>
-              {LABELS[t().kind]} nv{t().level}
+              {TOWERS[t().kind].label} nv{t().level}
             </b>
             <Show when={t().owner === TEAM_OWNER}>
               <span class="muted">del equipo</span>

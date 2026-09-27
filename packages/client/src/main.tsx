@@ -4,6 +4,7 @@ import {
   ECONOMY,
   ENEMIES,
   attenuatedBounty,
+  TOWER_KINDS,
   createBot,
   dumpState,
   createInitialState,
@@ -67,7 +68,7 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
 };
 
 const NOTICE_MS = 1500;
-const DEFAULT_TOWER: TowerKind = "archer";
+const DEFAULT_TOWER: TowerKind = TOWER_KINDS[0]!;
 
 interface Game {
   store: GameStore;

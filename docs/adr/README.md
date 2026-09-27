@@ -11,5 +11,6 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 005 | Balance como datos con BALANCE_VERSION |
 | 006 | En co-op los clientes avanzan solo con los ticks del server |
 | 007 | Economía multijugador: oro propio, vidas del equipo, escalado por N |
+| 008 | Contenido como datos: una torre o enemigo es una entrada en `balance/` |
 
 Plantilla: `000-template.md`.

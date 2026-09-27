@@ -1,7 +1,9 @@
 import type { MapId } from "./balance/maps";
 
-export type TowerKind = "archer" | "cannon" | "aura" | "mine";
-export type EnemyKind = "normal" | "fast" | "tank";
+export type { TowerKind } from "./balance/towers";
+export type { EnemyKind } from "./balance/enemies";
+import type { TowerKind } from "./balance/towers";
+import type { EnemyKind } from "./balance/enemies";
 export type GameStatus = "playing" | "won" | "lost";
 
 export interface Tower {

@@ -25,7 +25,7 @@ function parseSeedRange(text: string): [number, number] {
 }
 
 function zeroByKind(): Record<TowerKind, number> {
-  return { archer: 0, cannon: 0, aura: 0, mine: 0 };
+  return Object.fromEntries(TOWER_KINDS.map((kind) => [kind, 0])) as Record<TowerKind, number>;
 }
 
 function record(summary: SeedSummary, final: GameState): void {

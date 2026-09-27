@@ -1,10 +1,11 @@
 import { BALANCE_VERSION } from "./constants";
 import { GAME } from "./balance/game";
 import { DEFAULT_MAP, isMapId, type MapId } from "./balance/maps";
+import { TOWER_KINDS } from "./balance/towers";
 import { WAVES } from "./balance/waves";
 import { startingGold } from "./economy";
 import { seedRng } from "./rng";
-import type { GameState, Player } from "./types";
+import type { GameState, Player, TowerKind } from "./types";
 
 export interface PlayerSetup {
   id: number;
@@ -49,7 +50,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
       kills: 0,
       leaks: 0,
       goldEarned: 0,
-      damageByTower: { archer: 0, cannon: 0, aura: 0, mine: 0 },
+      damageByTower: Object.fromEntries(TOWER_KINDS.map((kind) => [kind, 0])) as Record<TowerKind, number>,
     },
   };
 }
