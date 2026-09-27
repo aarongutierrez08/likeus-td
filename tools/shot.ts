@@ -57,8 +57,3 @@ try {
   await server.close();
 }
 
-declare global {
-  interface Window {
-    __td?: { state(): { tick: number }; hash(): string; ready: boolean };
-  }
-}

@@ -8,12 +8,14 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "start": "tsx src/index.ts"
   },
   "dependencies": {
     "@colyseus/core": "0.18.17",
     "@colyseus/ws-transport": "0.18.4",
-    "@td/sim": "workspace:*"
+    "@td/sim": "workspace:*",
+    "tsx": "4.23.15"
   },
   "devDependencies": {
     "@colyseus/sdk": "0.18.4"

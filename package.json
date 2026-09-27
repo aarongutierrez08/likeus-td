@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.34.5",
-  "engines": { "node": ">=22.12" },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "pnpm --parallel --filter @td/client --filter @td/server run dev",
     "check": "pnpm -r run check",
@@ -11,10 +13,14 @@
     "simtest": "tsx tools/simtest.ts",
     "balance": "tsx tools/balance.ts",
     "shot": "tsx tools/shot.ts",
-    "dump": "tsx tools/dump.ts"
+    "dump": "tsx tools/dump.ts",
+    "coopsmoke": "tsx tools/coopsmoke.ts",
+    "build": "pnpm --filter @td/client run build"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@types/node": "22.20.4",

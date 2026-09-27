@@ -12,11 +12,12 @@ Ejecutar en orden. Si un paso falla, detenerse, arreglar y volver a empezar desd
 3. `pnpm simtest` — el bot debe ganar la seed de referencia. Si pierde tras un cambio de balance, es un cambio de balance real: reportarlo, no ajustar el test.
 4. Si se tocó `packages/client`: `pnpm shot --seed 42 --tick 900` y abrir el PNG en `tools/out/`. Mirar que el mapa, las torres, los enemigos y el HUD se vean correctos. Comparar con el PNG anterior si existe.
 5. Si se tocó `packages/server`: `pnpm test --filter server` (tests de sala: crear, unir, comando inválido rechazado, reconexión).
+6. Si se tocó `packages/server` o `packages/client/src/net`: `pnpm coopsmoke` (dos pestañas reales contra el server; debe terminar en `coopsmoke: OK` sin desyncs).
 
 Reporte final, máximo 6 líneas:
 - check / test / simtest / shot: OK o qué falló.
 - Qué cambió en balance (si algo).
 - Qué queda pendiente o dudoso.
-- **URL de prueba**: una URL de `localhost:5173` con parámetros (`seed`, `wave`, `gold`, `speed`, `tower`…) que deje al usuario parado justo donde está el cambio, sin jugar oleadas previas. Escribirla también en `.claude/last-test-url` (un archivo, una línea) para que el hook de notificación la muestre.
+- **Dónde, cómo y qué probar** (obligatorio, nunca omitir): una URL de `localhost:5173` con parámetros (`seed`, `wave`, `gold`, `speed`, `tower`…) que deje al usuario parado justo donde está el cambio, sin jugar oleadas previas; los pasos exactos a hacer ahí; y qué tiene que ver para dar el cambio por bueno. Escribir la URL también en `.claude/last-test-url` (un archivo, una línea) para que el hook de notificación la muestre.
 
 No commitear. Pedir aprobación.

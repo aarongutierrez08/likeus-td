@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@colyseus/sdk": "0.18.4",

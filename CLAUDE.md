@@ -16,6 +16,8 @@ pnpm test                         # vitest
 pnpm simtest                      # bot juega la seed de referencia; DEBE ganar
 pnpm shot --seed 42 --tick 900    # PNG en tools/out/ para inspección visual
 pnpm dump --seed 42 --tick 900    # estado del juego como texto
+pnpm coopsmoke                    # dos pestañas reales contra el server: crear, unir, jugar, reconectar
+pnpm build                        # cliente estático en packages/client/dist (VITE_SERVER_URL apunta al server)
 ```
 
 ## Definición de terminado
