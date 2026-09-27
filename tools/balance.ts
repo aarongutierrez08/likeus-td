@@ -30,7 +30,7 @@ function zeroByKind(): Record<TowerKind, number> {
 function record(summary: SeedSummary, final: GameState): void {
   if (final.status === "won") summary.wins++;
   else summary.lossWaves.push(final.wave);
-  summary.goldLeft.push(final.gold);
+  summary.goldLeft.push(final.players.reduce((sum, p) => sum + p.gold, 0));
   for (const t of final.towers) summary.towersBuilt[t.kind]++;
   for (const k of TOWER_KINDS) summary.damage[k] += final.stats.damageByTower[k];
 }

@@ -6,7 +6,7 @@ const LABELS: Record<TowerKind, string> = { archer: "Arquero", cannon: "Cañón"
 const SWATCH: Record<TowerKind, string> = { archer: "var(--archer)", cannon: "var(--cannon)", aura: "var(--aura)" };
 
 export function Shop(props: { store: GameStore }) {
-  const gold = () => props.store.state().gold;
+  const gold = () => props.store.gold();
   return (
     <div class="shop">
       <For each={TOWER_KINDS}>

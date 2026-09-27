@@ -57,13 +57,16 @@ export class GameRoom extends Room {
   private phase: Phase = "lobby";
   private readonly players = new Map<string, Player>();
   private creatorPlayerId = 0;
+  private nextPlayerId = 0;
+  private seed = 0;
   private pending: Command[] = [];
   private readonly commandsThisTick = new Map<number, number>();
   private accumulator = 0;
 
   override async onCreate(options: CreateRoomOptions): Promise<void> {
     this.roomId = await uniqueRoomCode();
-    this.sim = createInitialState({ seed: pickSeed(options.seed) });
+    this.seed = pickSeed(options.seed);
+    this.sim = createInitialState({ seed: this.seed, players: [] });
     await this.setPrivate(options.private === true);
     await this.publishMetadata();
 
@@ -75,7 +78,7 @@ export class GameRoom extends Room {
   }
 
   override async onJoin(client: Client, options?: JoinRoomOptions): Promise<void> {
-    const playerId = this.lowestFreePlayerId();
+    const playerId = this.nextPlayerId++;
     const player: Player = {
       playerId,
       name: sanitizeName(options?.name, playerId),
@@ -84,6 +87,7 @@ export class GameRoom extends Room {
     };
     this.players.set(client.sessionId, player);
     if (this.players.size === 1) this.creatorPlayerId = playerId;
+    if (this.phase === "playing") this.pending.push({ type: "join", tick: this.sim.tick, playerId });
     client.send("snapshot", this.snapshotFor(player));
     this.broadcastPlayers();
     await this.publishMetadata();
@@ -114,9 +118,16 @@ export class GameRoom extends Room {
     console.log(`room ${this.roomId} disposed at tick ${this.sim.tick} (${this.sim.status})`);
   }
 
+  /** The real sim starts here with everyone present; the lobby sim was a placeholder. */
   private handleStart(client: Client): void {
     if (!this.isCreator(client) || this.phase !== "lobby") return;
+    const players = [...this.players.values()].map((p) => ({ id: p.playerId }));
+    this.sim = createInitialState({ seed: this.seed, players });
     this.setPhase("playing");
+    for (const player of this.players.values()) {
+      const target = this.clients.find((c) => c.sessionId === player.sessionId);
+      target?.send("snapshot", this.snapshotFor(player));
+    }
     this.accumulator = 0;
     this.setSimulationInterval((deltaMs) => this.advance(deltaMs), TICK_MS);
   }
@@ -252,13 +263,6 @@ export class GameRoom extends Room {
 
   private broadcastPlayers(): void {
     this.broadcast("players", this.playerList());
-  }
-
-  private lowestFreePlayerId(): number {
-    const used = new Set([...this.players.values()].map((p) => p.playerId));
-    let id = 0;
-    while (used.has(id)) id++;
-    return id;
   }
 
   private lowestPlayerId(): number {

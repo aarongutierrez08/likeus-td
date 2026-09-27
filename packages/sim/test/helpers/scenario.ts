@@ -1,6 +1,7 @@
 import {
   ENEMIES,
   FP,
+  GAME,
   TOWERS,
   createBot,
   createInitialState,
@@ -17,12 +18,14 @@ import {
 } from "../../src/index";
 
 const WAVES_OFF = Number.MAX_SAFE_INTEGER;
-const SCENARIO_PLAYER = 0;
+const DEFAULT_PLAYER = 0;
 
 export interface ScenarioOptions {
   seed: number;
-  /** Gold available once the scenario towers are placed. */
+  /** Gold each player has once the scenario towers are placed. */
   gold?: number;
+  /** Player ids present from the start. Default: just player 0. */
+  players?: number[];
   /** Let waves spawn as in a real game. Off by default so only scenario enemies exist. */
   waves?: boolean;
   /** Let the reference bot issue commands on every tick. */
@@ -38,6 +41,14 @@ export interface Cell {
   y: number;
 }
 
+export interface TowerCell extends Cell {
+  owner?: number;
+}
+
+export interface BuildCell extends Cell {
+  player?: number;
+}
+
 export interface EnemyPlacement extends Cell {
   hp?: number;
   /** Extra distance along the path from the cell center, in FP units. */
@@ -46,6 +57,7 @@ export interface EnemyPlacement extends Cell {
 
 interface TowerPlacement extends Cell {
   kind: TowerKind;
+  owner: number;
 }
 
 interface EnemySpec extends EnemyPlacement {
@@ -69,24 +81,27 @@ export class Scenario {
   private readonly goldAfterSetup: number | undefined;
   private readonly startWave: number | undefined;
   private readonly rankedOption: boolean | undefined;
+  private readonly players: number[];
 
   constructor(opts: ScenarioOptions) {
     this.current = createInitialState({ seed: opts.seed });
     this.goldAfterSetup = opts.gold;
     this.startWave = opts.startWave;
     this.rankedOption = opts.ranked;
+    this.players = opts.players ?? [DEFAULT_PLAYER];
     this.wavesOn = opts.waves ?? false;
     this.bot = opts.bot ? createBot("trivial") : undefined;
   }
 
-  /** Builder form: places a tower for free before the scenario starts. */
-  tower(kind: TowerKind, at: Cell): this;
+  /** Builder form: places a tower for free before the scenario starts (owner defaults to player 0). */
+  tower(kind: TowerKind, at: TowerCell): this;
   /** Query form: the index-th tower in the game. */
   tower(index: number): Tower;
-  tower(kindOrIndex: TowerKind | number, at?: Cell): this | Tower {
+  tower(kindOrIndex: TowerKind | number, at?: TowerCell): this | Tower {
     if (typeof kindOrIndex === "number") return this.towerAt(kindOrIndex);
     this.assertNotStarted("tower");
-    this.pendingTowers.push({ kind: kindOrIndex, ...at! });
+    const { owner = DEFAULT_PLAYER, x, y } = at!;
+    this.pendingTowers.push({ kind: kindOrIndex, owner, x, y });
     return this;
   }
 
@@ -102,8 +117,14 @@ export class Scenario {
   }
 
   /** A real build command: paid, validated by the sim, applied on the next tick that runs. */
-  build(kind: TowerKind, at: Cell): this {
-    this.queued.push({ type: "build", tick: 0, playerId: SCENARIO_PLAYER, tower: kind, x: at.x, y: at.y });
+  build(kind: TowerKind, at: BuildCell): this {
+    this.queued.push({ type: "build", tick: 0, playerId: at.player ?? DEFAULT_PLAYER, tower: kind, x: at.x, y: at.y });
+    return this;
+  }
+
+  /** Queues a real join command for the next tick that runs. */
+  join(playerId: number): this {
+    this.queued.push({ type: "join", tick: 0, playerId });
     return this;
   }
 
@@ -152,8 +173,14 @@ export class Scenario {
     return found;
   }
 
-  gold(_player: number = SCENARIO_PLAYER): number {
-    return this.state().gold;
+  gold(player: number = DEFAULT_PLAYER): number {
+    const found = this.state().players.find((p) => p.id === player);
+    if (!found) throw new Error(`player ${player} is not in the game`);
+    return found.gold;
+  }
+
+  playerIds(): number[] {
+    return this.state().players.map((p) => p.id);
   }
 
   lives(): number {
@@ -184,9 +211,13 @@ export class Scenario {
   private materialize(): void {
     if (this.materialized) return;
     this.materialized = true;
-    const setupCost = this.pendingTowers.reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
-    const gold = this.goldAfterSetup === undefined && setupCost === 0 ? undefined : (this.goldAfterSetup ?? this.current.gold) + setupCost;
-    this.current = createInitialState({ seed: this.current.seed, gold, startWave: this.startWave, ranked: this.rankedOption });
+    const owners = new Set([...this.players, ...this.pendingTowers.map((t) => t.owner)]);
+    const anySetup = this.goldAfterSetup !== undefined || this.pendingTowers.length > 0;
+    const players = [...owners].sort((a, b) => a - b).map((id) => {
+      const setupCost = this.pendingTowers.filter((t) => t.owner === id).reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
+      return anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
+    });
+    this.current = createInitialState({ seed: this.current.seed, players, startWave: this.startWave, ranked: this.rankedOption });
     if (!this.wavesOn) this.current = { ...this.current, nextWaveTick: WAVES_OFF };
     if (this.pendingTowers.length > 0) this.placeTowers();
     if (this.pendingEnemies.length > 0) this.spawnEnemies();
@@ -196,7 +227,7 @@ export class Scenario {
     const commands: Command[] = this.pendingTowers.map((t) => ({
       type: "build",
       tick: this.current.tick,
-      playerId: SCENARIO_PLAYER,
+      playerId: t.owner,
       tower: t.kind,
       x: t.x,
       y: t.y,

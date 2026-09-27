@@ -33,8 +33,8 @@ function cheapestTower(): TowerKind {
   return TOWER_KINDS.reduce((best, kind) => (TOWERS[kind].cost < TOWERS[best].cost ? kind : best));
 }
 
-function build(state: GameState, tower: TowerKind, cell: Cell): Command {
-  return { type: "build", tick: state.tick, playerId: 0, tower, x: cell.x, y: cell.y };
+function build(state: GameState, playerId: number, tower: TowerKind, cell: Cell): Command {
+  return { type: "build", tick: state.tick, playerId, tower, x: cell.x, y: cell.y };
 }
 
 /**
@@ -42,7 +42,7 @@ function build(state: GameState, tower: TowerKind, cell: Cell): Command {
  * (deterministic). "variant" picks a random affordable tower and one of the closest cells,
  * driven by its own seeded RNG so many games per seed differ.
  */
-export function createBot(mode: BotMode, seed = 0): Bot {
+export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
   let rng = seedRng(seed);
   const roll = (n: number): number => {
     rng = nextRng(rng);
@@ -52,18 +52,19 @@ export function createBot(mode: BotMode, seed = 0): Bot {
   return {
     decide(state: GameState): Command[] {
       if (state.status !== "playing") return [];
-      const affordable = TOWER_KINDS.filter((k) => TOWERS[k].cost <= state.gold);
+      const gold = state.players.find((p) => p.id === playerId)?.gold ?? 0;
+      const affordable = TOWER_KINDS.filter((k) => TOWERS[k].cost <= gold);
       if (affordable.length === 0) return [];
       const cells = freeCellsByPathDistance(state);
       if (cells.length === 0) return [];
       if (mode === "trivial") {
         const kind = cheapestTower();
-        if (TOWERS[kind].cost > state.gold) return [];
-        return [build(state, kind, cells[0]!)];
+        if (TOWERS[kind].cost > gold) return [];
+        return [build(state, playerId, kind, cells[0]!)];
       }
       const kind = affordable[roll(affordable.length)]!;
       const cell = cells[roll(Math.min(VARIANT_CELL_CHOICES, cells.length))]!;
-      return [build(state, kind, cell)];
+      return [build(state, playerId, kind, cell)];
     },
   };
 }

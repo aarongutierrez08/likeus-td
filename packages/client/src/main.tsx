@@ -35,6 +35,7 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   occupied: "Celda ocupada",
   no_gold: "Oro insuficiente",
   unknown_tower: "Torre desconocida",
+  no_player: "Todavía no estás en la partida",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -140,7 +141,7 @@ async function bootSolo(params: UrlParams): Promise<void> {
     startWave: params.wave,
     ranked: !params.usesDevParams,
   });
-  const store = createGameStore(initial, params.tower ?? DEFAULT_TOWER);
+  const store = createGameStore(initial, params.tower ?? DEFAULT_TOWER, 0);
   const runner = new GameRunner(initial, {
     speed: params.speed,
     bot: params.bot ? createBot("trivial") : undefined,
@@ -189,7 +190,7 @@ function bootCoop(params: UrlParams): void {
 
   /** Store and runner exist right away so ticks arriving while Pixi boots are applied, not lost. */
   const startGame = (snapshot: SnapshotMessage): Game => {
-    const store = createGameStore(snapshot.state, DEFAULT_TOWER);
+    const store = createGameStore(snapshot.state, DEFAULT_TOWER, snapshot.you);
     const runner = new GameRunner(snapshot.state, {
       speed: 1,
       remote: true,
@@ -218,7 +219,7 @@ function bootCoop(params: UrlParams): void {
     snapshot: (msg) => {
       net.setRoomInfo({ code: connection.code ?? "", players: msg.players, you: msg.you, creator: msg.creator, phase: msg.phase });
       const current = game();
-      if (current) current.runner.replaceState(msg.state);
+      if (current && current.store.you === msg.you) current.runner.replaceState(msg.state);
       else startGame(msg);
     },
     tick: (msg) => game()?.runner.applyTick(msg.tick, msg.commands, msg.hash),

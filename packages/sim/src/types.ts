@@ -6,6 +6,7 @@ export type GameStatus = "playing" | "won" | "lost";
 
 export interface Tower {
   id: number;
+  owner: number;
   kind: TowerKind;
   x: number;
   y: number;
@@ -40,7 +41,18 @@ export interface BuildCommand {
   y: number;
 }
 
-export type Command = BuildCommand;
+export interface JoinCommand {
+  type: "join";
+  tick: number;
+  playerId: number;
+}
+
+export type Command = BuildCommand | JoinCommand;
+
+export interface Player {
+  id: number;
+  gold: number;
+}
 
 export interface GameStats {
   kills: number;
@@ -58,7 +70,8 @@ export interface GameState {
   status: GameStatus;
   /** False when the game started with dev overrides; such games never submit records. */
   ranked: boolean;
-  gold: number;
+  /** Sorted by id. Each player owns their gold and their towers. */
+  players: Player[];
   lives: number;
   /** Number of waves started so far (1-based index of the current wave). */
   wave: number;

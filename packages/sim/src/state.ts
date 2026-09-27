@@ -3,12 +3,20 @@ import { GAME } from "./balance/game";
 import { DEFAULT_MAP, isMapId, type MapId } from "./balance/maps";
 import { WAVES } from "./balance/waves";
 import { seedRng } from "./rng";
-import type { GameState } from "./types";
+import type { GameState, Player } from "./types";
+
+export interface PlayerSetup {
+  id: number;
+  gold?: number;
+}
 
 export interface InitialStateOptions {
   seed: number;
   mapId?: string;
+  /** Starting gold for every initial player. Any override makes the game unranked. */
   gold?: number;
+  /** Players present from tick 0. Default: player 0 only. */
+  players?: PlayerSetup[];
   /** 1-based wave to start at. The game begins right before that wave spawns. */
   startWave?: number;
   /** Set false to opt out of records; any gold or startWave override forces false. */
@@ -26,7 +34,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     tick: 0,
     status: "playing",
     ranked: isRanked(opts),
-    gold: opts.gold ?? GAME.startGold,
+    players: initialPlayers(opts),
     lives: GAME.lives,
     wave: startWave - 1,
     nextWaveTick: GAME.firstWaveTick,
@@ -44,7 +52,15 @@ export function createInitialState(opts: InitialStateOptions): GameState {
 }
 
 function isRanked(opts: InitialStateOptions): boolean {
-  return (opts.ranked ?? true) && opts.gold === undefined && opts.startWave === undefined;
+  const perPlayerOverride = opts.players?.some((p) => p.gold !== undefined) ?? false;
+  return (opts.ranked ?? true) && opts.gold === undefined && !perPlayerOverride && opts.startWave === undefined;
+}
+
+function initialPlayers(opts: InitialStateOptions): Player[] {
+  const setups = opts.players ?? [{ id: 0 }];
+  return setups
+    .map((p) => ({ id: p.id, gold: p.gold ?? opts.gold ?? GAME.startGold }))
+    .sort((a, b) => a.id - b.id);
 }
 
 function resolveMapId(id: string | undefined): MapId {

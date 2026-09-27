@@ -7,6 +7,7 @@ import type { Command, GameState } from "./types";
 export function cloneState(state: GameState): GameState {
   return {
     ...state,
+    players: state.players.map((p) => ({ ...p })),
     spawnQueue: state.spawnQueue.slice(),
     towers: state.towers.map((t) => ({ ...t })),
     enemies: state.enemies.map((e) => ({ ...e })),

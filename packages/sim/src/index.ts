@@ -1,8 +1,8 @@
 export { BALANCE_VERSION, FP, TICKS_PER_SECOND } from "./constants";
 export type * from "./types";
-export { createInitialState, type InitialStateOptions } from "./state";
+export { createInitialState, type InitialStateOptions, type PlayerSetup } from "./state";
 export { step, cloneState } from "./step";
-export { applyCommand, validateBuild, validateCommand, type RejectReason } from "./commands";
+export { applyCommand, findPlayer, validateBuild, validateCommand, type RejectReason } from "./commands";
 export { hashState } from "./hash";
 export { canSubmitRecord } from "./records";
 export { dumpState } from "./dump";

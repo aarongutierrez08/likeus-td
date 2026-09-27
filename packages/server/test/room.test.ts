@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { Client, type Room } from "@colyseus/sdk";
 import type { Server } from "@colyseus/core";
-import { hashState, step } from "@td/sim";
+import { GAME, hashState, step } from "@td/sim";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   MAX_COMMANDS_PER_TICK,
@@ -153,8 +153,11 @@ describe("game room", () => {
 
   it("broadcasts an accepted build with the sender's playerId and both clients match the server hash", async () => {
     const host = await createRoom({ name: "host" });
-    const hostSnapshot = await host.next<SnapshotMessage>("snapshot");
+    await host.next<SnapshotMessage>("snapshot");
     const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    const hostSnapshot = await host.next<SnapshotMessage>("snapshot");
     const guestSnapshot = await guest.next<SnapshotMessage>("snapshot");
     const local = { host: hostSnapshot.state, guest: guestSnapshot.state };
     const hashChecks: { side: string; tick: number; server: string; local: string }[] = [];
@@ -166,7 +169,6 @@ describe("game room", () => {
       local.guest = step(local.guest, t.commands);
       if (t.hash !== undefined) hashChecks.push({ side: "guest", tick: t.tick, server: t.hash, local: hashState(local.guest) });
     });
-    host.room.send("start", {});
     await host.next<TickMessage>("tick");
     guest.room.send("cmd", { type: "build", tower: "archer", x: 3, y: 3 });
     const withBuild = await host.next<TickMessage>("tick", (t) => t.commands.length > 0);
@@ -177,6 +179,23 @@ describe("game room", () => {
     expect(hashChecks.filter((c) => c.side === "guest").length).toBeGreaterThan(0);
     for (const check of hashChecks) expect(check.local).toBe(check.server);
     expect(local.guest.towers).toHaveLength(1);
+  });
+
+  it("starts the real sim with every player and adds late joiners with a join command", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    const started = await guest.next<SnapshotMessage>("snapshot");
+    expect(started.state.players.map((p) => p.id)).toEqual([0, 1]);
+    expect(started.state.players.every((p) => p.gold === GAME.startGold)).toBe(true);
+    await guest.next<TickMessage>("tick");
+    const late = await joinRoom(host.room.roomId, "late");
+    const lateSnapshot = await late.next<SnapshotMessage>("snapshot");
+    expect(lateSnapshot.you).toBe(2);
+    const joinTick = await host.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "join"));
+    expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2 });
   });
 
   it("limits commands per tick per player", async () => {
@@ -213,6 +232,7 @@ describe("game room", () => {
     const host = await createRoom({ name: "host" });
     await host.next<SnapshotMessage>("snapshot");
     host.room.send("start", {});
+    await host.next<SnapshotMessage>("snapshot");
     const tick = await host.next<TickMessage>("tick");
     host.room.send("desync", { tick: tick.tick, hash: "deadbeef" });
     const snapshot = await host.next<SnapshotMessage>("snapshot");

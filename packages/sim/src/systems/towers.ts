@@ -89,12 +89,15 @@ export function collectDead(state: GameState): void {
       alive.push(enemy);
       continue;
     }
-    const bounty = ENEMIES[enemy.kind].bounty;
-    state.gold += bounty;
-    state.stats.goldEarned += bounty;
     state.stats.kills++;
     const killer = state.towers.find((t) => t.id === enemy.lastHitBy);
-    if (killer) killer.kills++;
+    if (!killer) continue;
+    killer.kills++;
+    const owner = state.players.find((p) => p.id === killer.owner);
+    if (!owner) continue;
+    const bounty = ENEMIES[enemy.kind].bounty;
+    owner.gold += bounty;
+    state.stats.goldEarned += bounty;
   }
   state.enemies = alive;
 }

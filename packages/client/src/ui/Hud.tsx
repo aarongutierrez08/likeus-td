@@ -10,7 +10,7 @@ export function Hud(props: { store: GameStore; net?: NetStore }) {
   return (
     <>
       <div class="topbar">
-        <span class="gold">Oro {s().gold}</span>
+        <span class="gold">Oro {props.store.gold()}</span>
         <span class="lives">Vidas {s().lives}</span>
         <span>
           Oleada {s().wave}/{WAVES.length}
