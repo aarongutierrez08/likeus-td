@@ -74,7 +74,17 @@ export interface BuildRequest {
   y: number;
 }
 
-export type CommandRequest = BuildRequest;
+export interface CallWaveRequest {
+  type: "callWave";
+}
+
+export interface GiftRequest {
+  type: "gift";
+  to: number;
+  amount: number;
+}
+
+export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest;
 
 export interface DesyncReport {
   tick: number;

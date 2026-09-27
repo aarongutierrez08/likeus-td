@@ -2,6 +2,7 @@ import { BALANCE_VERSION } from "./constants";
 import { GAME } from "./balance/game";
 import { DEFAULT_MAP, isMapId, type MapId } from "./balance/maps";
 import { WAVES } from "./balance/waves";
+import { startingGold } from "./economy";
 import { seedRng } from "./rng";
 import type { GameState, Player } from "./types";
 
@@ -38,6 +39,8 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     lives: GAME.lives,
     wave: startWave - 1,
     nextWaveTick: GAME.firstWaveTick,
+    wavesClosed: startWave - 1,
+    waveCalls: [],
     spawnQueue: [],
     nextId: 1,
     towers: [],
@@ -59,7 +62,7 @@ function isRanked(opts: InitialStateOptions): boolean {
 function initialPlayers(opts: InitialStateOptions): Player[] {
   const setups = opts.players ?? [{ id: 0 }];
   return setups
-    .map((p) => ({ id: p.id, gold: p.gold ?? opts.gold ?? GAME.startGold }))
+    .map((p) => ({ id: p.id, gold: p.gold ?? opts.gold ?? startingGold(setups.length) }))
     .sort((a, b) => a.id - b.id);
 }
 

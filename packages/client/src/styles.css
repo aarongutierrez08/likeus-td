@@ -465,3 +465,43 @@ body {
   flex: 1;
   min-width: 0;
 }
+
+.topbar button.inline,
+.gift button.inline {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: #24304a;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.topbar button.inline:disabled {
+  opacity: 0.5;
+  border-color: var(--line);
+  cursor: default;
+}
+
+.gift {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.gift select,
+.gift input {
+  min-height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #12141a;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.gift input {
+  width: 56px;
+}

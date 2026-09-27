@@ -182,17 +182,10 @@ export class GameRoom extends Room {
     const player = this.players.get(client.sessionId);
     if (!player) return;
     if (this.phase !== "playing") return this.reject(client, "not_playing");
-    if (!isBuildRequest(request)) return this.reject(client, "bad_shape");
+    const command = toCommand(request, this.sim.tick, player.playerId);
+    if (!command) return this.reject(client, "bad_shape");
     const sent = this.commandsThisTick.get(player.playerId) ?? 0;
     if (sent >= MAX_COMMANDS_PER_TICK) return this.reject(client, "rate_limited");
-    const command: Command = {
-      type: "build",
-      tick: this.sim.tick,
-      playerId: player.playerId,
-      tower: request.tower,
-      x: request.x,
-      y: request.y,
-    };
     const reason = validateCommand(this.sim, command);
     if (reason !== null) return this.reject(client, reason);
     this.commandsThisTick.set(player.playerId, sent + 1);
@@ -291,8 +284,20 @@ function sanitizeName(raw: string | undefined, playerId: number): string {
   return trimmed.length > 0 ? trimmed : `Jugador ${playerId + 1}`;
 }
 
-function isBuildRequest(value: unknown): value is CommandRequest {
-  if (typeof value !== "object" || value === null) return false;
+/** Shape check of a client request; the sim validates the rules afterwards. */
+function toCommand(value: unknown, tick: number, playerId: number): Command | null {
+  if (typeof value !== "object" || value === null) return null;
   const v = value as Record<string, unknown>;
-  return v["type"] === "build" && TOWER_KINDS.includes(v["tower"] as never) && Number.isInteger(v["x"]) && Number.isInteger(v["y"]);
+  switch (v["type"]) {
+    case "build":
+      if (!TOWER_KINDS.includes(v["tower"] as never) || !Number.isInteger(v["x"]) || !Number.isInteger(v["y"])) return null;
+      return { type: "build", tick, playerId, tower: v["tower"] as CommandRequest extends { tower: infer T } ? T : never, x: v["x"] as number, y: v["y"] as number };
+    case "callWave":
+      return { type: "callWave", tick, playerId };
+    case "gift":
+      if (!Number.isInteger(v["to"]) || !Number.isInteger(v["amount"])) return null;
+      return { type: "gift", tick, playerId, to: v["to"] as number, amount: v["amount"] as number };
+    default:
+      return null;
+  }
 }

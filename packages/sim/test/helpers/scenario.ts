@@ -128,6 +128,16 @@ export class Scenario {
     return this;
   }
 
+  callWave(player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "callWave", tick: 0, playerId: player });
+    return this;
+  }
+
+  gift(from: number, to: number, amount: number): this {
+    this.queued.push({ type: "gift", tick: 0, playerId: from, to, amount });
+    return this;
+  }
+
   run(ticks: number): this {
     this.materialize();
     for (let i = 0; i < ticks; i++) this.tick();
@@ -247,7 +257,7 @@ export class Scenario {
       if (index < 0) throw new Error(`(${spec.x},${spec.y}) is not a path cell`);
       const hp = spec.hp ?? ENEMIES[spec.kind].hp;
       const id = nextId++;
-      enemies.push({ id, kind: spec.kind, hp, maxHp: hp, progress: index * FP + (spec.offset ?? 0), lastHitBy: 0 });
+      enemies.push({ id, kind: spec.kind, hp, maxHp: hp, progress: index * FP + (spec.offset ?? 0), lastHitBy: 0, wave: 0 });
       this.enemyIds.push(id);
     }
     this.current = { ...this.current, enemies, nextId };

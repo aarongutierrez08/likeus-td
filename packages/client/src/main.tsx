@@ -1,6 +1,6 @@
 import { render } from "solid-js/web";
 import { Show, createEffect, createRoot, createSignal } from "solid-js";
-import { createBot, createInitialState, hashState, validateBuild, type GameState, type MapId, type TowerKind } from "@td/sim";
+import { ECONOMY, createBot, createInitialState, hashState, validateBuild, validateCommand, type Command, type GameState, type MapId, type TowerKind } from "@td/sim";
 import type { CommandReject, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
 import { createGameStore, type GameStore } from "./game/store";
@@ -11,7 +11,7 @@ import { createRenderer, type Renderer } from "./render/app";
 import { Chat } from "./ui/Chat";
 import { DebugPanel, type DebugActions } from "./ui/DebugPanel";
 import { Dump } from "./ui/Dump";
-import { Hud } from "./ui/Hud";
+import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { Shop } from "./ui/Shop";
 import "./styles.css";
@@ -36,6 +36,10 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   no_gold: "Oro insuficiente",
   unknown_tower: "Torre desconocida",
   no_player: "Todavía no estás en la partida",
+  wave_not_pending: "No hay oleada pendiente",
+  already_called: "Ya pediste esta oleada",
+  gift_too_early: `Los regalos se habilitan en la oleada ${ECONOMY.giftFromWave}`,
+  bad_amount: "Cantidad inválida",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -114,11 +118,11 @@ function bindKeyboard(getGame: () => Game | null): void {
   });
 }
 
-function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?: (text: string) => void }) {
+function GameView(props: { game: Game; net?: NetStore; dump: boolean; sendChat?: (text: string) => void; economy: EconomyActions }) {
   const actions = debugActions(props.game);
   return (
     <>
-      <Hud store={props.game.store} net={props.net} />
+      <Hud store={props.game.store} net={props.net} economy={props.economy} />
       <Shop store={props.game.store} />
       <Show when={props.net && props.sendChat}>
         <Chat net={props.net!} send={props.sendChat!} />
@@ -165,7 +169,17 @@ async function bootSolo(params: UrlParams): Promise<void> {
   });
   bindRenderer(renderer, game);
   bindKeyboard(() => game);
-  render(() => <GameView game={game} dump={params.dump} />, hudEl);
+  const localCommand = (cmd: Command): void => {
+    const reason = validateCommand(runner.state, cmd);
+    if (reason) return notify(REJECT_MESSAGES[reason]);
+    runner.enqueue(cmd);
+    if (runner.paused || runner.speed === 0) runner.stepAndPublish();
+  };
+  const economy: EconomyActions = {
+    callWave: () => localCommand({ type: "callWave", tick: 0, playerId: 0 }),
+    gift: (to, amount) => localCommand({ type: "gift", tick: 0, playerId: 0, to, amount }),
+  };
+  render(() => <GameView game={game} dump={params.dump} economy={economy} />, hudEl);
 
   if (params.tick > 0) runner.fastForward(params.tick);
   if (params.speed === 0) {
@@ -268,7 +282,20 @@ function bootCoop(params: UrlParams): void {
         <Show when={net.roomInfo()?.phase === "lobby" || !game()}>
           <Lobby net={net} actions={actions} defaultName={defaultName} initialCode={params.room} />
         </Show>
-        <Show when={game()}>{(g) => <GameView game={g()} net={net} dump={false} sendChat={(text) => connection.send("chat", { text })} />}</Show>
+        <Show when={game()}>
+          {(g) => (
+            <GameView
+              game={g()}
+              net={net}
+              dump={false}
+              sendChat={(text) => connection.send("chat", { text })}
+              economy={{
+                callWave: () => connection.send("cmd", { type: "callWave" }),
+                gift: (to, amount) => connection.send("cmd", { type: "gift", to, amount }),
+              }}
+            />
+          )}
+        </Show>
       </>
     ),
     hudEl,

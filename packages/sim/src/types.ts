@@ -24,12 +24,15 @@ export interface Enemy {
   /** Distance travelled along the path, in FP units. */
   progress: number;
   lastHitBy: number;
+  /** 1-based wave this enemy belongs to; 0 for enemies placed outside waves. */
+  wave: number;
 }
 
 export interface SpawnEntry {
   tick: number;
   kind: EnemyKind;
   hp: number;
+  wave: number;
 }
 
 export interface BuildCommand {
@@ -47,7 +50,21 @@ export interface JoinCommand {
   playerId: number;
 }
 
-export type Command = BuildCommand | JoinCommand;
+export interface CallWaveCommand {
+  type: "callWave";
+  tick: number;
+  playerId: number;
+}
+
+export interface GiftCommand {
+  type: "gift";
+  tick: number;
+  playerId: number;
+  to: number;
+  amount: number;
+}
+
+export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand;
 
 export interface Player {
   id: number;
@@ -76,6 +93,10 @@ export interface GameState {
   /** Number of waves started so far (1-based index of the current wave). */
   wave: number;
   nextWaveTick: number;
+  /** Waves whose last enemy already died or leaked; interest was paid for them. */
+  wavesClosed: number;
+  /** Players who asked to call the next wave since the current one started. */
+  waveCalls: number[];
   spawnQueue: SpawnEntry[];
   nextId: number;
   towers: Tower[];

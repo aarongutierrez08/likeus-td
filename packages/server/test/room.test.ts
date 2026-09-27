@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { Client, type Room } from "@colyseus/sdk";
 import type { Server } from "@colyseus/core";
-import { GAME, hashState, step } from "@td/sim";
+import { hashState, startingGold, step } from "@td/sim";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   MAX_COMMANDS_PER_TICK,
@@ -189,13 +189,29 @@ describe("game room", () => {
     host.room.send("start", {});
     const started = await guest.next<SnapshotMessage>("snapshot");
     expect(started.state.players.map((p) => p.id)).toEqual([0, 1]);
-    expect(started.state.players.every((p) => p.gold === GAME.startGold)).toBe(true);
+    expect(started.state.players.every((p) => p.gold === startingGold(2))).toBe(true);
     await guest.next<TickMessage>("tick");
     const late = await joinRoom(host.room.roomId, "late");
     const lateSnapshot = await late.next<SnapshotMessage>("snapshot");
     expect(lateSnapshot.you).toBe(2);
     const joinTick = await host.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "join"));
     expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2 });
+  });
+
+  it("relays a wave call: the wave starts and everyone gets the bonus", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    const started = await guest.next<SnapshotMessage>("snapshot");
+    let local = started.state;
+    guest.tap<TickMessage>("tick", (t) => (local = step(local, t.commands)));
+    guest.room.send("cmd", { type: "callWave" });
+    const called = await guest.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "callWave"));
+    expect(called.commands).toContainEqual({ type: "callWave", tick: called.tick, playerId: 1 });
+    expect(local.wave).toBe(1);
+    expect(local.players.every((p) => p.gold > startingGold(2))).toBe(true);
   });
 
   it("limits commands per tick per player", async () => {

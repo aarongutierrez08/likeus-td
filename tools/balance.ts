@@ -5,6 +5,7 @@ import { playGame } from "./play";
 const args = parseArgs(process.argv.slice(2));
 const runsPerSeed = intArg(args, "runs", 20);
 const [seedFrom, seedTo] = parseSeedRange(args.get("seeds") ?? "1-10");
+const players = intArg(args, "players", 1);
 
 interface SeedSummary {
   seed: number;
@@ -49,12 +50,12 @@ const summaries: SeedSummary[] = [];
 for (let seed = seedFrom; seed <= seedTo; seed++) {
   const summary: SeedSummary = { seed, wins: 0, lossWaves: [], goldLeft: [], towersBuilt: zeroByKind(), damage: zeroByKind() };
   for (let run = 0; run < runsPerSeed; run++) {
-    record(summary, playGame({ seed, mode: run === 0 ? "trivial" : "variant", botSeed: run }));
+    record(summary, playGame({ seed, mode: run === 0 ? "trivial" : "variant", botSeed: run, players }));
   }
   summaries.push(summary);
 }
 
-console.log(`runs per seed: ${runsPerSeed} (run 0 = trivial bot, rest = variant bot)\n`);
+console.log(`players: ${players}, runs per seed: ${runsPerSeed} (run 0 = trivial bots, rest = variant bots)\n`);
 console.log("| Seed | Wins | Loss wave (avg / min) | Gold left (avg) | Most built | Least built | Top damage share |");
 console.log("|---|---|---|---|---|---|---|");
 for (const s of summaries) {

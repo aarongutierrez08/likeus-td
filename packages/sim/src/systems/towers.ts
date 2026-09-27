@@ -1,4 +1,5 @@
 import { ENEMIES } from "../balance/enemies";
+import { attenuatedBounty } from "../economy";
 import { TOWERS } from "../balance/towers";
 import { cellCenterFP, positionAt } from "../path";
 import type { Enemy, GameState, Tower } from "../types";
@@ -91,13 +92,10 @@ export function collectDead(state: GameState): void {
     }
     state.stats.kills++;
     const killer = state.towers.find((t) => t.id === enemy.lastHitBy);
-    if (!killer) continue;
-    killer.kills++;
-    const owner = state.players.find((p) => p.id === killer.owner);
-    if (!owner) continue;
-    const bounty = ENEMIES[enemy.kind].bounty;
-    owner.gold += bounty;
-    state.stats.goldEarned += bounty;
+    if (killer) killer.kills++;
+    const share = attenuatedBounty(ENEMIES[enemy.kind].bounty, state.players.length);
+    for (const player of state.players) player.gold += share;
+    state.stats.goldEarned += share * state.players.length;
   }
   state.enemies = alive;
 }

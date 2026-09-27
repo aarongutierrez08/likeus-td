@@ -1,7 +1,7 @@
 import { applyCommand } from "./commands";
 import { moveEnemies } from "./systems/move";
 import { collectDead, towersAttack } from "./systems/towers";
-import { checkEnd, scheduleWave, spawnDue } from "./systems/waves";
+import { checkEnd, closeWaves, scheduleWave, spawnDue } from "./systems/waves";
 import type { Command, GameState } from "./types";
 
 export function cloneState(state: GameState): GameState {
@@ -9,6 +9,7 @@ export function cloneState(state: GameState): GameState {
     ...state,
     players: state.players.map((p) => ({ ...p })),
     spawnQueue: state.spawnQueue.slice(),
+    waveCalls: state.waveCalls.slice(),
     towers: state.towers.map((t) => ({ ...t })),
     enemies: state.enemies.map((e) => ({ ...e })),
     stats: { ...state.stats, damageByTower: { ...state.stats.damageByTower } },
@@ -25,6 +26,7 @@ export function step(state: GameState, commands: readonly Command[] = []): GameS
   moveEnemies(next);
   towersAttack(next);
   collectDead(next);
+  closeWaves(next);
   checkEnd(next);
   next.tick++;
   return next;

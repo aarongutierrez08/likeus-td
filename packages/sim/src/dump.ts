@@ -13,7 +13,7 @@ export function dumpState(state: GameState): string {
   lines.push(
     `tick ${state.tick}  status ${state.status}  wave ${state.wave}/${WAVES.length}  lives ${state.lives}  hash ${hashState(state)}`,
   );
-  lines.push(`seed ${state.seed}  map ${state.mapId}  balance v${state.balanceVersion}  nextWaveTick ${state.nextWaveTick}`);
+  lines.push(`seed ${state.seed}  map ${state.mapId}  balance v${state.balanceVersion}  nextWaveTick ${state.nextWaveTick}  wavesClosed ${state.wavesClosed}`);
   lines.push(`players: ${state.players.map((p) => `#${p.id} gold ${p.gold}`).join(", ")}`);
   lines.push(`towers (${state.towers.length}):`);
   for (const t of state.towers) {

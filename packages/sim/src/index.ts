@@ -14,3 +14,5 @@ export { TOWERS, TOWER_KINDS, type TowerDef } from "./balance/towers";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef } from "./balance/enemies";
 export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
 export { GAME } from "./balance/game";
+export { ECONOMY } from "./balance/economy";
+export { attenuatedBounty, scaledEnemyHp, startingGold, interestOn, callWaveBonus, callQuorum } from "./economy";
