@@ -5,6 +5,9 @@ on:
     branches: [master]
   pull_request:
 
+env:
+  SERVER_URL: wss://likeus-td.fly.dev
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -19,3 +22,38 @@ jobs:
       - run: pnpm check
       - run: pnpm test
       - run: pnpm simtest
+
+  # Server first: a new client must never meet an old server (sim or protocol changes).
+  deploy-server:
+    needs: verify
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency: deploy-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  deploy-client:
+    needs: deploy-server
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency: deploy-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          VITE_SERVER_URL: ${{ env.SERVER_URL }}
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy packages/client/dist --project-name likeus-td --branch master
