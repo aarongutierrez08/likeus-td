@@ -92,6 +92,27 @@ describe("multiplayer economy", () => {
     for (const id of ids(4)) expect(game.gold(id)).toBe(Math.floor((GAME.firstWaveTick - 1) / TICKS_PER_SECOND));
   });
 
+  it("the next wave can be called only once the current one is over", () => {
+    const game = scenario({ seed: 3, waves: true, gold: 0 });
+    for (let x = 0; x < 8; x++) game.tower("archer", { x, y: 0 });
+    game.run(GAME.firstWaveTick + 1);
+    expect(game.state().wave).toBe(1);
+    const call: Command = { type: "callWave", tick: game.state().tick, playerId: 0 };
+    expect(validateCommand(game.state(), call)).toBe("wave_in_progress");
+    const goldBefore = game.gold(0);
+    game.callWave().run(1);
+    expect(game.state().wave).toBe(1);
+    expect(game.gold(0)).toBe(goldBefore);
+    game.runUntil((st) => st.wavesClosed === 1, 10000);
+    expect(game.state().wave).toBe(1);
+    const saved = Math.floor((game.state().nextWaveTick - game.state().tick) / TICKS_PER_SECOND);
+    expect(saved).toBeGreaterThan(0);
+    const goldAtClose = game.gold(0);
+    game.callWave().run(1);
+    expect(game.state().wave).toBe(2);
+    expect(game.gold(0)).toBe(goldAtClose + saved);
+  });
+
   it("calling is rejected when no wave is pending", () => {
     const game = scenario({ seed: 1, waves: true, startWave: WAVES.length }).run(GAME.firstWaveTick + 1);
     expect(game.state().wave).toBe(WAVES.length);

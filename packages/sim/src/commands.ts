@@ -17,7 +17,8 @@ export type RejectReason =
   | "gift_too_early"
   | "bad_amount"
   | "no_tower"
-  | "not_owner";
+  | "not_owner"
+  | "wave_in_progress";
 
 export function sellRefund(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * SELL_REFUND_PCT) / 100);
@@ -47,6 +48,7 @@ export function validateJoin(_state: GameState, _cmd: JoinCommand): RejectReason
 export function validateCallWave(state: GameState, cmd: CallWaveCommand): RejectReason | null {
   if (!findPlayer(state, cmd.playerId)) return "no_player";
   if (state.wave >= WAVES.length || state.nextWaveTick <= state.tick) return "wave_not_pending";
+  if (state.wavesClosed < state.wave) return "wave_in_progress";
   if (state.waveCalls.includes(cmd.playerId)) return "already_called";
   return null;
 }

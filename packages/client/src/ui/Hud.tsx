@@ -12,7 +12,8 @@ export interface EconomyActions {
 export function Hud(props: { store: GameStore; net?: NetStore; economy?: EconomyActions }) {
   const s = () => props.store.state();
   const room = () => props.net?.roomInfo() ?? null;
-  const wavePending = () => s().status === "playing" && s().wave < WAVES.length && s().nextWaveTick > s().tick;
+  const wavePending = () =>
+    s().status === "playing" && s().wave < WAVES.length && s().nextWaveTick > s().tick && s().wavesClosed === s().wave;
   const alreadyCalled = () => s().waveCalls.includes(props.store.you);
   const bonus = () => callWaveBonus(s().nextWaveTick - s().tick);
   const others = () => s().players.filter((p) => p.id !== props.store.you);

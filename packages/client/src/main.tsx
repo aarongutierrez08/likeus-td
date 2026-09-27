@@ -42,6 +42,7 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   bad_amount: "Cantidad inválida",
   no_tower: "Esa torre ya no existe",
   not_owner: "Esa torre no es tuya",
+  wave_in_progress: "Todavía quedan enemigos de esta oleada",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
