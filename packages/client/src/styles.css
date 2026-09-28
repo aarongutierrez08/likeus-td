@@ -96,7 +96,7 @@ body {
 }
 
 .topbar .status.won {
-  color: var(--archer);
+  color: #6cc46c;
 }
 
 .topbar .status.lost {
@@ -513,7 +513,7 @@ body {
 }
 
 .topbar button.inline.sell {
-  border-color: var(--cannon);
+  border-color: #f0954a;
   background: #3a2a1e;
 }
 
@@ -589,6 +589,32 @@ body {
 }
 
 .tower-panel .muted {
+  color: var(--muted);
+}
+
+.wave-preview {
+  position: absolute;
+  top: calc(var(--topbar-h) + 8px);
+  right: 8px;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.wave-preview .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+
+.wave-preview .muted {
   color: var(--muted);
 }
 

@@ -4,7 +4,10 @@
  * derive everything from it without listing kinds anywhere else.
  */
 
+import type { Armor, AttackType } from "./damage";
+
 export interface AttackSpec {
+  type: AttackType;
   damage: number;
   /** FP units from the tower center. */
   range: number;
@@ -40,6 +43,8 @@ export interface TowerDef {
   cost: number;
   label: string;
   color: number;
+  /** null when the tower has no attack family. */
+  attackType: AttackType | null;
   damage: number;
   range: number;
   cooldown: number;
@@ -57,6 +62,7 @@ export function defineTowers<K extends string>(specs: Record<K, TowerSpec>): Rec
       cost: spec.cost,
       label: spec.label,
       color: spec.color,
+      attackType: spec.attack?.type ?? null,
       damage: spec.attack?.damage ?? 0,
       range: spec.attack?.range ?? 0,
       cooldown: spec.attack?.cooldown ?? 0,
@@ -74,6 +80,8 @@ export const hasAura = (def: TowerDef): boolean => def.auraRadius > 0;
 export const hasIncome = (def: TowerDef): boolean => def.income > 0;
 
 export interface EnemyDef {
+  label: string;
+  armor: Armor;
   hp: number;
   /** FP units per tick. 50 = one cell per second at 20 ticks/s. */
   speed: number;

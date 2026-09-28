@@ -1,5 +1,5 @@
 import { For, Show, createSignal, untrack } from "solid-js";
-import { ECONOMY, TICKS_PER_SECOND, WAVES, callWaveBonus } from "@td/sim";
+import { ARMOR_LABELS, ECONOMY, ENEMIES, TICKS_PER_SECOND, WAVES, callWaveBonus, upcomingWaves } from "@td/sim";
 import type { GameStore } from "../game/store";
 import type { NetStore } from "../net/store";
 import { ReportButton } from "./ReportDialog";
@@ -105,8 +105,36 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
           {s().status === "playing" ? (props.store.paused() ? "pausa" : "") : s().status === "won" ? "VICTORIA" : "DERROTA"}
         </span>
       </div>
+      <WavePreview store={props.store} />
       <Show when={props.store.notice()}>{(msg) => <div class="toast">{msg()}</div>}</Show>
     </>
+  );
+}
+
+const PREVIEW_WAVES = 3;
+
+/** The next waves: how many of what, and their armor, so the player picks the right attack type. */
+function WavePreview(props: { store: GameStore }) {
+  const waves = () => (props.store.state().status === "playing" ? upcomingWaves(props.store.state(), PREVIEW_WAVES) : []);
+  return (
+    <Show when={waves().length > 0}>
+      <div class="wave-preview">
+        <For each={waves()}>
+          {(w) => (
+            <div class="row">
+              <b>{w.number}</b>
+              <For each={w.def.groups}>
+                {(g) => (
+                  <span style={{ color: `#${ENEMIES[g.kind].color.toString(16).padStart(6, "0")}` }}>
+                    {g.count} {ENEMIES[g.kind].label} <span class="muted">({ARMOR_LABELS[ENEMIES[g.kind].armor]})</span>
+                  </span>
+                )}
+              </For>
+            </div>
+          )}
+        </For>
+      </div>
+    </Show>
   );
 }
 

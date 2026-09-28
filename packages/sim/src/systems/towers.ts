@@ -1,3 +1,4 @@
+import { damageMultiplier } from "../balance/damage";
 import { hasAttack, hasAura } from "../balance/define";
 import { ENEMIES } from "../balance/enemies";
 import { TOWERS } from "../balance/towers";
@@ -38,6 +39,13 @@ export function effectiveDamage(state: GameState, tower: Tower): number {
   return Math.floor((towerDamage(tower) * (100 + auraBonusFor(state, tower))) / 100);
 }
 
+/** Damage one hit of the tower deals to this enemy: effective damage times the attack-vs-armor multiplier. */
+export function damageAgainst(state: GameState, tower: Tower, enemy: Enemy): number {
+  const attack = TOWERS[tower.kind].attackType;
+  if (attack === null) return 0;
+  return Math.floor((effectiveDamage(state, tower) * damageMultiplier(attack, ENEMIES[enemy.kind].armor)) / 100);
+}
+
 /** Enemy furthest along the path within range. Ties go to the lowest id. */
 function pickTarget(tower: Tower, range: number, enemies: readonly EnemyAt[]): EnemyAt | null {
   const tx = cellCenterFP(tower.x);
@@ -56,7 +64,8 @@ function pickTarget(tower: Tower, range: number, enemies: readonly EnemyAt[]): E
   return best;
 }
 
-function hit(state: GameState, tower: Tower, target: Enemy, damage: number): void {
+function hit(state: GameState, tower: Tower, target: Enemy): void {
+  const damage = damageAgainst(state, tower, target);
   const dealt = Math.min(damage, Math.max(0, target.hp));
   target.hp -= damage;
   target.lastHitBy = tower.id;
@@ -64,11 +73,22 @@ function hit(state: GameState, tower: Tower, target: Enemy, damage: number): voi
   state.stats.damageByTower[tower.kind] += dealt;
 }
 
-export function towersAttack(state: GameState): void {
-  const located: EnemyAt[] = state.enemies.map((enemy) => {
+function locate(state: GameState): EnemyAt[] {
+  return state.enemies.map((enemy) => {
     const p = positionAt(state.mapId, enemy.progress);
     return { enemy, x: p.x, y: p.y };
   });
+}
+
+/** The enemy this tower would shoot at right now, or null. */
+export function currentTarget(state: GameState, tower: Tower): Enemy | null {
+  const def = TOWERS[tower.kind];
+  if (!hasAttack(def)) return null;
+  return pickTarget(tower, def.range, locate(state))?.enemy ?? null;
+}
+
+export function towersAttack(state: GameState): void {
+  const located = locate(state);
   for (const tower of state.towers) {
     const def = TOWERS[tower.kind];
     if (!hasAttack(def)) continue;
@@ -78,13 +98,12 @@ export function towersAttack(state: GameState): void {
     }
     const target = pickTarget(tower, def.range, located);
     if (target === null) continue;
-    const damage = effectiveDamage(state, tower);
     if (def.splash > 0) {
       for (const e of located) {
-        if (squaredDistance(target.x, target.y, e.x, e.y) <= def.splash * def.splash) hit(state, tower, e.enemy, damage);
+        if (squaredDistance(target.x, target.y, e.x, e.y) <= def.splash * def.splash) hit(state, tower, e.enemy);
       }
     } else {
-      hit(state, tower, target.enemy, damage);
+      hit(state, tower, target.enemy);
     }
     tower.cooldown = def.cooldown - 1;
   }

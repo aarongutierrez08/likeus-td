@@ -1,4 +1,5 @@
 import { FP } from "./constants";
+import { TOWER_KINDS } from "./balance/towers";
 import { WAVES } from "./balance/waves";
 import { hashState } from "./hash";
 import { positionAt } from "./path";
@@ -30,7 +31,7 @@ export function dumpState(state: GameState): string {
   lines.push(`spawnQueue: ${state.spawnQueue.length} pending${next ? `, next at tick ${next.tick}` : ""}`);
   const s = state.stats;
   lines.push(
-    `stats: kills ${s.kills} leaks ${s.leaks} goldEarned ${s.goldEarned} dmg archer ${s.damageByTower.archer} cannon ${s.damageByTower.cannon}`,
+    `stats: kills ${s.kills} leaks ${s.leaks} goldEarned ${s.goldEarned} dmg ${TOWER_KINDS.map((k) => `${k} ${s.damageByTower[k]}`).join(" ")}`,
   );
   return lines.join("\n");
 }

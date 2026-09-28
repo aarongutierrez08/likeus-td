@@ -56,9 +56,9 @@ describe("towers", () => {
   it("cannon splash damages every enemy near the target", () => {
     const game = scenario({ seed: 1 })
       .tower("cannon", { x: 5, y: 3 })
-      .enemy("tank", { x: 5, y: 1, hp: 1000 })
-      .enemy("tank", { x: 5, y: 1, hp: 1000, offset: -TOWERS.cannon.splash })
-      .enemy("tank", { x: 5, y: 1, hp: 1000, offset: -TOWERS.cannon.splash - 1 })
+      .enemy("fast", { x: 5, y: 1, hp: 1000 })
+      .enemy("fast", { x: 5, y: 1, hp: 1000, offset: -TOWERS.cannon.splash })
+      .enemy("fast", { x: 5, y: 1, hp: 1000, offset: -TOWERS.cannon.splash - 1 })
       .run(1);
     expect(game.enemy(0).hp).toBe(1000 - TOWERS.cannon.damage);
     expect(game.enemy(1).hp).toBe(1000 - TOWERS.cannon.damage);

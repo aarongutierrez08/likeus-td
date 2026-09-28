@@ -26,7 +26,19 @@ export { MAPS, MAP_IDS, DEFAULT_MAP, isMapId, type MapId, type MapDef, type Poin
 export { TOWERS, TOWER_KINDS, SELL_REFUND_PCT, UPGRADE, type TowerDef } from "./balance/towers";
 export { hasAttack, hasAura, hasIncome, type TowerSpec, type AttackSpec, type AuraSpec, type IncomeSpec } from "./balance/define";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef } from "./balance/enemies";
+export {
+  ATTACK_TYPES,
+  ARMORS,
+  DAMAGE_TABLE,
+  ATTACK_LABELS,
+  ARMOR_LABELS,
+  damageMultiplier,
+  type AttackType,
+  type Armor,
+} from "./balance/damage";
 export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
 export { GAME } from "./balance/game";
+export { currentTarget, damageAgainst } from "./systems/towers";
+export { upcomingWaves, multiplierAgainstWaves, bestAttackTower } from "./preview";
 export { ECONOMY } from "./balance/economy";
 export { attenuatedBounty, scaledEnemyHp, startingGold, interestOn, callWaveBonus, callQuorum } from "./economy";

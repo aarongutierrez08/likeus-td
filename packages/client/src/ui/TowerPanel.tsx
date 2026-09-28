@@ -5,7 +5,11 @@ import {
   TICKS_PER_SECOND,
   TOWERS,
   UPGRADE,
+  ARMOR_LABELS,
+  ENEMIES,
   auraBonusOf,
+  currentTarget,
+  damageAgainst,
   hasAttack,
   hasAura,
   hasIncome,
@@ -17,6 +21,7 @@ import {
   type Tower,
 } from "@td/sim";
 import type { GameStore } from "../game/store";
+import { attackSummary } from "./Shop";
 
 export interface TowerActions {
   upgrade: (towerId: number) => void;
@@ -44,6 +49,10 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
     const t = tower();
     return t !== undefined && mayManage(t, props.store.you);
   };
+  const target = () => {
+    const t = tower();
+    return t === undefined ? null : currentTarget(props.store.state(), t);
+  };
   const next = () => {
     const t = tower();
     return t && t.level < UPGRADE.maxLevel ? { ...t, level: t.level + 1 } : undefined;
@@ -64,6 +73,18 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
             </Show>
             <span>{stats(t())}</span>
           </div>
+          <Show when={TOWERS[t().kind].attackType}>{(attack) => <div class="row muted">{attackSummary(attack())}</div>}</Show>
+          <Show when={target()}>
+            {(e) => (
+              <div class="row">
+                <span class="muted">Apuntando a</span>
+                <span>
+                  {ENEMIES[e().kind].label} ({ARMOR_LABELS[ENEMIES[e().kind].armor]})
+                </span>
+                <span>{damageAgainst(props.store.state(), t(), e())} daño por golpe</span>
+              </div>
+            )}
+          </Show>
           <Show when={next()} fallback={<div class="row muted">Nivel máximo</div>}>
             {(n) => (
               <div class="row">

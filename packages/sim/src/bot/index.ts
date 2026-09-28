@@ -1,5 +1,6 @@
 import { getMap, distanceToPath, isBuildable } from "../grid";
 import { TOWER_KINDS, TOWERS } from "../balance/towers";
+import { bestAttackTower, upcomingWaves } from "../preview";
 import { nextRng, seedRng } from "../rng";
 import type { Command, GameState, TowerKind } from "../types";
 
@@ -29,8 +30,13 @@ function freeCellsByPathDistance(state: GameState): Cell[] {
   return cells;
 }
 
-function cheapestTower(): TowerKind {
-  return TOWER_KINDS.reduce((best, kind) => (TOWERS[kind].cost < TOWERS[best].cost ? kind : best));
+const LOOKAHEAD_WAVES = 3;
+
+/** The attack tower that hits what is coming best; the cheapest one once no wave is left to look at. */
+function preferredTower(state: GameState): TowerKind {
+  const waves = upcomingWaves(state, LOOKAHEAD_WAVES).map((w) => w.def);
+  const best = bestAttackTower(waves);
+  return best ?? TOWER_KINDS.reduce((cheapest, kind) => (TOWERS[kind].cost < TOWERS[cheapest].cost ? kind : cheapest));
 }
 
 function build(state: GameState, playerId: number, tower: TowerKind, cell: Cell): Command {
@@ -38,8 +44,8 @@ function build(state: GameState, playerId: number, tower: TowerKind, cell: Cell)
 }
 
 /**
- * Reference bot. "trivial" buys the cheapest tower on the free cell closest to the path
- * (deterministic). "variant" picks a random affordable tower and one of the closest cells,
+ * Reference bot. "trivial" buys the attack tower with the best multiplier against the next waves,
+ * on the free cell closest to the path (deterministic), and waits until it can afford it. "variant" picks a random affordable tower and one of the closest cells,
  * driven by its own seeded RNG so many games per seed differ.
  */
 export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
@@ -58,7 +64,7 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
       const cells = freeCellsByPathDistance(state);
       if (cells.length === 0) return [];
       if (mode === "trivial") {
-        const kind = cheapestTower();
+        const kind = preferredTower(state);
         if (TOWERS[kind].cost > gold) return [];
         return [build(state, playerId, kind, cells[0]!)];
       }

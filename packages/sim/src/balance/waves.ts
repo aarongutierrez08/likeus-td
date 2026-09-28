@@ -13,52 +13,61 @@ export interface WaveDef {
   groups: readonly SpawnGroup[];
 }
 
+/** Difficulty comes from composition: each wave from the fourth asks for a specific answer. */
 export const WAVES: readonly WaveDef[] = [
   { hpPct: 100, groups: [{ kind: "normal", count: 6, spacing: 20 }] },
-  { hpPct: 135, groups: [{ kind: "normal", count: 10, spacing: 16 }] },
-  { hpPct: 115, groups: [{ kind: "fast", count: 8, spacing: 12 }] },
   {
-    hpPct: 160,
+    hpPct: 105,
     groups: [
-      { kind: "normal", count: 12, spacing: 14 },
-      { kind: "fast", count: 6, spacing: 10 },
+      { kind: "normal", count: 8, spacing: 16 },
+      { kind: "fast", count: 4, spacing: 12 },
     ],
   },
   {
-    hpPct: 190,
+    hpPct: 110,
+    groups: [
+      { kind: "swarm", count: 14, spacing: 6 },
+      { kind: "normal", count: 4, spacing: 14 },
+    ],
+  },
+  { hpPct: 115, groups: [{ kind: "fast", count: 12, spacing: 8 }] },
+  {
+    hpPct: 120,
     groups: [
       { kind: "tank", count: 2, spacing: 40 },
       { kind: "normal", count: 8, spacing: 12 },
     ],
   },
-  { hpPct: 225, groups: [{ kind: "fast", count: 16, spacing: 8 }] },
+  { hpPct: 130, groups: [{ kind: "enchanted", count: 8, spacing: 12 }] },
   {
-    hpPct: 265,
+    hpPct: 140,
     groups: [
-      { kind: "normal", count: 16, spacing: 10 },
+      { kind: "swarm", count: 24, spacing: 5 },
+      { kind: "knight", count: 4, spacing: 25 },
+    ],
+  },
+  {
+    hpPct: 150,
+    groups: [
+      { kind: "knight", count: 8, spacing: 18 },
+      { kind: "fast", count: 8, spacing: 8 },
+    ],
+  },
+  {
+    hpPct: 165,
+    groups: [
+      { kind: "enchanted", count: 10, spacing: 10 },
       { kind: "tank", count: 3, spacing: 30 },
     ],
   },
   {
-    hpPct: 310,
+    hpPct: 180,
     groups: [
-      { kind: "tank", count: 5, spacing: 25 },
-      { kind: "fast", count: 12, spacing: 8 },
-    ],
-  },
-  {
-    hpPct: 360,
-    groups: [
-      { kind: "normal", count: 20, spacing: 8 },
-      { kind: "fast", count: 12, spacing: 6 },
-    ],
-  },
-  {
-    hpPct: 410,
-    groups: [
-      { kind: "tank", count: 8, spacing: 20 },
-      { kind: "normal", count: 16, spacing: 8 },
-      { kind: "fast", count: 16, spacing: 5 },
+      { kind: "swarm", count: 20, spacing: 5 },
+      { kind: "knight", count: 6, spacing: 18 },
+      { kind: "enchanted", count: 8, spacing: 10 },
+      { kind: "fast", count: 10, spacing: 7 },
+      { kind: "tank", count: 3, spacing: 30 },
     ],
   },
 ];
