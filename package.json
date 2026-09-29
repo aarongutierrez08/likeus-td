@@ -15,6 +15,7 @@
     "shot": "tsx tools/shot.ts",
     "dump": "tsx tools/dump.ts",
     "coopsmoke": "tsx tools/coopsmoke.ts",
+    "uismoke": "tsx tools/uismoke.ts",
     "build": "pnpm --filter @td/client run build",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",

@@ -7,7 +7,8 @@ import { intArg, parseArgs } from "./args";
 
 /**
  * End-to-end smoke of the co-op path with a real server and two browser tabs:
- * create, join by code, start, build, chat, reload and reconnect. Exit 1 on any failure.
+ * create, join by code, start, build, upgrade to a branch, chat, reload and reconnect. Everything happens
+ * with the game running, as a player would do it. Exit 1 on any failure.
  */
 const args = parseArgs(process.argv.slice(2));
 const port = intArg(args, "port", 2599);
@@ -85,11 +86,38 @@ try {
   await b.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);
   done("partida iniciada en ambas pestañas");
 
-  const box = (await (await a.$("#map canvas"))!.boundingBox())!;
-  const cell = Math.min(box.width / 20, box.height / 12);
-  await a.mouse.click(box.x + (box.width - cell * 20) / 2 + cell * 3.5, box.y + (box.height - cell * 12) / 2 + cell * 3.5);
+  const cellOf = async (page: Page): Promise<(x: number, y: number) => { x: number; y: number }> => {
+    const box = (await (await page.$("#map canvas"))!.boundingBox())!;
+    const cell = Math.min(box.width / 20, box.height / 12);
+    return (x, y) => ({
+      x: box.x + Math.floor((box.width - cell * 20) / 2) + cell * (x + 0.5),
+      y: box.y + Math.floor((box.height - cell * 12) / 2) + cell * (y + 0.5),
+    });
+  };
+  const atA = await cellOf(a);
+  const atB = await cellOf(b);
+  await a.mouse.click(atA(15, 3).x, atA(15, 3).y);
   await b.waitForFunction(() => (window.__td?.state().towers.length ?? 0) === 1);
-  done("torre construida por A visible en B");
+  await b.mouse.click(atB(16, 3).x, atB(16, 3).y);
+  await a.waitForFunction(() => (window.__td?.state().towers.length ?? 0) === 2);
+  done("una torre de cada uno, visibles en ambas pestañas");
+
+  await a.locator("button", { hasText: "4×" }).first().click();
+  await a.waitForFunction(() => (window.__td?.state().players[0]?.gold ?? 0) >= 120 || window.__td?.state().status !== "playing", null, {
+    timeout: 180000,
+  });
+  await a.mouse.click(atA(15, 3).x, atA(15, 3).y);
+  await a.waitForSelector(".tower-panel");
+  await a.getByRole("button", { name: "Mejorar" }).click({ delay: 120 });
+  await a.waitForFunction(() => window.__td?.state().towers[0]?.level === 2, null, { timeout: 10000 });
+  const branchButtons = a.locator(".tower-panel button.inline").filter({ hasNotText: /Vender|Mejorar/ });
+  await branchButtons.first().waitFor();
+  await branchButtons.first().click({ delay: 120 });
+  await a.waitForFunction(() => window.__td?.state().towers[0]?.level === 3, null, { timeout: 10000 });
+  await b.waitForFunction(() => window.__td?.state().towers[0]?.level === 3 && window.__td?.state().towers[0]?.branch !== null, null, {
+    timeout: 10000,
+  });
+  done("A mejoró a nivel 3 con rama y B lo ve igual");
 
   await b.getByRole("button", { name: /Chat/ }).click();
   await b.fill(".chat input", "hola");
@@ -99,7 +127,7 @@ try {
   done("chat de B recibido en A");
 
   await b.reload();
-  await b.waitForFunction(() => (window.__td?.state().towers.length ?? 0) === 1, null, { timeout: 15000 });
+  await b.waitForFunction(() => (window.__td?.state().towers.length ?? 0) === 2, null, { timeout: 15000 });
   await a.waitForFunction(() => document.querySelector(".topbar")?.textContent?.includes("2/2"));
   done("B reconectado tras recargar");
 
