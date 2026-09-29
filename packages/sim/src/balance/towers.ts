@@ -2,14 +2,14 @@ import { defineTowers } from "./define";
 
 /** Adding a tower is adding an entry here. Types, stats, bot, shop and map derive from it (ADR 008). */
 export const TOWERS = defineTowers({
-  archer: { cost: 40, label: "Arquero", color: 0x6cc46c, attack: { type: "pierce", damage: 8, range: 2500, cooldown: 8 } },
+  archer: { cost: 60, label: "Arquero", color: 0x6cc46c, attack: { type: "pierce", damage: 8, range: 2500, cooldown: 8 } },
   mage: { cost: 70, label: "Mago", color: 0x5ab0ff, attack: { type: "magic", damage: 14, range: 3000, cooldown: 12 } },
   hammer: { cost: 95, label: "Martillo", color: 0xc9a27a, attack: { type: "blunt", damage: 36, range: 2000, cooldown: 24 } },
   cannon: {
-    cost: 120,
+    cost: 105,
     label: "Cañón",
     color: 0xf0954a,
-    attack: { type: "explosive", damage: 40, range: 3000, cooldown: 30, splash: 1000 },
+    attack: { type: "explosive", damage: 40, range: 3000, cooldown: 30, splash: 700 },
   },
   aura: { cost: 80, label: "Aura", color: 0xb07cf0, aura: { radius: 2, bonusPct: 25 } },
   mine: { cost: 100, label: "Mina", color: 0xf4c542, income: { perWave: 15 } },

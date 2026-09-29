@@ -30,44 +30,44 @@ export const WAVES: readonly WaveDef[] = [
       { kind: "normal", count: 4, spacing: 14 },
     ],
   },
-  { hpPct: 115, groups: [{ kind: "fast", count: 12, spacing: 8 }] },
+  { hpPct: 173, groups: [{ kind: "fast", count: 12, spacing: 8 }] },
   {
-    hpPct: 120,
+    hpPct: 270,
     groups: [
       { kind: "tank", count: 2, spacing: 40 },
       { kind: "normal", count: 8, spacing: 12 },
     ],
   },
-  { hpPct: 130, groups: [{ kind: "enchanted", count: 8, spacing: 12 }] },
+  { hpPct: 195, groups: [{ kind: "enchanted", count: 8, spacing: 12 }] },
   {
-    hpPct: 140,
+    hpPct: 210,
     groups: [
       { kind: "swarm", count: 24, spacing: 5 },
-      { kind: "knight", count: 4, spacing: 25 },
+      { kind: "rider", count: 3, spacing: 25 },
     ],
   },
   {
-    hpPct: 150,
+    hpPct: 225,
     groups: [
-      { kind: "knight", count: 8, spacing: 18 },
-      { kind: "fast", count: 8, spacing: 8 },
+      { kind: "rider", count: 6, spacing: 18 },
+      { kind: "tank", count: 2, spacing: 40 },
     ],
   },
   {
-    hpPct: 165,
+    hpPct: 248,
     groups: [
       { kind: "enchanted", count: 10, spacing: 10 },
-      { kind: "tank", count: 3, spacing: 30 },
+      { kind: "tank", count: 2, spacing: 30 },
     ],
   },
   {
-    hpPct: 180,
+    hpPct: 270,
     groups: [
       { kind: "swarm", count: 20, spacing: 5 },
-      { kind: "knight", count: 6, spacing: 18 },
-      { kind: "enchanted", count: 8, spacing: 10 },
+      { kind: "rider", count: 4, spacing: 18 },
+      { kind: "enchanted", count: 10, spacing: 10 },
       { kind: "fast", count: 10, spacing: 7 },
-      { kind: "tank", count: 3, spacing: 30 },
+      { kind: "tank", count: 2, spacing: 30 },
     ],
   },
 ];
