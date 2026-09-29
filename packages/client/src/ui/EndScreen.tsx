@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js";
+import { playerCss } from "./colors";
 import { TICKS_PER_SECOND, WAVES, type GameState } from "@td/sim";
 
 export interface EndActions {
@@ -50,7 +51,7 @@ export function EndScreen(props: { state: GameState; you: number; names?: Map<nu
             <For each={rows()}>
               {(r) => (
                 <tr classList={{ you: r.id === props.you }}>
-                  <td>{playerName(props.names, r.id)}</td>
+                  <td style={{ color: playerCss(props.state, r.id) }}>{playerName(props.names, r.id)}</td>
                   <td>{r.earned}</td>
                   <td>{r.gold}</td>
                   <td>{r.towers}</td>

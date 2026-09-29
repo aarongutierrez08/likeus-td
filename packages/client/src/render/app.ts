@@ -5,7 +5,9 @@ import {
   TOWER_KINDS,
   getMap,
   hasAura,
+  hasWall,
   isBuildable,
+  isPathCell,
   pathCells,
   type EnemyKind,
   type GameState,
@@ -24,7 +26,7 @@ export interface RendererOptions {
   mapId: MapId;
   onCellTap: (cell: Point) => void;
   /** Screen position (CSS pixels within the map element) and enemy kind of each kill, for floating labels. */
-  onKills?: (kills: (Point & { kind: EnemyKind })[]) => void;
+  onKills?: (kills: (Point & { kind: EnemyKind; owner: number | null })[]) => void;
 }
 
 export interface Renderer {
@@ -76,7 +78,9 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   const drawHover = (cell: Point | null): void => {
     hover.clear();
     if (!cell || !lastState) return;
-    const free = isBuildable(opts.mapId, cell.x, cell.y) && !lastState.towers.some((t) => t.x === cell.x && t.y === cell.y);
+    const wanted = hoverTower ? TOWERS[hoverTower] : null;
+    const placeable = wanted && hasWall(wanted) ? isPathCell(opts.mapId, cell.x, cell.y) : isBuildable(opts.mapId, cell.x, cell.y);
+    const free = placeable && !lastState.towers.some((t) => t.x === cell.x && t.y === cell.y);
     hover.rect(cell.x * BASE, cell.y * BASE, BASE, BASE).stroke({ width: 2, color: free ? COLORS.hover : COLORS.exit });
     if (!free || !hoverTower) return;
     const def = TOWERS[hoverTower];
@@ -110,7 +114,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
         opts.onKills(
           kills.map((k) => {
             const global = world.toGlobal({ x: k.x, y: k.y });
-            return { x: global.x, y: global.y, kind: k.kind };
+            return { x: global.x, y: global.y, kind: k.kind, owner: k.owner };
           }),
         );
       }

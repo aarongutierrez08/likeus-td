@@ -84,12 +84,12 @@ export class Connection {
     return body.rooms;
   }
 
-  async create(opts: { name: string; private: boolean; map: string }, handlers: RoomHandlers): Promise<string> {
+  async create(opts: { name: string; private: boolean; map: string; color?: number }, handlers: RoomHandlers): Promise<string> {
     return this.attach(await this.client.create(ROOM_NAME, opts), handlers);
   }
 
-  async join(code: string, name: string, handlers: RoomHandlers): Promise<string> {
-    return this.attach(await this.client.joinById(code, { name }), handlers);
+  async join(code: string, name: string, handlers: RoomHandlers, color?: number): Promise<string> {
+    return this.attach(await this.client.joinById(code, { name, color }), handlers);
   }
 
   /** Reconnects with the stored token for that code, or joins fresh when there is none. */

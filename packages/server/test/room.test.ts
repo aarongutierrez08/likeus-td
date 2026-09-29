@@ -214,7 +214,7 @@ describe("game room", () => {
     const lateSnapshot = await late.next<SnapshotMessage>("snapshot");
     expect(lateSnapshot.you).toBe(2);
     const joinTick = await host.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "join"));
-    expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2 });
+    expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2, color: 2 });
   });
 
   it("relays a wave call: the wave starts and everyone gets the bonus", async () => {

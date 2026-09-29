@@ -13,6 +13,7 @@ import {
   hasControl,
   hasIncome,
   hasReveal,
+  hasWall,
   type AttackType,
   type AuraStat,
   type TowerDef,
@@ -57,12 +58,18 @@ export function revealSummary(def: TowerDef): string {
   return `revela invisibles · alcance ${def.revealRange / FP}`;
 }
 
+/** "300 de vida · frena la oleada sobre el camino · uno por jugador, 20 s tras caer" */
+export function wallSummary(def: TowerDef, hp: number): string {
+  return `${hp} de vida · frena la oleada sobre el camino · uno por jugador, ${def.wallCooldown / TICKS_PER_SECOND} s tras caer`;
+}
+
 function describe(kind: TowerKind): string {
   const def = TOWERS[kind];
   if (hasIncome(def)) return `+${def.income} oro por oleada, solo para vos`;
   if (hasAura(def)) return auraSummary(def, def.auraBonusPct);
   if (hasControl(def)) return controlSummary(def, def.controlPct, def.controlDuration);
   if (hasReveal(def)) return revealSummary(def);
+  if (hasWall(def)) return wallSummary(def, def.wallHp);
   if (!hasAttack(def)) return "";
   const perSecond = (def.damage * TICKS_PER_SECOND) / def.cooldown;
   const splash = def.splash > 0 ? ` · área ${def.splash / FP}` : "";

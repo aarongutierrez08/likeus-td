@@ -4,12 +4,15 @@ import { DEFAULT_MAP, isMapId, type MapId } from "./balance/maps";
 import { TOWER_KINDS } from "./balance/towers";
 import { WAVES } from "./balance/waves";
 import { startingGold } from "./economy";
+import { pickColor } from "./colors";
 import { seedRng } from "./rng";
 import type { GameState, Player, TowerKind } from "./types";
 
 export interface PlayerSetup {
   id: number;
   gold?: number;
+  /** Preferred color; the first free one when absent or taken. */
+  color?: number;
 }
 
 export interface InitialStateOptions {
@@ -61,8 +64,13 @@ function isRanked(opts: InitialStateOptions): boolean {
 }
 
 function initialPlayers(opts: InitialStateOptions): Player[] {
-  const setups = opts.players ?? [{ id: 0 }];
-  return setups.map((p) => ({ id: p.id, gold: p.gold ?? opts.gold ?? startingGold(setups.length), earned: 0 })).sort((a, b) => a.id - b.id);
+  const setups = [...(opts.players ?? [{ id: 0 }])].sort((a, b) => a.id - b.id);
+  const players: Player[] = [];
+  for (const p of setups) {
+    const color = pickColor(players, p.color);
+    players.push({ id: p.id, gold: p.gold ?? opts.gold ?? startingGold(setups.length), earned: 0, wallReadyTick: 0, color });
+  }
+  return players;
 }
 
 function resolveMapId(id: string | undefined): MapId {

@@ -38,7 +38,20 @@ describe("mine", () => {
   });
 
   it("sells for 75% of its cost and other towers produce nothing", () => {
-    const mine: Tower = { id: 1, owner: 0, kind: "mine", level: 1, x: 5, y: 3, cooldown: 0, builtTick: 0, damageDealt: 0, kills: 0 };
+    const mine: Tower = {
+      id: 1,
+      owner: 0,
+      kind: "mine",
+      level: 1,
+      x: 5,
+      y: 3,
+      cooldown: 0,
+      builtTick: 0,
+      damageDealt: 0,
+      kills: 0,
+      hp: 0,
+      lastHitTick: -1,
+    };
     expect(sellRefund(mine)).toBe(Math.floor((TOWERS.mine.cost * 75) / 100));
     expect(towerIncome({ ...mine, kind: "archer" })).toBe(0);
   });

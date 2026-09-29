@@ -3,6 +3,7 @@ import { AFFIXES, ARMOR_LABELS, ECONOMY, ENEMIES, TICKS_PER_SECOND, WAVES, bossA
 import type { GameStore } from "../game/store";
 import type { NetStore } from "../net/store";
 import { ReportButton } from "./ReportDialog";
+import { playerCss } from "./colors";
 
 export interface EconomyActions {
   /** Coop only: sends a bug report with the game attached. */
@@ -92,7 +93,10 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
               <span class="mates">
                 <For each={s().players.filter((p) => p.id !== props.store.you)}>
                   {(p) => (
-                    <span classList={{ offline: !info().players.find((i) => i.playerId === p.id)?.connected }}>
+                    <span
+                      classList={{ offline: !info().players.find((i) => i.playerId === p.id)?.connected }}
+                      style={{ color: playerCss(s(), p.id) }}
+                    >
                       {info().players.find((i) => i.playerId === p.id)?.name ?? `Jugador ${p.id + 1}`} {p.gold}
                     </span>
                   )}

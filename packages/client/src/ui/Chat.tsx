@@ -2,7 +2,7 @@ import { For, Show, createSignal } from "solid-js";
 import { MAX_CHAT_LENGTH } from "@td/server/protocol";
 import type { NetStore } from "../net/store";
 
-export function Chat(props: { net: NetStore; send: (text: string) => void }) {
+export function Chat(props: { net: NetStore; send: (text: string) => void; colorOf?: (playerId: number) => string }) {
   const [open, setOpen] = createSignal(false);
   const [draft, setDraft] = createSignal("");
   const submit = (): void => {
@@ -21,7 +21,7 @@ export function Chat(props: { net: NetStore; send: (text: string) => void }) {
           <For each={props.net.chat()}>
             {(msg) => (
               <li>
-                <b>{msg.name}:</b> {msg.text}
+                <b style={{ color: props.colorOf?.(msg.playerId) }}>{msg.name}:</b> {msg.text}
               </li>
             )}
           </For>

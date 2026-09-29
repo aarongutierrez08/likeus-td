@@ -20,6 +20,8 @@ export type Phase = "lobby" | "playing" | "ended";
 export interface PlayerInfo {
   playerId: number;
   name: string;
+  /** Index into PLAYER_COLORS, unique in the room. */
+  color: number;
   connected: boolean;
   /** Marked in the lobby and on the end screen; start and restart wait for every connected player. */
   ready: boolean;
@@ -30,6 +32,8 @@ export interface CreateRoomOptions {
   private?: boolean;
   name?: string;
   map?: string;
+  /** Preferred player color; the first free one when absent or taken. */
+  color?: number;
 }
 
 export const SPEEDS = [1, 2, 4] as const;
@@ -37,6 +41,7 @@ export type Speed = (typeof SPEEDS)[number];
 
 export interface JoinRoomOptions {
   name?: string;
+  color?: number;
 }
 
 export interface RoomMetadata {
@@ -188,4 +193,6 @@ export interface ClientMessages {
   /** Creator only: back to the lobby with the same players and a fresh seed. */
   restart: Record<string, never>;
   ready: { ready: boolean };
+  /** Lobby and end screen only: pick a free color. */
+  setColor: { color: number };
 }

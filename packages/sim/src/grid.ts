@@ -84,3 +84,9 @@ export function pathCells(mapId: MapId): readonly Point[] {
 export function distanceToPath(mapId: MapId, x: number, y: number): number {
   return gridInfo(mapId).distanceToPath[cellKey(MAPS[mapId], x, y)] ?? Number.MAX_SAFE_INTEGER;
 }
+
+/** Index of a cell along the path (0 at the spawn), or -1 when it is not a path cell. */
+export function pathIndex(mapId: MapId, x: number, y: number): number {
+  if (!isPathCell(mapId, x, y)) return -1;
+  return gridInfo(mapId).pathCells.findIndex((c) => c.x === x && c.y === y);
+}

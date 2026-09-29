@@ -1,7 +1,8 @@
 import { For, Show, createSignal, onMount } from "solid-js";
 import type { RoomMetadata } from "@td/server/protocol";
 import { PLAYER_LIMIT } from "@td/server/protocol";
-import { MAP_IDS } from "@td/sim";
+import { MAP_IDS, PLAYER_COLORS } from "@td/sim";
+import { cssColor } from "./colors";
 import type { NetStore } from "../net/store";
 
 export interface LobbyActions {
@@ -12,6 +13,7 @@ export interface LobbyActions {
   kick(playerId: number): void;
   leave(): Promise<void>;
   setReady(ready: boolean): void;
+  setColor(color: number): void;
 }
 
 export function Lobby(props: { net: NetStore; actions: LobbyActions; defaultName: string; initialCode?: string | undefined }) {
@@ -119,7 +121,7 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
         <For each={props.info.players}>
           {(p) => (
             <li classList={{ offline: !p.connected }}>
-              <span>
+              <span style={{ color: cssColor(PLAYER_COLORS[p.color] ?? PLAYER_COLORS[0]) }}>
                 {p.name}
                 {p.playerId === props.info.creator ? " (anfitrión)" : ""}
                 {p.playerId === props.info.you ? " (vos)" : ""}
@@ -137,6 +139,22 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
           )}
         </For>
       </ul>
+      <div class="row swatches">
+        <span class="muted">Tu color</span>
+        <For each={[...PLAYER_COLORS.keys()]}>
+          {(color) => (
+            <button
+              type="button"
+              class="swatch"
+              classList={{ selected: me()?.color === color }}
+              disabled={props.info.players.some((p) => p.playerId !== props.info.you && p.color === color)}
+              style={{ background: cssColor(PLAYER_COLORS[color]!) }}
+              title={`Color ${color + 1}`}
+              onClick={() => props.actions.setColor(color)}
+            />
+          )}
+        </For>
+      </div>
       <div class="row">
         <Show
           when={isCreator()}

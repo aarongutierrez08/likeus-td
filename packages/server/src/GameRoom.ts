@@ -11,6 +11,8 @@ import {
   DEFAULT_MAP,
   hashState,
   applyCommand,
+  isPlayerColor,
+  pickColor,
   step,
   validateCommand,
   type Command,
@@ -107,6 +109,7 @@ export class GameRoom extends Room {
     this.onMessage<{ speed?: unknown }>("setSpeed", (client, msg) => this.handleSetSpeed(client, msg));
     this.onMessage("restart", (client) => void this.handleRestart(client));
     this.onMessage<{ ready?: unknown }>("ready", (client, msg) => this.handleReady(client, msg));
+    this.onMessage<{ color?: unknown }>("setColor", (client, msg) => this.handleSetColor(client, msg));
   }
 
   override async onJoin(client: Client, options?: JoinRoomOptions): Promise<void> {
@@ -114,13 +117,14 @@ export class GameRoom extends Room {
     const player: Player = {
       playerId,
       name: sanitizeName(options?.name, playerId),
+      color: pickColor([...this.players.values()], options?.color),
       connected: true,
       ready: false,
       sessionId: client.sessionId,
     };
     this.players.set(client.sessionId, player);
     if (this.players.size === 1) this.creatorPlayerId = playerId;
-    if (this.phase === "playing") this.pending.push({ type: "join", tick: this.sim.tick, playerId });
+    if (this.phase === "playing") this.pending.push({ type: "join", tick: this.sim.tick, playerId, color: player.color });
     client.send("snapshot", this.snapshotFor(player));
     this.broadcastPlayers();
     await this.publishMetadata();
@@ -155,7 +159,7 @@ export class GameRoom extends Room {
   private handleStart(client: Client): void {
     if (!this.isCreator(client) || this.phase !== "lobby" || !this.everyoneReady(client)) return;
     this.clearReady();
-    const players = [...this.players.values()].map((p) => ({ id: p.playerId }));
+    const players = [...this.players.values()].map((p) => ({ id: p.playerId, color: p.color }));
     this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players });
     this.initialState = this.sim;
     this.history.length = 0;
@@ -289,6 +293,15 @@ export class GameRoom extends Room {
     if (text.length === 0) return;
     const chat: ChatMessage = { playerId: player.playerId, name: player.name, text };
     this.broadcast("chat", chat);
+  }
+
+  /** Colors are picked while nobody plays; during a game the sim owns them. */
+  private handleSetColor(client: Client, msg: { color?: unknown }): void {
+    const player = this.players.get(client.sessionId);
+    if (!player || this.phase === "playing" || !isPlayerColor(msg?.color)) return;
+    if ([...this.players.values()].some((p) => p !== player && p.color === msg.color)) return;
+    player.color = msg.color;
+    this.broadcastPlayers();
   }
 
   private handleKick(client: Client, msg: { playerId?: unknown }): void {
@@ -447,7 +460,7 @@ export class GameRoom extends Room {
 
   private playerList(): PlayerInfo[] {
     return [...this.players.values()]
-      .map(({ playerId, name, connected, ready }) => ({ playerId, name, connected, ready }))
+      .map(({ playerId, name, color, connected, ready }) => ({ playerId, name, color, connected, ready }))
       .sort((a, b) => a.playerId - b.playerId);
   }
 

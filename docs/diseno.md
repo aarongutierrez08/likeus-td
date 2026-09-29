@@ -53,6 +53,13 @@ Una carta es cualquier cosa que un jugador lleva a la partida. Tres tipos:
 - Una habilidad no reemplaza a una torre: su daño total por partida debe ser menor que el de una torre de su costo equivalente. Su valor es el *momento* (salvar una oleada), no el daño por segundo.
 - Las doctrinas afectan solo al jugador que las eligió: sus torres, su oro, sus habilidades.
 
+## Muro con vida
+- Se construye sobre el camino. Los enemigos se detienen frente a él y lo golpean hasta destruirlo; el camino es fijo, así que no hay desvío. Jefes y pesados le pegan más fuerte.
+- No se repara ni se mejora, y no se puede vender mientras lo están golpeando.
+- Uno activo por jugador y un enfriamiento tras caer, para que ocho jugadores no bloqueen el camino en cadena.
+- Su vida no escala con la oleada: si en la 15 dura un segundo, está bien; ahí se lo mejora.
+- Es la versión que crea decisiones: dónde frenar la oleada para que el cañón y las auras trabajen, y cuándo. Un obstáculo con temporizador sería una habilidad disfrazada.
+
 ## Habilidades
 Dos por jugador. Primer set (4 en total, el jugador elige 2):
 - **Bombardeo**: daño explosivo en un área elegida, con un segundo de retraso visible.
@@ -115,10 +122,10 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 1. ✅ Sim determinista, lockstep, salas, lobby, 3 mapas, vender/mejorar, mina, aura, economía co-op.
 2. ✅ Contenido como datos; sin jitter de vida.
 3. 🔧 Tipos de ataque × armadura, 6 enemigos, oleadas por composición, calendario en HUD.
-4. 🔧 Familias: control (ralentizar, aturdir en área), muro con vida, auras de cadencia y de oro. Mismo tipo no apila. Hecho salvo el muro.
+4. ✅ Familias: control (ralentizar, aturdir en área), muro con vida, auras de cadencia y de oro. Mismo tipo no apila.
 5. ⬜ Ramas excluyentes en nivel 3: cada torre elige una de dos identidades.
 6. ✅ Enemigos con comportamiento: invisible (pide radar), sanador, escudo al primer golpe, se divide al morir, jefe cada 10 con afijo. Calendario a 20.
-7. ⬜ Color de jugador, sin diseños propios. Chico, mejora el co-op hoy.
+7. ✅ Color de jugador, sin diseños propios. Torre: forma por familia, color de dueño en el anillo, tipo por glifo y panel, nivel por marcas.
 8. ⬜ Bichos al azar dentro de la oleada: mezcla con la RNG de la sim, élites y jefes al final, calendario por composición.
 9. ⬜ Habilidades, como primer tipo de carta nuevo.
 10. ⬜ Mazo por jugador, primero con el set base y sin colección persistente.

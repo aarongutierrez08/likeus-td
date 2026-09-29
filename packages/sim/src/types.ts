@@ -19,6 +19,10 @@ export interface Tower {
   builtTick: number;
   damageDealt: number;
   kills: number;
+  /** Walls only: hit points left. 0 for every other tower. */
+  hp: number;
+  /** Walls only: last tick an enemy hit it; -1 if never. */
+  lastHitTick: number;
 }
 
 export interface Enemy {
@@ -63,6 +67,15 @@ export interface JoinCommand {
   type: "join";
   tick: number;
   playerId: number;
+  /** Preferred color; the first free one when absent or taken. */
+  color?: number;
+}
+
+export interface SetColorCommand {
+  type: "setColor";
+  tick: number;
+  playerId: number;
+  color: number;
 }
 
 export interface CallWaveCommand {
@@ -100,13 +113,18 @@ export interface LeaveCommand {
   playerId: number;
 }
 
-export type Command = BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand | UpgradeCommand | LeaveCommand;
+export type Command =
+  BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand | UpgradeCommand | LeaveCommand | SetColorCommand;
 
 export interface Player {
   id: number;
   gold: number;
   /** Gold earned in play: bounties, interest, mines, wave bonus. Gifts and sales are transfers, not earnings. */
   earned: number;
+  /** First tick this player may build a wall again after theirs fell. */
+  wallReadyTick: number;
+  /** Index into PLAYER_COLORS; unique among the players present. */
+  color: number;
 }
 
 export interface GameStats {

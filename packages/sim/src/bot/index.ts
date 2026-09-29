@@ -1,6 +1,6 @@
 import { FP } from "../constants";
 import { getMap, distanceToPath, isBuildable, pathCells } from "../grid";
-import { hasAttack, hasReveal } from "../balance/define";
+import { hasAttack, hasReveal, hasWall } from "../balance/define";
 import { TOWER_KINDS, TOWERS } from "../balance/towers";
 import { bestAttackTower, upcomingWaves, wavesNeedReveal } from "../preview";
 import { nextRng, seedRng } from "../rng";
@@ -64,6 +64,8 @@ function freeCellsByCoverage(state: GameState, kind: TowerKind): Cell[] {
 const LOOKAHEAD_WAVES = 3;
 
 const ATTACK_KINDS = TOWER_KINDS.filter((kind) => hasAttack(TOWERS[kind]));
+/** What the random bot may buy: anything that goes on a free cell, so no walls. */
+const OFF_PATH_KINDS = TOWER_KINDS.filter((kind) => !hasWall(TOWERS[kind]));
 
 /**
  * The attack tower that hits what is coming best, saving for it if needed; the cheapest one once no wave is left
@@ -113,7 +115,7 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
         const cells = freeCellsByCoverage(state, kind);
         return cells.length === 0 ? [] : [build(state, playerId, kind, cells[0]!)];
       }
-      const pool = ownsTowers ? TOWER_KINDS : ATTACK_KINDS;
+      const pool = ownsTowers ? OFF_PATH_KINDS : ATTACK_KINDS;
       wanted ??= pool[roll(pool.length)]!;
       if (TOWERS[wanted].cost > gold) return [];
       const cells = freeCellsByCoverage(state, wanted);

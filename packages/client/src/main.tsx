@@ -24,6 +24,7 @@ import { captureErrors, recentErrors } from "./net/errors";
 import { createNetStore, type NetStore } from "./net/store";
 import { parseUrlParams, type UrlParams } from "./params";
 import { createRenderer, type Renderer } from "./render/app";
+import { playerCss, readPreferredColor, writePreferredColor } from "./ui/colors";
 import { Chat } from "./ui/Chat";
 import { DebugPanel, type DebugActions } from "./ui/DebugPanel";
 import { Dump } from "./ui/Dump";
@@ -63,6 +64,12 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   not_owner: "Esa torre no es tuya",
   wave_in_progress: "Todavía quedan enemigos de esta oleada",
   max_level: "La torre ya está al máximo",
+  not_on_path: "El muro va sobre el camino",
+  wall_active: "Ya tenés un muro en pie",
+  wall_cooldown: "Tu muro cayó hace poco, esperá",
+  wall_under_attack: "No se vende un muro mientras lo golpean",
+  bad_color: "Ese color no existe",
+  color_taken: "Ese color ya está en uso",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -100,12 +107,15 @@ function makeNotifier(game: Game): (msg: string) => void {
   };
 }
 
-/** Every kill pays the same share to every player, so one label per kill is enough; the share depends on the enemy kind. */
-function killLabel(game: Game): (kills: { x: number; y: number; kind: EnemyKind }[]) => void {
+/** Every kill pays the same share to every player, so one label per kill is enough; it wears the color of whoever landed the kill. */
+function killLabel(game: Game): (kills: { x: number; y: number; kind: EnemyKind; owner: number | null }[]) => void {
   return (kills) => {
-    const players = game.store.state().players.length;
+    const state = game.store.state();
     const rect = mapEl.getBoundingClientRect();
-    for (const k of kills) game.labels.push(k.x + rect.left, k.y + rect.top, `+${attenuatedBounty(ENEMIES[k.kind].bounty, players)}`);
+    for (const k of kills) {
+      const text = `+${attenuatedBounty(ENEMIES[k.kind].bounty, state.players.length)}`;
+      game.labels.push(k.x + rect.left, k.y + rect.top, text, k.owner === null ? undefined : playerCss(state, k.owner));
+    }
   };
 }
 
@@ -184,7 +194,7 @@ function GameView(props: {
       />
       <Shop store={props.game.store} />
       <Show when={props.net && props.sendChat}>
-        <Chat net={props.net!} send={props.sendChat!} />
+        <Chat net={props.net!} send={props.sendChat!} colorOf={(id) => playerCss(props.game.store.state(), id)} />
       </Show>
       <Show when={props.game.store.debugOpen()}>
         <DebugPanel store={props.game.store} actions={actions()} remote={props.game.runner.remote} />
@@ -423,12 +433,17 @@ function bootCoop(params: UrlParams): void {
   };
 
   const actions: LobbyActions = {
-    create: (name, isPrivate, map) => guarded(() => connection.create({ name, private: isPrivate, map }, handlers)),
-    join: (code, name) => guarded(() => connection.join(code, name, handlers)),
+    create: (name, isPrivate, map) =>
+      guarded(() => connection.create({ name, private: isPrivate, map, color: readPreferredColor() }, handlers)),
+    join: (code, name) => guarded(() => connection.join(code, name, handlers, readPreferredColor())),
     listRooms: () => connection.listRooms(),
     start: () => connection.send("start", {}),
     kick: (playerId) => connection.send("kick", { playerId }),
     setReady: (ready) => connection.send("ready", { ready }),
+    setColor: (color) => {
+      writePreferredColor(color);
+      connection.send("setColor", { color });
+    },
     leave: async () => {
       await connection.leave();
       location.assign("?mode=coop");

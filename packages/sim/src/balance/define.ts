@@ -55,6 +55,13 @@ export interface RevealSpec {
   range: number;
 }
 
+export interface WallSpec {
+  /** Hit points; never repaired and never scaled by the wave. */
+  hp: number;
+  /** Ticks the owner waits after the wall falls before building another. */
+  cooldown: number;
+}
+
 export interface TowerSpec {
   cost: number;
   label: string;
@@ -65,6 +72,8 @@ export interface TowerSpec {
   control?: ControlSpec;
   income?: IncomeSpec;
   reveal?: RevealSpec;
+  /** Built on a path cell; enemies stop in front of it and hit it until it falls. One active per player. */
+  wall?: WallSpec;
 }
 
 /** Normalized: every family field present, zero when the tower has no such family. */
@@ -91,6 +100,8 @@ export interface TowerDef {
   controlSplash: number;
   income: number;
   revealRange: number;
+  wallHp: number;
+  wallCooldown: number;
 }
 
 export function defineTowers<K extends string>(specs: Record<K, TowerSpec>): Record<K, TowerDef> {
@@ -117,6 +128,8 @@ export function defineTowers<K extends string>(specs: Record<K, TowerSpec>): Rec
       controlSplash: spec.control?.splash ?? 0,
       income: spec.income?.perWave ?? 0,
       revealRange: spec.reveal?.range ?? 0,
+      wallHp: spec.wall?.hp ?? 0,
+      wallCooldown: spec.wall?.cooldown ?? 0,
     };
   }
   return out;
@@ -127,6 +140,7 @@ export const hasAura = (def: TowerDef): boolean => def.auraRadius > 0;
 export const hasControl = (def: TowerDef): boolean => def.controlEffect !== null;
 export const hasIncome = (def: TowerDef): boolean => def.income > 0;
 export const hasReveal = (def: TowerDef): boolean => def.revealRange > 0;
+export const hasWall = (def: TowerDef): boolean => def.wallHp > 0;
 
 export interface EnemySpec {
   label: string;
@@ -147,6 +161,8 @@ export interface EnemySpec {
   shieldHits?: number;
   /** On death, spawns `count` enemies of `kind` where it died. */
   split?: { kind: string; count: number };
+  /** Damage dealt per tick to a wall blocking it. */
+  wallDamage: number;
 }
 
 /** Normalized: every behavior field present, zero or null when the enemy has no such behavior. */
@@ -167,6 +183,7 @@ export interface EnemyDef {
   /** Another enemy kind, checked at definition time; null when it does not split. */
   splitKind: string | null;
   splitCount: number;
+  wallDamage: number;
 }
 
 export function defineEnemies<K extends string>(specs: Record<K, EnemySpec>): Record<K, EnemyDef> {
@@ -190,6 +207,7 @@ export function defineEnemies<K extends string>(specs: Record<K, EnemySpec>): Re
       shieldHits: spec.shieldHits ?? 0,
       splitKind: spec.split?.kind ?? null,
       splitCount: spec.split?.count ?? 0,
+      wallDamage: spec.wallDamage,
     };
   }
   return out;

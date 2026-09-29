@@ -18,6 +18,7 @@ import {
   hasControl,
   hasIncome,
   hasReveal,
+  hasWall,
   mayManage,
   sellRefund,
   towerDamage,
@@ -27,7 +28,8 @@ import {
   type Tower,
 } from "@td/sim";
 import type { GameStore } from "../game/store";
-import { attackSummary, auraSummary, controlSummary, revealSummary } from "./Shop";
+import { attackSummary, auraSummary, controlSummary, revealSummary, wallSummary } from "./Shop";
+import { playerCss } from "./colors";
 
 export interface TowerActions {
   upgrade: (towerId: number) => void;
@@ -40,6 +42,7 @@ function stats(state: GameState, tower: Tower): string {
   if (hasAura(def)) return auraSummary(def, auraBonusOf(tower));
   if (hasControl(def)) return controlSummary(def, controlPctOf(tower), controlDurationOf(tower));
   if (hasReveal(def)) return revealSummary(def);
+  if (hasWall(def)) return wallSummary(def, tower.hp);
   if (!hasAttack(def)) return "";
   const damage = towerDamage(tower);
   const perSecond = ((damage * TICKS_PER_SECOND) / effectiveCooldown(state, tower)).toFixed(0);
@@ -77,7 +80,9 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
               <span class="muted">del equipo</span>
             </Show>
             <Show when={!mine()}>
-              <span class="muted">de {props.ownerName?.(t().owner) ?? `Jugador ${t().owner + 1}`}</span>
+              <span style={{ color: playerCss(props.store.state(), t().owner) }}>
+                de {props.ownerName?.(t().owner) ?? `Jugador ${t().owner + 1}`}
+              </span>
             </Show>
             <span>{stats(props.store.state(), t())}</span>
           </div>

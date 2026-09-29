@@ -1,8 +1,10 @@
+import { hasWall } from "./balance/define";
 import { SELL_REFUND_PCT, TOWERS, UPGRADE } from "./balance/towers";
-import { isBuildable, isInside } from "./grid";
+import { isBuildable, isInside, isPathCell } from "./grid";
 import { ECONOMY } from "./balance/economy";
 import { TEAM_OWNER } from "./constants";
 import { WAVES } from "./balance/waves";
+import { isPlayerColor, pickColor } from "./colors";
 import { callQuorum, callWaveBonus, startingGold } from "./economy";
 import type {
   BuildCommand,
@@ -14,6 +16,7 @@ import type {
   LeaveCommand,
   Player,
   SellCommand,
+  SetColorCommand,
   Tower,
   TowerKind,
   UpgradeCommand,
@@ -33,7 +36,13 @@ export type RejectReason =
   | "no_tower"
   | "not_owner"
   | "wave_in_progress"
-  | "max_level";
+  | "max_level"
+  | "not_on_path"
+  | "wall_active"
+  | "wall_cooldown"
+  | "wall_under_attack"
+  | "bad_color"
+  | "color_taken";
 
 export function upgradeCost(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
@@ -88,10 +97,21 @@ export function validateBuild(state: GameState, cmd: BuildCommand): RejectReason
   const player = findPlayer(state, cmd.playerId);
   if (!player) return "no_player";
   if (!isInside(state.mapId, cmd.x, cmd.y)) return "outside";
-  if (!isBuildable(state.mapId, cmd.x, cmd.y)) return "on_path";
+  if (hasWall(def)) {
+    if (!isPathCell(state.mapId, cmd.x, cmd.y)) return "not_on_path";
+    if (state.towers.some((t) => t.owner === cmd.playerId && hasWall(TOWERS[t.kind]))) return "wall_active";
+    if (state.tick < player.wallReadyTick) return "wall_cooldown";
+  } else if (!isBuildable(state.mapId, cmd.x, cmd.y)) {
+    return "on_path";
+  }
   if (state.towers.some((t) => t.x === cmd.x && t.y === cmd.y)) return "occupied";
   if (player.gold < def.cost) return "no_gold";
   return null;
+}
+
+/** A wall is under attack when an enemy hit it this tick or the previous one. */
+export function underAttack(state: GameState, tower: Tower): boolean {
+  return hasWall(TOWERS[tower.kind]) && tower.lastHitTick >= state.tick - 1;
 }
 
 /** Joining twice is harmless: the second join is ignored. */
@@ -117,6 +137,14 @@ export function validateSell(state: GameState, cmd: SellCommand): RejectReason |
   const tower = state.towers.find((t) => t.id === cmd.towerId);
   if (!tower) return "no_tower";
   if (!mayManage(tower, cmd.playerId)) return "not_owner";
+  if (underAttack(state, tower)) return "wall_under_attack";
+  return null;
+}
+
+export function validateSetColor(state: GameState, cmd: SetColorCommand): RejectReason | null {
+  if (!findPlayer(state, cmd.playerId)) return "no_player";
+  if (!isPlayerColor(cmd.color)) return "bad_color";
+  if (state.players.some((p) => p.id !== cmd.playerId && p.color === cmd.color)) return "color_taken";
   return null;
 }
 
@@ -130,7 +158,7 @@ export function validateUpgrade(state: GameState, cmd: UpgradeCommand): RejectRe
   const tower = state.towers.find((t) => t.id === cmd.towerId);
   if (!tower) return "no_tower";
   if (!mayManage(tower, cmd.playerId)) return "not_owner";
-  if (tower.level >= UPGRADE.maxLevel) return "max_level";
+  if (tower.level >= UPGRADE.maxLevel || hasWall(TOWERS[tower.kind])) return "max_level";
   if (player.gold < upgradeCost(tower.kind)) return "no_gold";
   return null;
 }
@@ -161,6 +189,8 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateUpgrade(state, cmd);
     case "leave":
       return validateLeave(state, cmd);
+    case "setColor":
+      return validateSetColor(state, cmd);
   }
 }
 
@@ -181,11 +211,19 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
         builtTick: state.tick,
         damageDealt: 0,
         kills: 0,
+        hp: TOWERS[cmd.tower].wallHp,
+        lastHitTick: -1,
       });
       return true;
     case "join":
       if (!findPlayer(state, cmd.playerId)) {
-        state.players.push({ id: cmd.playerId, gold: startingGold(state.players.length + 1), earned: 0 });
+        state.players.push({
+          id: cmd.playerId,
+          gold: startingGold(state.players.length + 1),
+          earned: 0,
+          wallReadyTick: 0,
+          color: pickColor(state.players, cmd.color),
+        });
         state.players.sort((a, b) => a.id - b.id);
       }
       return true;
@@ -217,6 +255,9 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       findPlayer(state, cmd.playerId)!.gold -= upgradeCost(tower.kind);
       return true;
     }
+    case "setColor":
+      findPlayer(state, cmd.playerId)!.color = cmd.color;
+      return true;
     case "leave": {
       const leaving = findPlayer(state, cmd.playerId)!;
       state.players = state.players.filter((p) => p.id !== cmd.playerId);
