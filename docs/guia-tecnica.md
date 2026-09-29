@@ -48,6 +48,7 @@ Cada una tiene su ADR de una página en `docs/adr/`. Resumen en lenguaje llano:
 6. **En co-op el reloj lo marca el server** (ADR 006). El cliente avanza un tick solo cuando el server se lo manda. Cada segundo llega un hash del estado; si el del cliente difiere, pide un estado completo y sigue. Costo: la vista va medio viaje de red detrás del server, imperceptible en un TD.
 7. **Economía multijugador** (ADR 007). Vidas del equipo, oro de cada uno. Cuando muere un enemigo cobran todos, un poco menos por cabeza cuanta más gente hay; los enemigos tienen más vida cuantos más jugadores. Interés al cerrar cada oleada, se puede llamar la siguiente antes de tiempo, regalar oro desde la oleada 3, y las minas pagan solo a su dueño.
 8. **Contenido como datos** (ADR 008). Agregar una torre o un enemigo es agregar una entrada en `packages/sim/src/balance/`, declarando solo lo que hace (ataque, aura, ingreso). Tipos, estadísticas, bot, tienda y dibujo se derivan de esa entrada: ningún otro archivo enumera los tipos.
+9. **La tabla tipo de ataque × armadura es regla, no balance** (ADR 009). Cada tipo hace 150% contra una armadura y 50% contra otra, y toda fila y columna promedian 100%. Vive en `balance/` como cualquier dato, pero no se toca para balancear: cambiarla exige un ADR nuevo, porque el jugador tiene que poder aprenderla una vez y confiar en ella toda la partida.
 
 ## Cómo se juega, en dos párrafos
 
