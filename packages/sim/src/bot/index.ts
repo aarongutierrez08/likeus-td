@@ -1,7 +1,7 @@
 import { FP } from "../constants";
 import { getMap, distanceToPath, isBuildable, pathCells } from "../grid";
 import { hasAttack, hasReveal, hasWall } from "../balance/define";
-import { TOWER_KINDS, TOWERS } from "../balance/towers";
+import { TOWER_KINDS, TOWERS, towerDef } from "../balance/towers";
 import { bestAttackTower, upcomingWaves, wavesNeedReveal } from "../preview";
 import { nextRng, seedRng } from "../rng";
 import type { Command, GameState, TowerKind } from "../types";
@@ -74,7 +74,7 @@ const OFF_PATH_KINDS = TOWER_KINDS.filter((kind) => !hasWall(TOWERS[kind]));
 function preferredTower(state: GameState, gold: number, ownsTowers: boolean): TowerKind | null {
   const waves = upcomingWaves(state, LOOKAHEAD_WAVES).map((w) => w.def);
   const radar = TOWER_KINDS.find((kind) => hasReveal(TOWERS[kind]));
-  if (radar && wavesNeedReveal(waves) && !state.towers.some((t) => hasReveal(TOWERS[t.kind]))) return radar;
+  if (radar && wavesNeedReveal(waves) && !state.towers.some((t) => hasReveal(towerDef(t)))) return radar;
   const best =
     bestAttackTower(waves) ?? TOWER_KINDS.reduce((cheapest, kind) => (TOWERS[kind].cost < TOWERS[cheapest].cost ? kind : cheapest));
   if (TOWERS[best].cost <= gold || ownsTowers) return best;

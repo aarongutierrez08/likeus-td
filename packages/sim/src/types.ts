@@ -1,4 +1,5 @@
 import type { BossAffix } from "./balance/affixes";
+import type { Branch } from "./balance/define";
 import type { MapId } from "./balance/maps";
 
 export type { TowerKind } from "./balance/towers";
@@ -13,6 +14,8 @@ export interface Tower {
   kind: TowerKind;
   /** 1 when built; each upgrade adds one, up to UPGRADE.maxLevel. */
   level: number;
+  /** Identity chosen at the last level; null before that. */
+  branch: Branch | null;
   x: number;
   y: number;
   cooldown: number;
@@ -104,6 +107,8 @@ export interface UpgradeCommand {
   tick: number;
   playerId: number;
   towerId: number;
+  /** Required for the last level, ignored before it. */
+  branch?: Branch;
 }
 
 /** Issued by the server when a seat expires; never by a client. */

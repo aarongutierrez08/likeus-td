@@ -4,7 +4,7 @@ import {
   FP,
   PLAYER_COLORS,
   TEAM_OWNER,
-  TOWERS,
+  towerDef,
   currentSpeed,
   isRevealed,
   hasAttack,
@@ -90,7 +90,7 @@ export class EntityLayer {
    * Five shapes are learnable; eleven are not. Sprites will replace the shapes but keep this rule.
    */
   private drawTower(g: Graphics, t: Tower, ownerColor: number): void {
-    const def = TOWERS[t.kind];
+    const def = towerDef(t);
     const b = this.base;
     const c = b / 2;
     const r = b * 0.36;
@@ -254,7 +254,7 @@ export class EntityLayer {
 
   private drawRanges(towers: readonly Tower[]): void {
     for (const t of towers) {
-      const def = TOWERS[t.kind];
+      const def = towerDef(t);
       const cx = (t.x + 0.5) * this.base;
       const cy = (t.y + 0.5) * this.base;
       const reach = Math.max(def.range, def.controlRange, def.revealRange);

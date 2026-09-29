@@ -1,17 +1,17 @@
 import { damageMultiplier } from "../balance/damage";
 import { AURA_STATS, hasAttack, type AuraStat } from "../balance/define";
 import { ENEMIES } from "../balance/enemies";
-import { TOWERS } from "../balance/towers";
+import { towerDef } from "../balance/towers";
 import { auraBonusOf, towerDamage } from "../commands";
 import { attenuatedBounty } from "../economy";
 import type { Enemy, EnemyKind, GameState, Tower } from "../types";
-import { locate, pickTarget, squaredDistance } from "./targeting";
+import { locate, markOn, pickTarget, squaredDistance, type EnemyAt } from "./targeting";
 
 /** Strongest aura of this stat reaching the tower; auras of the same stat never stack. Ties go to the lowest id. */
 function strongestAura(state: GameState, tower: Tower, stat: AuraStat): Tower | null {
   let best: Tower | null = null;
   for (const other of state.towers) {
-    const def = TOWERS[other.kind];
+    const def = towerDef(other);
     if (def.auraStat !== stat || other.id === tower.id) continue;
     if (Math.max(Math.abs(other.x - tower.x), Math.abs(other.y - tower.y)) > def.auraRadius) continue;
     if (best === null || auraBonusOf(other) > auraBonusOf(best)) best = other;
@@ -34,15 +34,21 @@ export function effectiveDamage(state: GameState, tower: Tower): number {
 
 /** Ticks between shots once rate auras apply. */
 export function effectiveCooldown(state: GameState, tower: Tower): number {
-  const def = TOWERS[tower.kind];
+  const def = towerDef(tower);
   return Math.max(1, Math.floor((def.cooldown * 100) / (100 + auraBonusFor(state, tower, "rate"))));
 }
 
-/** Damage one hit of the tower deals to this enemy: effective damage times the attack-vs-armor multiplier. */
+/** Damage one hit of the tower deals to this enemy: effective damage times the attack-vs-armor multiplier, plus any mark. */
 export function damageAgainst(state: GameState, tower: Tower, enemy: Enemy): number {
-  const attack = TOWERS[tower.kind].attackType;
+  const attack = towerDef(tower).attackType;
   if (attack === null) return 0;
-  return Math.floor((effectiveDamage(state, tower) * damageMultiplier(attack, ENEMIES[enemy.kind].armor)) / 100);
+  const base = Math.floor((effectiveDamage(state, tower) * damageMultiplier(attack, ENEMIES[enemy.kind].armor)) / 100);
+  return Math.floor((base * (100 + markOn(state, enemy))) / 100);
+}
+
+/** Attack range once range auras apply. */
+export function effectiveRange(state: GameState, tower: Tower): number {
+  return Math.floor((towerDef(tower).range * (100 + auraBonusFor(state, tower, "range"))) / 100);
 }
 
 function hit(state: GameState, tower: Tower, target: Enemy): void {
@@ -60,21 +66,45 @@ function hit(state: GameState, tower: Tower, target: Enemy): void {
 
 /** The enemy this tower would shoot at right now, or null. */
 export function currentTarget(state: GameState, tower: Tower): Enemy | null {
-  const def = TOWERS[tower.kind];
+  const def = towerDef(tower);
   if (!hasAttack(def)) return null;
-  return pickTarget(tower, def.range, locate(state))?.enemy ?? null;
+  return pickTarget(tower, effectiveRange(state, tower), locate(state), def.targeting, def.minRange)?.enemy ?? null;
+}
+
+/** Chain hits: after the target, the nearest untouched enemy within chainRange of the last one hit, `chain` times. */
+function chainFrom(state: GameState, tower: Tower, first: EnemyAt, located: readonly EnemyAt[]): void {
+  const def = towerDef(tower);
+  const touched = new Set([first.enemy.id]);
+  let last = first;
+  for (let jump = 0; jump < def.chain; jump++) {
+    let next: EnemyAt | null = null;
+    let nextD2 = Number.MAX_SAFE_INTEGER;
+    for (const e of located) {
+      if (touched.has(e.enemy.id)) continue;
+      const d2 = squaredDistance(last.x, last.y, e.x, e.y);
+      if (d2 > def.chainRange * def.chainRange) continue;
+      if (d2 < nextD2 || (d2 === nextD2 && next !== null && e.enemy.id < next.enemy.id)) {
+        next = e;
+        nextD2 = d2;
+      }
+    }
+    if (next === null) return;
+    hit(state, tower, next.enemy);
+    touched.add(next.enemy.id);
+    last = next;
+  }
 }
 
 export function towersAttack(state: GameState): void {
   const located = locate(state);
   for (const tower of state.towers) {
-    const def = TOWERS[tower.kind];
+    const def = towerDef(tower);
     if (!hasAttack(def)) continue;
     if (tower.cooldown > 0) {
       tower.cooldown--;
       continue;
     }
-    const target = pickTarget(tower, def.range, located);
+    const target = pickTarget(tower, effectiveRange(state, tower), located, def.targeting, def.minRange);
     if (target === null) continue;
     if (def.splash > 0) {
       for (const e of located) {
@@ -82,6 +112,7 @@ export function towersAttack(state: GameState): void {
       }
     } else {
       hit(state, tower, target.enemy);
+      if (def.chain > 0) chainFrom(state, tower, target, located);
     }
     tower.cooldown = effectiveCooldown(state, tower) - 1;
   }
@@ -140,10 +171,11 @@ export function collectDead(state: GameState): void {
 function payGoldAura(state: GameState, killer: Tower, bounty: number): void {
   const aura = strongestAura(state, killer, "gold");
   if (aura === null) return;
-  const owner = state.players.find((p) => p.id === aura.owner);
-  if (!owner) return;
   const cut = Math.floor((bounty * auraBonusOf(aura)) / 100);
-  owner.gold += cut;
-  owner.earned += cut;
-  state.stats.goldEarned += cut;
+  const paid = towerDef(aura).auraShared ? state.players : state.players.filter((p) => p.id === aura.owner);
+  for (const player of paid) {
+    player.gold += cut;
+    player.earned += cut;
+    state.stats.goldEarned += cut;
+  }
 }

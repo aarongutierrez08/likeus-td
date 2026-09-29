@@ -12,3 +12,5 @@ paths:
 - En co-op el cliente no tiene reloj de sim: aplica `step()` solo al recibir cada `tick` del server (ADR 006). Los tipos del protocolo salen de `@td/server/protocol`.
 - Panel de debug con tecla `~`: pausa, +1 tick, rangos de torres, DPS por torre.
 - Todo debe funcionar en móvil (táctil) y con ventana chica. Sin dependencias de UI pesadas.
+- Listas de Solid (`<For>`) con claves estables: constantes o ids, nunca objetos creados en el render. El HUD se redibuja por tick y una fila recreada pierde el clic que empezó sobre ella.
+- Toda interacción nueva se prueba con la partida en marcha, no en pausa: `pnpm uismoke` en solo y `pnpm coopsmoke` en co-op; si el flujo nuevo no está cubierto, agregarlo al script antes de darlo por terminado.

@@ -1,5 +1,5 @@
 import { hasWall } from "./balance/define";
-import { SELL_REFUND_PCT, TOWERS, UPGRADE } from "./balance/towers";
+import { SELL_REFUND_PCT, TOWERS, UPGRADE, towerDef } from "./balance/towers";
 import { isBuildable, isInside, isPathCell } from "./grid";
 import { ECONOMY } from "./balance/economy";
 import { TEAM_OWNER } from "./constants";
@@ -42,14 +42,16 @@ export type RejectReason =
   | "wall_cooldown"
   | "wall_under_attack"
   | "bad_color"
-  | "color_taken";
+  | "color_taken"
+  | "branch_required"
+  | "bad_branch";
 
 export function upgradeCost(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
 }
 
 export function investedIn(tower: Tower): number {
-  return TOWERS[tower.kind].cost + upgradeCost(tower.kind) * (tower.level - 1);
+  return towerDef(tower).cost + upgradeCost(tower.kind) * (tower.level - 1);
 }
 
 export function sellRefund(tower: Tower): number {
@@ -57,18 +59,18 @@ export function sellRefund(tower: Tower): number {
 }
 
 export function towerDamage(tower: Tower): number {
-  const def = TOWERS[tower.kind];
+  const def = towerDef(tower);
   return Math.floor((def.damage * (100 + UPGRADE.damagePctPerLevel * (tower.level - 1))) / 100);
 }
 
 /** Gold this tower pays its owner at a wave close (ADR 007: not attenuated, owner only). */
 export function towerIncome(tower: Tower): number {
-  const def = TOWERS[tower.kind];
+  const def = towerDef(tower);
   return Math.floor((def.income * (100 + UPGRADE.incomePctPerLevel * (tower.level - 1))) / 100);
 }
 
 export function auraBonusOf(tower: Tower): number {
-  const def = TOWERS[tower.kind];
+  const def = towerDef(tower);
   if (def.auraRadius === 0) return 0;
   return def.auraBonusPct + UPGRADE.auraBonusPctPerLevel * (tower.level - 1);
 }
@@ -79,12 +81,12 @@ function controlScale(tower: Tower): number {
 
 /** Percent of speed a slow tower removes at its level; 0 for other towers. */
 export function controlPctOf(tower: Tower): number {
-  return Math.floor((TOWERS[tower.kind].controlPct * controlScale(tower)) / 100);
+  return Math.floor((towerDef(tower).controlPct * controlScale(tower)) / 100);
 }
 
 /** Ticks a control tower's effect lasts at its level; 0 for other towers. */
 export function controlDurationOf(tower: Tower): number {
-  return Math.floor((TOWERS[tower.kind].controlDuration * controlScale(tower)) / 100);
+  return Math.floor((towerDef(tower).controlDuration * controlScale(tower)) / 100);
 }
 
 export function findPlayer(state: GameState, playerId: number): Player | undefined {
@@ -99,7 +101,7 @@ export function validateBuild(state: GameState, cmd: BuildCommand): RejectReason
   if (!isInside(state.mapId, cmd.x, cmd.y)) return "outside";
   if (hasWall(def)) {
     if (!isPathCell(state.mapId, cmd.x, cmd.y)) return "not_on_path";
-    if (state.towers.some((t) => t.owner === cmd.playerId && hasWall(TOWERS[t.kind]))) return "wall_active";
+    if (state.towers.some((t) => t.owner === cmd.playerId && hasWall(towerDef(t)))) return "wall_active";
     if (state.tick < player.wallReadyTick) return "wall_cooldown";
   } else if (!isBuildable(state.mapId, cmd.x, cmd.y)) {
     return "on_path";
@@ -111,7 +113,7 @@ export function validateBuild(state: GameState, cmd: BuildCommand): RejectReason
 
 /** A wall is under attack when an enemy hit it this tick or the previous one. */
 export function underAttack(state: GameState, tower: Tower): boolean {
-  return hasWall(TOWERS[tower.kind]) && tower.lastHitTick >= state.tick - 1;
+  return hasWall(towerDef(tower)) && tower.lastHitTick >= state.tick - 1;
 }
 
 /** Joining twice is harmless: the second join is ignored. */
@@ -158,8 +160,12 @@ export function validateUpgrade(state: GameState, cmd: UpgradeCommand): RejectRe
   const tower = state.towers.find((t) => t.id === cmd.towerId);
   if (!tower) return "no_tower";
   if (!mayManage(tower, cmd.playerId)) return "not_owner";
-  if (tower.level >= UPGRADE.maxLevel || hasWall(TOWERS[tower.kind])) return "max_level";
+  if (tower.level >= UPGRADE.maxLevel || hasWall(towerDef(tower))) return "max_level";
   if (player.gold < upgradeCost(tower.kind)) return "no_gold";
+  if (tower.level + 1 === UPGRADE.maxLevel && TOWERS[tower.kind].branches) {
+    if (cmd.branch === undefined) return "branch_required";
+    if (cmd.branch !== "a" && cmd.branch !== "b") return "bad_branch";
+  }
   return null;
 }
 
@@ -205,6 +211,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
         owner: cmd.playerId,
         kind: cmd.tower,
         level: 1,
+        branch: null,
         x: cmd.x,
         y: cmd.y,
         cooldown: 0,
@@ -252,6 +259,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
     case "upgrade": {
       const tower = state.towers.find((t) => t.id === cmd.towerId)!;
       tower.level++;
+      if (tower.level === UPGRADE.maxLevel && cmd.branch !== undefined && TOWERS[tower.kind].branches) tower.branch = cmd.branch;
       findPlayer(state, cmd.playerId)!.gold -= upgradeCost(tower.kind);
       return true;
     }

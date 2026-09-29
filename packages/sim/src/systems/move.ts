@@ -1,7 +1,7 @@
 import { AFFIXES } from "../balance/affixes";
 import { hasWall } from "../balance/define";
 import { ENEMIES } from "../balance/enemies";
-import { TOWERS } from "../balance/towers";
+import { towerDef } from "../balance/towers";
 import { FP } from "../constants";
 import { pathIndex } from "../grid";
 import { pathLength } from "../path";
@@ -26,7 +26,7 @@ interface Block {
 function blocks(state: GameState): Block[] {
   const out: Block[] = [];
   for (const wall of state.towers) {
-    if (!hasWall(TOWERS[wall.kind])) continue;
+    if (!hasWall(towerDef(wall))) continue;
     out.push({ wall, at: Math.max(0, pathIndex(state.mapId, wall.x, wall.y) * FP - FP / 2) });
   }
   return out.sort((a, b) => a.at - b.at || a.wall.id - b.wall.id);
@@ -67,7 +67,7 @@ export function moveEnemies(state: GameState): void {
 function crumbleWalls(state: GameState): void {
   const standing: Tower[] = [];
   for (const tower of state.towers) {
-    const def = TOWERS[tower.kind];
+    const def = towerDef(tower);
     if (!hasWall(def) || tower.hp > 0) {
       standing.push(tower);
       continue;

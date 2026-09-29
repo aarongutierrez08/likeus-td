@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
 import {
   FP,
   TEAM_OWNER,
@@ -22,8 +22,10 @@ import {
   mayManage,
   sellRefund,
   towerDamage,
+  towerDef,
   towerIncome,
   upgradeCost,
+  type Branch,
   type GameState,
   type Tower,
 } from "@td/sim";
@@ -31,13 +33,16 @@ import type { GameStore } from "../game/store";
 import { attackSummary, auraSummary, controlSummary, revealSummary, wallSummary } from "./Shop";
 import { playerCss } from "./colors";
 
+/** A static list keeps the two rows mounted across ticks; rebuilding them would drop clicks in a running game. */
+const BRANCHES: readonly Branch[] = ["a", "b"];
+
 export interface TowerActions {
-  upgrade: (towerId: number) => void;
+  upgrade: (towerId: number, branch?: Branch) => void;
   sell: (towerId: number) => void;
 }
 
 function stats(state: GameState, tower: Tower): string {
-  const def = TOWERS[tower.kind];
+  const def = towerDef(tower);
   if (hasIncome(def)) return `+${towerIncome(tower)} oro por oleada`;
   if (hasAura(def)) return auraSummary(def, auraBonusOf(tower));
   if (hasControl(def)) return controlSummary(def, controlPctOf(tower), controlDurationOf(tower));
@@ -68,13 +73,20 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
     const t = tower();
     return t && t.level < UPGRADE.maxLevel ? { ...t, level: t.level + 1 } : undefined;
   };
+  /** Whether the next level is the last one and this tower offers branches. */
+  const choosing = () => {
+    const n = next();
+    return n !== undefined && n.level === UPGRADE.maxLevel && TOWERS[n.kind].branches !== null;
+  };
+  const branchInfo = (branch: Branch) => TOWERS[tower()!.kind].branches![branch];
+  const preview = (branch: Branch) => ({ ...next()!, branch });
   return (
     <Show when={tower()}>
       {(t) => (
         <div class="tower-panel">
           <div class="row">
-            <b>
-              {TOWERS[t().kind].label} nv{t().level}
+            <b title={towerDef(t()).line}>
+              {towerDef(t()).label} nv{t().level}
             </b>
             <Show when={t().owner === TEAM_OWNER}>
               <span class="muted">del equipo</span>
@@ -86,7 +98,7 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
             </Show>
             <span>{stats(props.store.state(), t())}</span>
           </div>
-          <Show when={TOWERS[t().kind].attackType}>{(attack) => <div class="row muted">{attackSummary(attack())}</div>}</Show>
+          <Show when={towerDef(t()).attackType}>{(attack) => <div class="row muted">{attackSummary(attack())}</div>}</Show>
           <Show when={target()}>
             {(e) => (
               <div class="row">
@@ -100,22 +112,49 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
           </Show>
           <Show when={next()} fallback={<div class="row muted">Nivel máximo</div>}>
             {(n) => (
-              <div class="row">
-                <span class="muted">
-                  Nv{n().level} (−{upgradeCost(t().kind)}):
-                </span>
-                <span>{stats(props.store.state(), n())}</span>
-                <Show when={mine() && props.actions}>
-                  <button
-                    type="button"
-                    class="inline"
-                    disabled={props.store.gold() < upgradeCost(t().kind)}
-                    onClick={() => props.actions!.upgrade(t().id)}
-                  >
-                    Mejorar
-                  </button>
-                </Show>
-              </div>
+              <Show
+                when={!choosing()}
+                fallback={
+                  <For each={BRANCHES}>
+                    {(branch) => (
+                      <div class="row">
+                        <span class="muted">
+                          Nv{n().level} {branchInfo(branch).label} (−{upgradeCost(t().kind)}):
+                        </span>
+                        <span>{branchInfo(branch).line}</span>
+                        <span class="muted">{stats(props.store.state(), preview(branch))}</span>
+                        <Show when={mine() && props.actions}>
+                          <button
+                            type="button"
+                            class="inline"
+                            disabled={props.store.gold() < upgradeCost(t().kind)}
+                            onClick={() => props.actions!.upgrade(t().id, branch)}
+                          >
+                            {branchInfo(branch).label}
+                          </button>
+                        </Show>
+                      </div>
+                    )}
+                  </For>
+                }
+              >
+                <div class="row">
+                  <span class="muted">
+                    Nv{n().level} (−{upgradeCost(t().kind)}):
+                  </span>
+                  <span>{stats(props.store.state(), n())}</span>
+                  <Show when={mine() && props.actions}>
+                    <button
+                      type="button"
+                      class="inline"
+                      disabled={props.store.gold() < upgradeCost(t().kind)}
+                      onClick={() => props.actions!.upgrade(t().id)}
+                    >
+                      Mejorar
+                    </button>
+                  </Show>
+                </div>
+              </Show>
             )}
           </Show>
           <Show when={mine() && props.actions}>

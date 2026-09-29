@@ -1,6 +1,8 @@
 import { bossAffix, initialShield } from "../affixes";
 import { ENEMIES } from "../balance/enemies";
+import { ECONOMY } from "../balance/economy";
 import { GAME } from "../balance/game";
+import { towerDef } from "../balance/towers";
 import { WAVES } from "../balance/waves";
 import { towerIncome } from "../commands";
 import { interestOn, scaledEnemyHp } from "../economy";
@@ -58,16 +60,21 @@ export function closeWaves(state: GameState): void {
     const wave = state.wavesClosed + 1;
     const pending = state.spawnQueue.some((e) => e.wave === wave) || state.enemies.some((e) => e.wave === wave);
     if (pending) return;
+    const capBonus = new Map<number, number>();
     for (const tower of state.towers) {
       const income = towerIncome(tower);
       if (income === 0) continue;
       const owner = state.players.find((p) => p.id === tower.owner);
       if (!owner) continue;
+      if (towerDef(tower).incomeMode === "interestCap") {
+        capBonus.set(owner.id, (capBonus.get(owner.id) ?? 0) + income);
+        continue;
+      }
       owner.gold += income;
       owner.earned += income;
     }
     for (const player of state.players) {
-      const interest = interestOn(player.gold);
+      const interest = interestOn(player.gold, ECONOMY.interestCapGold + (capBonus.get(player.id) ?? 0));
       player.gold += interest;
       player.earned += interest;
     }

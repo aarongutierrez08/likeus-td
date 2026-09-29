@@ -17,8 +17,8 @@ export interface AttackSpec {
   splash?: number;
 }
 
-export const AURA_STATS = ["damage", "rate", "gold"] as const;
-/** What an aura boosts on the towers in its square: their damage, their fire rate, or the gold their kills pay the aura's owner. */
+export const AURA_STATS = ["damage", "rate", "gold", "range"] as const;
+/** What an aura boosts on the towers in its square: damage, fire rate, the gold their kills pay the aura's owner, or range. */
 export type AuraStat = (typeof AURA_STATS)[number];
 
 export interface AuraSpec {
@@ -62,9 +62,39 @@ export interface WallSpec {
   cooldown: number;
 }
 
+export const TARGETINGS = ["furthest", "mostHp"] as const;
+export type Targeting = (typeof TARGETINGS)[number];
+
+export type Branch = "a" | "b";
+
+/** A level-3 branch: a patch over the tower's own spec plus the behaviors that make it play differently. */
+export interface BranchSpec {
+  label: string;
+  /** One line for the panel, readable in the shop. */
+  line: string;
+  attack?: Partial<AttackSpec>;
+  aura?: Partial<AuraSpec>;
+  control?: Partial<ControlSpec>;
+  income?: Partial<IncomeSpec>;
+  reveal?: Partial<RevealSpec>;
+  targeting?: Targeting;
+  /** Extra enemies each hit jumps to, within `chainRange` FP of the last one hit. */
+  chain?: number;
+  /** FP distance under which the tower does not fire. */
+  minRange?: number;
+  /** Gold aura: the cut goes to every player instead of the owner. */
+  auraShared?: boolean;
+  /** Income tower: raise the owner's interest cap by `income` instead of paying gold. */
+  incomeMode?: "gold" | "interestCap";
+  /** Reveal tower: percent of extra damage revealed enemies take from everyone. */
+  markPct?: number;
+}
+
 export interface TowerSpec {
   cost: number;
   label: string;
+  /** One line in the game's own voice: what it does, before what it is. */
+  line: string;
   /** 0xRRGGBB, used by the map and the shop swatch. */
   color: number;
   attack?: AttackSpec;
@@ -74,12 +104,22 @@ export interface TowerSpec {
   reveal?: RevealSpec;
   /** Built on a path cell; enemies stop in front of it and hit it until it falls. One active per player. */
   wall?: WallSpec;
+  /** Level 3 picks one of two identities. Absent for towers that cannot be upgraded. */
+  branches?: Record<Branch, BranchSpec>;
+}
+
+export interface BranchDef {
+  label: string;
+  line: string;
+  /** The tower's full definition once this branch is chosen. */
+  def: TowerDef;
 }
 
 /** Normalized: every family field present, zero when the tower has no such family. */
 export interface TowerDef {
   cost: number;
   label: string;
+  line: string;
   color: number;
   /** null when the tower has no attack family. */
   attackType: AttackType | null;
@@ -102,35 +142,78 @@ export interface TowerDef {
   revealRange: number;
   wallHp: number;
   wallCooldown: number;
+  targeting: Targeting;
+  chain: number;
+  chainRange: number;
+  minRange: number;
+  auraShared: boolean;
+  incomeMode: "gold" | "interestCap";
+  markPct: number;
+  /** null for a branch definition itself and for towers without branches. */
+  branches: Record<Branch, BranchDef> | null;
+}
+
+export const CHAIN_RANGE = 1500;
+
+function merged<T extends object>(base: T | undefined, patch: Partial<T> | undefined): T | undefined {
+  if (!base) return undefined;
+  return patch ? { ...base, ...patch } : base;
+}
+
+function normalizeTower(spec: TowerSpec, branch: BranchSpec | null): TowerDef {
+  const attack = merged(spec.attack, branch?.attack);
+  const aura = merged(spec.aura, branch?.aura);
+  const control = merged(spec.control, branch?.control);
+  const income = merged(spec.income, branch?.income);
+  const reveal = merged(spec.reveal, branch?.reveal);
+  return {
+    cost: spec.cost,
+    label: branch?.label ?? spec.label,
+    line: branch?.line ?? spec.line,
+    color: spec.color,
+    attackType: attack?.type ?? null,
+    damage: attack?.damage ?? 0,
+    range: attack?.range ?? 0,
+    cooldown: attack?.cooldown ?? 0,
+    splash: attack?.splash ?? 0,
+    auraStat: aura?.stat ?? null,
+    auraRadius: aura?.radius ?? 0,
+    auraBonusPct: aura?.bonusPct ?? 0,
+    controlEffect: control?.effect ?? null,
+    controlRange: control?.range ?? 0,
+    controlCooldown: control?.cooldown ?? 0,
+    controlDuration: control?.duration ?? 0,
+    controlPct: control?.pct ?? 0,
+    controlSplash: control?.splash ?? 0,
+    income: income?.perWave ?? 0,
+    revealRange: reveal?.range ?? 0,
+    wallHp: spec.wall?.hp ?? 0,
+    wallCooldown: spec.wall?.cooldown ?? 0,
+    targeting: branch?.targeting ?? "furthest",
+    chain: branch?.chain ?? 0,
+    chainRange: CHAIN_RANGE,
+    minRange: branch?.minRange ?? 0,
+    auraShared: branch?.auraShared ?? false,
+    incomeMode: branch?.incomeMode ?? "gold",
+    markPct: branch?.markPct ?? 0,
+    branches: null,
+  };
 }
 
 export function defineTowers<K extends string>(specs: Record<K, TowerSpec>): Record<K, TowerDef> {
   const out = {} as Record<K, TowerDef>;
   for (const kind of Object.keys(specs) as K[]) {
     const spec = specs[kind];
-    out[kind] = {
-      cost: spec.cost,
-      label: spec.label,
-      color: spec.color,
-      attackType: spec.attack?.type ?? null,
-      damage: spec.attack?.damage ?? 0,
-      range: spec.attack?.range ?? 0,
-      cooldown: spec.attack?.cooldown ?? 0,
-      splash: spec.attack?.splash ?? 0,
-      auraStat: spec.aura?.stat ?? null,
-      auraRadius: spec.aura?.radius ?? 0,
-      auraBonusPct: spec.aura?.bonusPct ?? 0,
-      controlEffect: spec.control?.effect ?? null,
-      controlRange: spec.control?.range ?? 0,
-      controlCooldown: spec.control?.cooldown ?? 0,
-      controlDuration: spec.control?.duration ?? 0,
-      controlPct: spec.control?.pct ?? 0,
-      controlSplash: spec.control?.splash ?? 0,
-      income: spec.income?.perWave ?? 0,
-      revealRange: spec.reveal?.range ?? 0,
-      wallHp: spec.wall?.hp ?? 0,
-      wallCooldown: spec.wall?.cooldown ?? 0,
-    };
+    const def = normalizeTower(spec, null);
+    if (spec.branches) {
+      const branch = (b: Branch): BranchDef => ({
+        label: spec.branches![b].label,
+        line: spec.branches![b].line,
+        def: normalizeTower(spec, spec.branches![b]),
+      });
+      def.branches = { a: branch("a"), b: branch("b") };
+    }
+    out[kind] = def;
   }
   return out;
 }
@@ -144,6 +227,8 @@ export const hasWall = (def: TowerDef): boolean => def.wallHp > 0;
 
 export interface EnemySpec {
   label: string;
+  /** One line in the game's own voice, shown next to the calendar. */
+  line: string;
   armor: Armor;
   hp: number;
   /** FP units per tick. 50 = one cell per second at 20 ticks/s. */
@@ -168,6 +253,7 @@ export interface EnemySpec {
 /** Normalized: every behavior field present, zero or null when the enemy has no such behavior. */
 export interface EnemyDef {
   label: string;
+  line: string;
   armor: Armor;
   hp: number;
   speed: number;
@@ -193,6 +279,7 @@ export function defineEnemies<K extends string>(specs: Record<K, EnemySpec>): Re
     if (spec.split && !(spec.split.kind in specs)) throw new Error(`enemy ${kind} splits into unknown kind ${spec.split.kind}`);
     out[kind] = {
       label: spec.label,
+      line: spec.line,
       armor: spec.armor,
       hp: spec.hp,
       speed: spec.speed,

@@ -15,7 +15,7 @@ describe("upgrading towers", () => {
     expect(game.tower(0).level).toBe(2);
     expect(game.gold(0)).toBe(TOWERS.archer.cost);
     expect(towerDamage(game.tower(0))).toBe(12);
-    game.upgrade(archer.id).run(1);
+    game.upgrade(archer.id, 0, "a").run(1);
     expect(game.tower(0).level).toBe(3);
     expect(game.gold(0)).toBe(0);
     expect(towerDamage(game.tower(0))).toBe(16);
@@ -32,11 +32,11 @@ describe("upgrading towers", () => {
   });
 
   it("a level 3 tower cannot be upgraded further", () => {
-    const game = scenario({ seed: 1, gold: 500 }).tower("archer", { x: 4, y: 2 }).upgrade(1).run(1).upgrade(1).run(1);
+    const game = scenario({ seed: 1, gold: 500 }).tower("archer", { x: 4, y: 2 }).upgrade(1).run(1).upgrade(1, 0, "a").run(1);
     expect(game.tower(0).level).toBe(3);
-    const again: Command = { type: "upgrade", tick: 0, playerId: 0, towerId: 1 };
+    const again: Command = { type: "upgrade", tick: 0, playerId: 0, towerId: 1, branch: "a" };
     expect(validateCommand(game.state(), again)).toBe("max_level");
-    game.upgrade(1).run(1);
+    game.upgrade(1, 0, "a").run(1);
     expect(game.gold(0)).toBe(500 - TOWERS.archer.cost * 2);
   });
 

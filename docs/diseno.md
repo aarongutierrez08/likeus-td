@@ -21,6 +21,14 @@ Frase de identidad que todo lo demás sirve: *defendé con tus amigos, con vuest
 - La curva inicial deja respirar: las tres primeras oleadas se ganan con cualquier cosa razonable.
 - Mazing puro es costoso de balancear y un jugador puede arruinar la sala. Vamos a casillas de desvío acotadas.
 
+Fortaleza TD y Element TD son referencia de arquitectura (contrajuego, auras, roguelite, curva), no de contenido: no se copian nombres, ramas, fusiones ni enemigos. Todo lo que se ve en pantalla tiene voz propia.
+
+### Voz para nombrar
+- Nombres cortos, en español rioplatense, con humor seco.
+- Dicen qué hace la torre antes que qué es: "Frena" antes que "Guardián".
+- Sin fantasía genérica (arcano, místico, ancestral) ni terminología de otros TDs.
+- Cada rama y cada enemigo se explica en una línea que se lee en la tienda o el calendario.
+
 ## Vocabulario
 - **Pregunta de oleada**: la carencia que castiga esa oleada.
 - **Palanca**: el número que se toca para balancear, en orden de preferencia (ver `.claude/rules/balance.md`).
@@ -53,7 +61,24 @@ Una carta es cualquier cosa que un jugador lleva a la partida. Tres tipos:
 - Una habilidad no reemplaza a una torre: su daño total por partida debe ser menor que el de una torre de su costo equivalente. Su valor es el *momento* (salvar una oleada), no el daño por segundo.
 - Las doctrinas afectan solo al jugador que las eligió: sus torres, su oro, sus habilidades.
 
-## Muro con vida
+## Ramas de nivel 3
+Al pagar el último nivel la torre elige una de dos identidades. Una es "más de lo mismo, mejor", para el que no quiere pensar; la otra "cambia cómo se usa": otro objetivo, otro efecto, otra forma. Cada rama tiene nombre corto y una línea que se lee en el panel. Ninguna rama que cambia el uso es puro número. La Tranquera no se mejora y no tiene ramas.
+
+| Torre | Más de lo mismo, mejor | Cambia cómo se usa |
+|---|---|---|
+| Pincha | **Al gordo**: de lejos y siempre al de más vida | **A lo loco**: el doble de tiros, de cerca |
+| Maldice | **Mal de ojo**: más daño por golpe | **Contagio**: el golpe se pasa a un vecino, nunca más de dos |
+| Mazazo | **Piña**: más pesado, más lento | **Sacudón**: pega a todos los pegados al objetivo |
+| Reviente | **Bombazo**: más daño, misma área | **Cañita voladora**: vuela lejos, no tira a lo que tiene encima |
+| Heladera | **Freezer**: frena más y dura más | **Ola polar**: frena a todos en un área, menos |
+| Cachetazo | **Nocaut**: aturde más tiempo | **Chirlo**: seguido y a uno solo |
+| Hinchada | **Barra brava**: radio 1, bono alto | **Popular**: un radio más, menos bono |
+| Mate | **Café**: más cadencia | **Catalejo**: los vecinos llegan más lejos en vez de tirar más seguido |
+| Propina | **Coima**: más porcentaje para vos | **Vaquita**: el extra se reparte entre todos, menos |
+| Alcancía | **Plazo fijo**: más oro por oleada | **Caja de ahorro**: en vez de oro, sube tu tope de interés |
+| Chusma | **Portera**: ve más lejos | **Escrache**: lo que ve recibe más daño de todos |
+
+## Tranquera (muro con vida)
 - Se construye sobre el camino. Los enemigos se detienen frente a él y lo golpean hasta destruirlo; el camino es fijo, así que no hay desvío. Jefes y pesados le pegan más fuerte.
 - No se repara ni se mejora, y no se puede vender mientras lo están golpeando.
 - Uno activo por jugador y un enfriamiento tras caer, para que ocho jugadores no bloqueen el camino en cadena.
@@ -123,7 +148,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 2. ✅ Contenido como datos; sin jitter de vida.
 3. 🔧 Tipos de ataque × armadura, 6 enemigos, oleadas por composición, calendario en HUD.
 4. ✅ Familias: control (ralentizar, aturdir en área), muro con vida, auras de cadencia y de oro. Mismo tipo no apila.
-5. ⬜ Ramas excluyentes en nivel 3: cada torre elige una de dos identidades.
+5. ✅ Ramas excluyentes en nivel 3: cada torre elige una de dos identidades.
 6. ✅ Enemigos con comportamiento: invisible (pide radar), sanador, escudo al primer golpe, se divide al morir, jefe cada 10 con afijo. Calendario a 20.
 7. ✅ Color de jugador, sin diseños propios. Torre: forma por familia, color de dueño en el anillo, tipo por glifo y panel, nivel por marcas.
 8. ⬜ Bichos al azar dentro de la oleada: mezcla con la RNG de la sim, élites y jefes al final, calendario por composición.

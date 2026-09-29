@@ -1,5 +1,5 @@
 import { hasControl } from "../balance/define";
-import { TOWERS } from "../balance/towers";
+import { towerDef } from "../balance/towers";
 import { controlDurationOf, controlPctOf } from "../commands";
 import type { Enemy, GameState, Tower } from "../types";
 import { locate, pickTarget, squaredDistance } from "./targeting";
@@ -10,7 +10,7 @@ import { locate, pickTarget, squaredDistance } from "./targeting";
  */
 function apply(state: GameState, tower: Tower, enemy: Enemy): void {
   const until = state.tick + 1 + controlDurationOf(tower);
-  if (TOWERS[tower.kind].controlEffect === "stun") {
+  if (towerDef(tower).controlEffect === "stun") {
     enemy.stunUntil = Math.max(enemy.stunUntil, until);
     return;
   }
@@ -28,7 +28,7 @@ function apply(state: GameState, tower: Tower, enemy: Enemy): void {
 export function towersControl(state: GameState): void {
   const located = locate(state);
   for (const tower of state.towers) {
-    const def = TOWERS[tower.kind];
+    const def = towerDef(tower);
     if (!hasControl(def)) continue;
     if (tower.cooldown > 0) {
       tower.cooldown--;

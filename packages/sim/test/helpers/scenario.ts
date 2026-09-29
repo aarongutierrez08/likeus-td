@@ -10,6 +10,7 @@ import {
   step,
   type Bot,
   type BossAffix,
+  type Branch,
   type Command,
   type Enemy,
   type EnemyKind,
@@ -149,8 +150,10 @@ export class Scenario {
     return this;
   }
 
-  upgrade(towerId: number, player: number = DEFAULT_PLAYER): this {
-    this.queued.push({ type: "upgrade", tick: 0, playerId: player, towerId });
+  upgrade(towerId: number, player: number = DEFAULT_PLAYER, branch?: Branch): this {
+    this.queued.push(
+      branch ? { type: "upgrade", tick: 0, playerId: player, towerId, branch } : { type: "upgrade", tick: 0, playerId: player, towerId },
+    );
     return this;
   }
 

@@ -21,8 +21,8 @@ export function startingGold(players: number): number {
   return Math.floor((GAME.startGold * ECONOMY.multiplayerStartGoldPct) / 100);
 }
 
-export function interestOn(gold: number): number {
-  return Math.min(Math.floor((gold * ECONOMY.interestPct) / 100), ECONOMY.interestCapGold);
+export function interestOn(gold: number, cap: number = ECONOMY.interestCapGold): number {
+  return Math.min(Math.floor((gold * ECONOMY.interestPct) / 100), cap);
 }
 
 export function callWaveBonus(ticksSaved: number): number {

@@ -43,6 +43,7 @@ describe("mine", () => {
       owner: 0,
       kind: "mine",
       level: 1,
+      branch: null,
       x: 5,
       y: 3,
       cooldown: 0,

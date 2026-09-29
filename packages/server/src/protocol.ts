@@ -1,4 +1,4 @@
-import type { Command, GameState, RejectReason, TowerKind } from "@td/sim";
+import type { Branch, Command, GameState, RejectReason, TowerKind } from "@td/sim";
 
 /** Wire protocol between GameRoom and the client. Types and constants only: no Colyseus imports. */
 
@@ -108,6 +108,8 @@ export interface SellRequest {
 export interface UpgradeRequest {
   type: "upgrade";
   towerId: number;
+  /** Required by the sim for the last level. */
+  branch?: Branch;
 }
 
 export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest | SellRequest | UpgradeRequest;

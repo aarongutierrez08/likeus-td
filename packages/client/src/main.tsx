@@ -64,12 +64,14 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   not_owner: "Esa torre no es tuya",
   wave_in_progress: "Todavía quedan enemigos de esta oleada",
   max_level: "La torre ya está al máximo",
-  not_on_path: "El muro va sobre el camino",
-  wall_active: "Ya tenés un muro en pie",
-  wall_cooldown: "Tu muro cayó hace poco, esperá",
-  wall_under_attack: "No se vende un muro mientras lo golpean",
+  not_on_path: "La tranquera va sobre el camino",
+  wall_active: "Ya tenés una tranquera en pie",
+  wall_cooldown: "Tu tranquera cayó hace poco, esperá",
+  wall_under_attack: "No se vende una tranquera mientras la golpean",
   bad_color: "Ese color no existe",
   color_taken: "Ese color ya está en uso",
+  branch_required: "El último nivel elige una rama",
+  bad_branch: "Esa rama no existe",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -279,7 +281,10 @@ async function bootSolo(params: UrlParams): Promise<void> {
       store.setSelectedTowerId(null);
       localCommand({ type: "sell", tick: 0, playerId: 0, towerId });
     },
-    upgrade: (towerId) => localCommand({ type: "upgrade", tick: 0, playerId: 0, towerId }),
+    upgrade: (towerId, branch) =>
+      localCommand(
+        branch ? { type: "upgrade", tick: 0, playerId: 0, towerId, branch } : { type: "upgrade", tick: 0, playerId: 0, towerId },
+      ),
   };
   const withSeed = (seed: number | null): string => {
     const query = new URLSearchParams(location.search);
@@ -479,7 +484,8 @@ function bootCoop(params: UrlParams): void {
                   g().store.setSelectedTowerId(null);
                   connection.send("cmd", { type: "sell", towerId });
                 },
-                upgrade: (towerId) => connection.send("cmd", { type: "upgrade", towerId }),
+                upgrade: (towerId, branch) =>
+                  connection.send("cmd", branch ? { type: "upgrade", towerId, branch } : { type: "upgrade", towerId }),
                 speed: () => net.roomInfo()?.speed ?? 1,
                 setSpeed:
                   net.roomInfo()?.you === net.roomInfo()?.creator

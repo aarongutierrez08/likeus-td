@@ -1,5 +1,16 @@
 import { For, Show, createSignal, untrack } from "solid-js";
-import { AFFIXES, ARMOR_LABELS, ECONOMY, ENEMIES, TICKS_PER_SECOND, WAVES, bossAffix, callWaveBonus, upcomingWaves } from "@td/sim";
+import {
+  AFFIXES,
+  ARMOR_LABELS,
+  ECONOMY,
+  ENEMIES,
+  TICKS_PER_SECOND,
+  WAVES,
+  bossAffix,
+  callWaveBonus,
+  upcomingWaves,
+  type Branch,
+} from "@td/sim";
 import type { GameStore } from "../game/store";
 import type { NetStore } from "../net/store";
 import { ReportButton } from "./ReportDialog";
@@ -11,7 +22,7 @@ export interface EconomyActions {
   callWave: () => void;
   gift: (to: number, amount: number) => void;
   sell: (towerId: number) => void;
-  upgrade: (towerId: number) => void;
+  upgrade: (towerId: number, branch?: Branch) => void;
   /** Absent when this player may not change the pace (coop guests). */
   setSpeed?: (speed: number) => void;
   speed?: () => number;
@@ -129,7 +140,7 @@ function WavePreview(props: { store: GameStore }) {
               <b>{w.number}</b>
               <For each={w.def.groups}>
                 {(g) => (
-                  <span style={{ color: `#${ENEMIES[g.kind].color.toString(16).padStart(6, "0")}` }}>
+                  <span style={{ color: `#${ENEMIES[g.kind].color.toString(16).padStart(6, "0")}` }} title={ENEMIES[g.kind].line}>
                     {g.count} {ENEMIES[g.kind].label} <span class="muted">({ARMOR_LABELS[ENEMIES[g.kind].armor]})</span>
                     <Show when={g.kind === "boss"}>
                       <span class="muted"> · {AFFIXES[bossAffix(props.store.state().seed, w.number)].label}</span>

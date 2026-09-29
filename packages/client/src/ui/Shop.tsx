@@ -37,7 +37,7 @@ export function attackSummary(attack: AttackType): string {
   return [ATTACK_LABELS[attack], ...strong, ...weak].join(" · ");
 }
 
-const AURA_STAT_LABELS: Record<AuraStat, string> = { damage: "daño", rate: "cadencia", gold: "oro por muerte, para vos" };
+const AURA_STAT_LABELS: Record<AuraStat, string> = { damage: "daño", rate: "cadencia", gold: "oro por muerte, para vos", range: "alcance" };
 
 /** "+25% daño en 5×5" */
 export function auraSummary(def: TowerDef, bonusPct: number): string {
@@ -81,9 +81,9 @@ function attackLine(kind: TowerKind): string {
   return attack === null ? "" : ` · ${ATTACK_LABELS[attack]}`;
 }
 
-function tooltip(kind: TowerKind): string | undefined {
-  const attack = TOWERS[kind].attackType;
-  return attack === null ? undefined : attackSummary(attack);
+function tooltip(kind: TowerKind): string {
+  const def = TOWERS[kind];
+  return def.attackType === null ? def.line : `${def.line} · ${attackSummary(def.attackType)}`;
 }
 
 export function Shop(props: { store: GameStore }) {

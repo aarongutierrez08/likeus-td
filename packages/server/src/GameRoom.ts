@@ -524,9 +524,13 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
     case "sell":
       if (!Number.isInteger(v["towerId"])) return null;
       return { type: "sell", tick, playerId, towerId: v["towerId"] as number };
-    case "upgrade":
+    case "upgrade": {
       if (!Number.isInteger(v["towerId"])) return null;
-      return { type: "upgrade", tick, playerId, towerId: v["towerId"] as number };
+      const branch = v["branch"];
+      if (branch !== undefined && branch !== "a" && branch !== "b") return null;
+      const towerId = v["towerId"] as number;
+      return branch === undefined ? { type: "upgrade", tick, playerId, towerId } : { type: "upgrade", tick, playerId, towerId, branch };
+    }
     default:
       return null;
   }

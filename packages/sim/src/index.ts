@@ -26,7 +26,7 @@ export { createBot, type Bot, type BotMode } from "./bot/index";
 export { getMap, isInside, isPathCell, isBuildable, pathCells, distanceToPath, pathIndex } from "./grid";
 export { pathLength, positionAt, cellCenterFP } from "./path";
 export { MAPS, MAP_IDS, DEFAULT_MAP, isMapId, type MapId, type MapDef, type Point } from "./balance/maps";
-export { TOWERS, TOWER_KINDS, SELL_REFUND_PCT, UPGRADE, type TowerDef } from "./balance/towers";
+export { TOWERS, TOWER_KINDS, SELL_REFUND_PCT, UPGRADE, towerDef, type TowerDef, type Branch } from "./balance/towers";
 export {
   hasAttack,
   hasAura,
@@ -45,6 +45,10 @@ export {
   type IncomeSpec,
   type RevealSpec,
   type WallSpec,
+  type BranchSpec,
+  type BranchDef,
+  type Targeting,
+  TARGETINGS,
 } from "./balance/define";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef, type EnemySpec } from "./balance/enemies";
 export { AFFIXES, BOSS_AFFIXES, type BossAffix } from "./balance/affixes";
@@ -64,7 +68,7 @@ export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
 export { GAME } from "./balance/game";
 export { PLAYER_COLORS } from "./balance/players";
 export { isPlayerColor, pickColor } from "./colors";
-export { currentTarget, damageAgainst, effectiveCooldown } from "./systems/towers";
+export { currentTarget, damageAgainst, effectiveCooldown, effectiveRange } from "./systems/towers";
 export { currentSpeed } from "./systems/move";
 export { upcomingWaves, multiplierAgainstWaves, bestAttackTower, wavesNeedReveal } from "./preview";
 export { ECONOMY } from "./balance/economy";
