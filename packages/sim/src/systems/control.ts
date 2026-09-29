@@ -1,38 +1,8 @@
 import { hasControl } from "../balance/define";
 import { TOWERS } from "../balance/towers";
 import { controlDurationOf, controlPctOf } from "../commands";
-import { cellCenterFP, positionAt } from "../path";
 import type { Enemy, GameState, Tower } from "../types";
-
-interface EnemyAt {
-  enemy: Enemy;
-  x: number;
-  y: number;
-}
-
-function squaredDistance(ax: number, ay: number, bx: number, by: number): number {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return dx * dx + dy * dy;
-}
-
-/** Enemy furthest along the path within range. Ties go to the lowest id. */
-function pickTarget(tower: Tower, range: number, enemies: readonly EnemyAt[]): EnemyAt | null {
-  const tx = cellCenterFP(tower.x);
-  const ty = cellCenterFP(tower.y);
-  let best: EnemyAt | null = null;
-  for (const e of enemies) {
-    if (squaredDistance(tx, ty, e.x, e.y) > range * range) continue;
-    if (
-      best === null ||
-      e.enemy.progress > best.enemy.progress ||
-      (e.enemy.progress === best.enemy.progress && e.enemy.id < best.enemy.id)
-    ) {
-      best = e;
-    }
-  }
-  return best;
-}
+import { locate, pickTarget, squaredDistance } from "./targeting";
 
 /**
  * Same effect never stacks: a stronger slow replaces a weaker one, an equal one only lasts longer; a stun only refreshes.
@@ -56,10 +26,7 @@ function apply(state: GameState, tower: Tower, enemy: Enemy): void {
 
 /** Control towers act after attacks and share the tower's single cooldown timer. */
 export function towersControl(state: GameState): void {
-  const located: EnemyAt[] = state.enemies.map((enemy) => {
-    const p = positionAt(state.mapId, enemy.progress);
-    return { enemy, x: p.x, y: p.y };
-  });
+  const located = locate(state);
   for (const tower of state.towers) {
     const def = TOWERS[tower.kind];
     if (!hasControl(def)) continue;

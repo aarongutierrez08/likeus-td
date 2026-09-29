@@ -31,6 +31,7 @@ export {
   hasAura,
   hasControl,
   hasIncome,
+  hasReveal,
   AURA_STATS,
   CONTROL_EFFECTS,
   type TowerSpec,
@@ -40,8 +41,12 @@ export {
   type ControlSpec,
   type ControlEffect,
   type IncomeSpec,
+  type RevealSpec,
 } from "./balance/define";
-export { ENEMIES, ENEMY_KINDS, type EnemyDef } from "./balance/enemies";
+export { ENEMIES, ENEMY_KINDS, type EnemyDef, type EnemySpec } from "./balance/enemies";
+export { AFFIXES, BOSS_AFFIXES, type BossAffix } from "./balance/affixes";
+export { bossAffix, initialShield } from "./affixes";
+export { isRevealed } from "./systems/targeting";
 export {
   ATTACK_TYPES,
   ARMORS,
@@ -56,6 +61,6 @@ export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
 export { GAME } from "./balance/game";
 export { currentTarget, damageAgainst, effectiveCooldown } from "./systems/towers";
 export { currentSpeed } from "./systems/move";
-export { upcomingWaves, multiplierAgainstWaves, bestAttackTower } from "./preview";
+export { upcomingWaves, multiplierAgainstWaves, bestAttackTower, wavesNeedReveal } from "./preview";
 export { ECONOMY } from "./balance/economy";
 export { attenuatedBounty, scaledEnemyHp, startingGold, interestOn, callWaveBonus, callQuorum } from "./economy";

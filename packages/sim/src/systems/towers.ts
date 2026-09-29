@@ -4,20 +4,8 @@ import { ENEMIES } from "../balance/enemies";
 import { TOWERS } from "../balance/towers";
 import { auraBonusOf, towerDamage } from "../commands";
 import { attenuatedBounty } from "../economy";
-import { cellCenterFP, positionAt } from "../path";
-import type { Enemy, GameState, Tower } from "../types";
-
-interface EnemyAt {
-  enemy: Enemy;
-  x: number;
-  y: number;
-}
-
-function squaredDistance(ax: number, ay: number, bx: number, by: number): number {
-  const dx = ax - bx;
-  const dy = ay - by;
-  return dx * dx + dy * dy;
-}
+import type { Enemy, EnemyKind, GameState, Tower } from "../types";
+import { locate, pickTarget, squaredDistance } from "./targeting";
 
 /** Strongest aura of this stat reaching the tower; auras of the same stat never stack. Ties go to the lowest id. */
 function strongestAura(state: GameState, tower: Tower, stat: AuraStat): Tower | null {
@@ -57,38 +45,17 @@ export function damageAgainst(state: GameState, tower: Tower, enemy: Enemy): num
   return Math.floor((effectiveDamage(state, tower) * damageMultiplier(attack, ENEMIES[enemy.kind].armor)) / 100);
 }
 
-/** Enemy furthest along the path within range. Ties go to the lowest id. */
-function pickTarget(tower: Tower, range: number, enemies: readonly EnemyAt[]): EnemyAt | null {
-  const tx = cellCenterFP(tower.x);
-  const ty = cellCenterFP(tower.y);
-  let best: EnemyAt | null = null;
-  for (const e of enemies) {
-    if (squaredDistance(tx, ty, e.x, e.y) > range * range) continue;
-    if (
-      best === null ||
-      e.enemy.progress > best.enemy.progress ||
-      (e.enemy.progress === best.enemy.progress && e.enemy.id < best.enemy.id)
-    ) {
-      best = e;
-    }
-  }
-  return best;
-}
-
 function hit(state: GameState, tower: Tower, target: Enemy): void {
+  if (target.shield > 0) {
+    target.shield--;
+    return;
+  }
   const damage = damageAgainst(state, tower, target);
   const dealt = Math.min(damage, Math.max(0, target.hp));
   target.hp -= damage;
   target.lastHitBy = tower.id;
   tower.damageDealt += dealt;
   state.stats.damageByTower[tower.kind] += dealt;
-}
-
-function locate(state: GameState): EnemyAt[] {
-  return state.enemies.map((enemy) => {
-    const p = positionAt(state.mapId, enemy.progress);
-    return { enemy, x: p.x, y: p.y };
-  });
 }
 
 /** The enemy this tower would shoot at right now, or null. */
@@ -120,6 +87,32 @@ export function towersAttack(state: GameState): void {
   }
 }
 
+/** A splitting enemy leaves its children where it died, a little behind each other, in the same wave. */
+function spawnSplits(state: GameState, parent: Enemy, alive: Enemy[]): void {
+  const def = ENEMIES[parent.kind];
+  if (def.splitKind === null) return;
+  const kind = def.splitKind as EnemyKind;
+  const child = ENEMIES[kind];
+  for (let i = 0; i < def.splitCount; i++) {
+    alive.push({
+      id: state.nextId++,
+      kind,
+      hp: child.hp,
+      maxHp: child.hp,
+      progress: Math.max(0, parent.progress - i * SPLIT_SPACING),
+      lastHitBy: 0,
+      wave: parent.wave,
+      slowPct: 0,
+      slowUntil: 0,
+      stunUntil: 0,
+      shield: child.shieldHits,
+      affix: null,
+    });
+  }
+}
+
+const SPLIT_SPACING = 250;
+
 export function collectDead(state: GameState): void {
   const alive: Enemy[] = [];
   for (const enemy of state.enemies) {
@@ -127,6 +120,7 @@ export function collectDead(state: GameState): void {
       alive.push(enemy);
       continue;
     }
+    spawnSplits(state, enemy, alive);
     state.stats.kills++;
     const killer = state.towers.find((t) => t.id === enemy.lastHitBy);
     if (killer) killer.kills++;

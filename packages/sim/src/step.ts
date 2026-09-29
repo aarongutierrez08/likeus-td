@@ -1,4 +1,5 @@
 import { applyCommand } from "./commands";
+import { enemiesAct } from "./systems/behaviors";
 import { towersControl } from "./systems/control";
 import { moveEnemies } from "./systems/move";
 import { collectDead, towersAttack } from "./systems/towers";
@@ -27,6 +28,7 @@ export function step(state: GameState, commands: readonly Command[] = []): GameS
   moveEnemies(next);
   towersAttack(next);
   towersControl(next);
+  enemiesAct(next);
   collectDead(next);
   closeWaves(next);
   checkEnd(next);

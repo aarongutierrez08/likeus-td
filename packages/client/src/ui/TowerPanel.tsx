@@ -17,6 +17,7 @@ import {
   hasAura,
   hasControl,
   hasIncome,
+  hasReveal,
   mayManage,
   sellRefund,
   towerDamage,
@@ -26,7 +27,7 @@ import {
   type Tower,
 } from "@td/sim";
 import type { GameStore } from "../game/store";
-import { attackSummary, auraSummary, controlSummary } from "./Shop";
+import { attackSummary, auraSummary, controlSummary, revealSummary } from "./Shop";
 
 export interface TowerActions {
   upgrade: (towerId: number) => void;
@@ -38,6 +39,7 @@ function stats(state: GameState, tower: Tower): string {
   if (hasIncome(def)) return `+${towerIncome(tower)} oro por oleada`;
   if (hasAura(def)) return auraSummary(def, auraBonusOf(tower));
   if (hasControl(def)) return controlSummary(def, controlPctOf(tower), controlDurationOf(tower));
+  if (hasReveal(def)) return revealSummary(def);
   if (!hasAttack(def)) return "";
   const damage = towerDamage(tower);
   const perSecond = ((damage * TICKS_PER_SECOND) / effectiveCooldown(state, tower)).toFixed(0);

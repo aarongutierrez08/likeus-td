@@ -1,3 +1,4 @@
+import { AFFIXES } from "../balance/affixes";
 import { ENEMIES } from "../balance/enemies";
 import { pathLength } from "../path";
 import type { Enemy, GameState } from "../types";
@@ -5,7 +6,8 @@ import type { Enemy, GameState } from "../types";
 /** Speed this tick: zero while stunned, reduced while slowed. */
 export function currentSpeed(state: GameState, enemy: Enemy): number {
   if (state.tick < enemy.stunUntil) return 0;
-  const speed = ENEMIES[enemy.kind].speed;
+  const base = ENEMIES[enemy.kind].speed;
+  const speed = enemy.affix === "fast" ? Math.floor((base * (100 + AFFIXES.fast.speedPct)) / 100) : base;
   if (state.tick < enemy.slowUntil) return Math.floor((speed * (100 - enemy.slowPct)) / 100);
   return speed;
 }

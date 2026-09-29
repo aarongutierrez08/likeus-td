@@ -12,6 +12,7 @@ import {
   hasAura,
   hasControl,
   hasIncome,
+  hasReveal,
   type AttackType,
   type AuraStat,
   type TowerDef,
@@ -51,11 +52,17 @@ export function controlSummary(def: TowerDef, pct: number, duration: number): st
   return `${effect}${area} · alcance ${def.controlRange / FP}`;
 }
 
+/** "revela invisibles · alcance 6" */
+export function revealSummary(def: TowerDef): string {
+  return `revela invisibles · alcance ${def.revealRange / FP}`;
+}
+
 function describe(kind: TowerKind): string {
   const def = TOWERS[kind];
   if (hasIncome(def)) return `+${def.income} oro por oleada, solo para vos`;
   if (hasAura(def)) return auraSummary(def, def.auraBonusPct);
   if (hasControl(def)) return controlSummary(def, def.controlPct, def.controlDuration);
+  if (hasReveal(def)) return revealSummary(def);
   if (!hasAttack(def)) return "";
   const perSecond = (def.damage * TICKS_PER_SECOND) / def.cooldown;
   const splash = def.splash > 0 ? ` · área ${def.splash / FP}` : "";

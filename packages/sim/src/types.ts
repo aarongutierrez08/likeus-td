@@ -1,3 +1,4 @@
+import type { BossAffix } from "./balance/affixes";
 import type { MapId } from "./balance/maps";
 
 export type { TowerKind } from "./balance/towers";
@@ -35,6 +36,10 @@ export interface Enemy {
   slowUntil: number;
   /** The enemy stands still while tick < stunUntil. */
   stunUntil: number;
+  /** Hits still absorbed before damage goes through. */
+  shield: number;
+  /** Bosses only. */
+  affix: BossAffix | null;
 }
 
 export interface SpawnEntry {
@@ -42,6 +47,7 @@ export interface SpawnEntry {
   kind: EnemyKind;
   hp: number;
   wave: number;
+  affix: BossAffix | null;
 }
 
 export interface BuildCommand {

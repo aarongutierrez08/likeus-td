@@ -68,6 +68,72 @@ export const WAVES: readonly WaveDef[] = [
       { kind: "enchanted", count: 10, spacing: 10 },
       { kind: "fast", count: 10, spacing: 7 },
       { kind: "tank", count: 2, spacing: 30 },
+      { kind: "boss", count: 1, spacing: 60 },
+    ],
+  },
+  { hpPct: 300, groups: [{ kind: "shade", count: 10, spacing: 12 }] },
+  {
+    hpPct: 320,
+    groups: [
+      { kind: "normal", count: 10, spacing: 12 },
+      { kind: "healer", count: 3, spacing: 30 },
+    ],
+  },
+  {
+    hpPct: 340,
+    groups: [
+      { kind: "shielded", count: 8, spacing: 18 },
+      { kind: "fast", count: 8, spacing: 8 },
+    ],
+  },
+  { hpPct: 360, groups: [{ kind: "blob", count: 8, spacing: 25 }] },
+  {
+    hpPct: 380,
+    groups: [
+      { kind: "shade", count: 12, spacing: 10 },
+      { kind: "healer", count: 3, spacing: 30 },
+    ],
+  },
+  {
+    hpPct: 400,
+    groups: [
+      { kind: "swarm", count: 30, spacing: 4 },
+      { kind: "shielded", count: 6, spacing: 18 },
+    ],
+  },
+  {
+    hpPct: 430,
+    groups: [
+      { kind: "blob", count: 6, spacing: 25 },
+      { kind: "enchanted", count: 10, spacing: 10 },
+      { kind: "healer", count: 2, spacing: 30 },
+    ],
+  },
+  {
+    hpPct: 460,
+    groups: [
+      { kind: "shade", count: 10, spacing: 10 },
+      { kind: "rider", count: 8, spacing: 15 },
+      { kind: "tank", count: 3, spacing: 30 },
+    ],
+  },
+  {
+    hpPct: 500,
+    groups: [
+      { kind: "shielded", count: 8, spacing: 15 },
+      { kind: "healer", count: 4, spacing: 25 },
+      { kind: "fast", count: 12, spacing: 6 },
+    ],
+  },
+  {
+    hpPct: 550,
+    groups: [
+      { kind: "swarm", count: 30, spacing: 4 },
+      { kind: "blob", count: 6, spacing: 20 },
+      { kind: "shade", count: 10, spacing: 10 },
+      { kind: "shielded", count: 6, spacing: 15 },
+      { kind: "healer", count: 3, spacing: 30 },
+      { kind: "boss", count: 1, spacing: 60 },
     ],
   },
 ];

@@ -4,6 +4,7 @@ import {
   FP,
   TOWERS,
   currentSpeed,
+  isRevealed,
   hasAttack,
   hasAura,
   hasControl,
@@ -20,8 +21,10 @@ interface EnemySprite {
   root: Container;
   body: Graphics;
   hp: Graphics;
+  shield: Graphics;
   kind: EnemyKind;
   lastHpRatio: number;
+  lastShield: number;
 }
 
 /** Keeps one display object per entity id and syncs it with the state every frame. */
@@ -31,12 +34,15 @@ export interface KillEvent {
   kind: EnemyKind;
 }
 
-/** Stunned enemies fade the most, slowed ones a little: the status has to be readable without text. */
+/** Hidden stealth enemies are ghosts, stunned enemies fade the most, slowed ones a little: readable without text. */
 function statusAlpha(state: GameState, enemy: Enemy): number {
+  if (!isRevealed(state, enemy)) return 0.25;
   const speed = currentSpeed(state, enemy);
   if (speed === 0) return 0.35;
   return speed < ENEMIES[enemy.kind].speed ? 0.65 : 1;
 }
+
+const AFFIX_COLORS = { fast: 0xf4c542, shielded: 0xffffff, regenerating: 0x7fe0a0 } as const;
 
 export class EntityLayer {
   readonly towers = new Container();
@@ -109,6 +115,12 @@ export class EntityLayer {
       const p = positionAt(state.mapId, e.progress);
       sprite.root.position.set((p.x / FP) * this.base, (p.y / FP) * this.base);
       sprite.body.alpha = statusAlpha(state, e);
+      if (e.shield !== sprite.lastShield) {
+        sprite.lastShield = e.shield;
+        sprite.shield.clear();
+        if (e.shield > 0)
+          sprite.shield.circle(0, 0, ENEMIES[e.kind].radius * this.base + 3).stroke({ width: 2, color: AFFIX_COLORS.shielded });
+      }
       const ratio = Math.max(0, e.hp) / e.maxHp;
       if (ratio !== sprite.lastHpRatio) {
         sprite.lastHpRatio = ratio;
@@ -135,9 +147,13 @@ export class EntityLayer {
     const root = new Container();
     const body = new Graphics();
     body.circle(0, 0, ENEMIES[e.kind].radius * this.base).fill(ENEMIES[e.kind].color);
+    if (e.affix !== null) {
+      body.circle(0, 0, ENEMIES[e.kind].radius * this.base + 6).stroke({ width: 3, color: AFFIX_COLORS[e.affix] });
+    }
     const hp = new Graphics();
-    root.addChild(body, hp);
-    return { root, body, hp, kind: e.kind, lastHpRatio: -1 };
+    const shield = new Graphics();
+    root.addChild(body, shield, hp);
+    return { root, body, hp, shield, kind: e.kind, lastHpRatio: -1, lastShield: -1 };
   }
 
   private drawHpBar(g: Graphics, kind: Enemy["kind"], ratio: number): void {
@@ -156,7 +172,7 @@ export class EntityLayer {
       const def = TOWERS[t.kind];
       const cx = (t.x + 0.5) * this.base;
       const cy = (t.y + 0.5) * this.base;
-      const reach = Math.max(def.range, def.controlRange);
+      const reach = Math.max(def.range, def.controlRange, def.revealRange);
       if (reach > 0) {
         this.ranges.circle(cx, cy, (reach / FP) * this.base).stroke({ width: 1, color: COLORS.range, alpha: 0.6 });
       }

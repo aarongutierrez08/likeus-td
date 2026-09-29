@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  ENEMIES,
   FP,
   TOWERS,
   TOWER_KINDS,
+  WAVES,
   createBot,
   getMap,
   hasAttack,
@@ -110,5 +112,16 @@ describe("bot placement", () => {
       const range = TOWERS[command.tower].range;
       expect(pathCellsCovered(opening, command.x, command.y, range)).toBeGreaterThanOrEqual(bestCoverage(opening, range) - 1);
     }
+  });
+});
+
+describe("informed bot and radar", () => {
+  it("buys a radar before a stealth wave when the map has none", () => {
+    const stealthWave = WAVES.findIndex((w) => w.groups.some((g) => ENEMIES[g.kind].stealth)) + 1;
+    expect(stealthWave).toBeGreaterThan(0);
+    const before = scenario({ seed: 1, waves: true, startWave: stealthWave, gold: richest }).state();
+    expect(builtKind(createBot("trivial").decide(before))).toBe("radar");
+    const covered = scenario({ seed: 1, waves: true, startWave: stealthWave, gold: richest }).tower("radar", { x: 4, y: 2 }).state();
+    expect(builtKind(createBot("trivial").decide(covered))).not.toBe("radar");
   });
 });

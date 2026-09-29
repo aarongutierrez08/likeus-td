@@ -5,8 +5,8 @@ import { scenario } from "./helpers/scenario";
 const enemiesIn = (wave: number): number => WAVES[wave - 1]!.groups.reduce((n, g) => n + g.count, 0);
 
 describe("waves", () => {
-  it("there are ten waves", () => {
-    expect(WAVES).toHaveLength(10);
+  it("there are twenty waves", () => {
+    expect(WAVES).toHaveLength(20);
   });
 
   it("the first wave starts at firstWaveTick with the configured enemies", () => {
@@ -68,7 +68,7 @@ describe("waves", () => {
     expect(called.gold(0)).toBe(goldAtClose + Math.floor(GAME.waveGapTicks / TICKS_PER_SECOND));
   });
 
-  it("clearing the tenth wave wins the game and freezes it", () => {
+  it("clearing the last wave wins the game and freezes it", () => {
     const game = scenario({ seed: 11, gold: 5000, waves: true, bot: true }).runUntil(() => false, 30000);
     expect(game.status()).toBe("won");
     expect(game.state().wave).toBe(WAVES.length);

@@ -1,5 +1,5 @@
 import { For, Show, createSignal, untrack } from "solid-js";
-import { ARMOR_LABELS, ECONOMY, ENEMIES, TICKS_PER_SECOND, WAVES, callWaveBonus, upcomingWaves } from "@td/sim";
+import { AFFIXES, ARMOR_LABELS, ECONOMY, ENEMIES, TICKS_PER_SECOND, WAVES, bossAffix, callWaveBonus, upcomingWaves } from "@td/sim";
 import type { GameStore } from "../game/store";
 import type { NetStore } from "../net/store";
 import { ReportButton } from "./ReportDialog";
@@ -127,6 +127,9 @@ function WavePreview(props: { store: GameStore }) {
                 {(g) => (
                   <span style={{ color: `#${ENEMIES[g.kind].color.toString(16).padStart(6, "0")}` }}>
                     {g.count} {ENEMIES[g.kind].label} <span class="muted">({ARMOR_LABELS[ENEMIES[g.kind].armor]})</span>
+                    <Show when={g.kind === "boss"}>
+                      <span class="muted"> · {AFFIXES[bossAffix(props.store.state().seed, w.number)].label}</span>
+                    </Show>
                   </span>
                 )}
               </For>

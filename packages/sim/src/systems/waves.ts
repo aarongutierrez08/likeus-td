@@ -1,3 +1,4 @@
+import { bossAffix, initialShield } from "../affixes";
 import { ENEMIES } from "../balance/enemies";
 import { GAME } from "../balance/game";
 import { WAVES } from "../balance/waves";
@@ -23,7 +24,8 @@ export function scheduleWave(state: GameState): void {
     for (let i = 0; i < group.count; i++) {
       if (!first) t += group.spacing + rollJitter(state, pct(group.spacing, GAME.spacingJitterPct));
       first = false;
-      state.spawnQueue.push({ tick: t, kind: group.kind, hp: pct(base.hp, wave.hpPct), wave: state.wave });
+      const affix = group.kind === "boss" ? bossAffix(state.seed, state.wave) : null;
+      state.spawnQueue.push({ tick: t, kind: group.kind, hp: pct(base.hp, wave.hpPct), wave: state.wave, affix });
     }
   }
   state.nextWaveTick = null;
@@ -44,6 +46,8 @@ export function spawnDue(state: GameState): void {
       slowPct: 0,
       slowUntil: 0,
       stunUntil: 0,
+      shield: initialShield(entry.kind, entry.affix),
+      affix: entry.affix,
     });
   }
 }

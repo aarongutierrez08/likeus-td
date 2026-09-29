@@ -50,6 +50,11 @@ export interface IncomeSpec {
   perWave: number;
 }
 
+export interface RevealSpec {
+  /** FP units from the tower center within which stealth enemies can be targeted. */
+  range: number;
+}
+
 export interface TowerSpec {
   cost: number;
   label: string;
@@ -59,6 +64,7 @@ export interface TowerSpec {
   aura?: AuraSpec;
   control?: ControlSpec;
   income?: IncomeSpec;
+  reveal?: RevealSpec;
 }
 
 /** Normalized: every family field present, zero when the tower has no such family. */
@@ -84,6 +90,7 @@ export interface TowerDef {
   controlPct: number;
   controlSplash: number;
   income: number;
+  revealRange: number;
 }
 
 export function defineTowers<K extends string>(specs: Record<K, TowerSpec>): Record<K, TowerDef> {
@@ -109,6 +116,7 @@ export function defineTowers<K extends string>(specs: Record<K, TowerSpec>): Rec
       controlPct: spec.control?.pct ?? 0,
       controlSplash: spec.control?.splash ?? 0,
       income: spec.income?.perWave ?? 0,
+      revealRange: spec.reveal?.range ?? 0,
     };
   }
   return out;
@@ -118,8 +126,9 @@ export const hasAttack = (def: TowerDef): boolean => def.damage > 0;
 export const hasAura = (def: TowerDef): boolean => def.auraRadius > 0;
 export const hasControl = (def: TowerDef): boolean => def.controlEffect !== null;
 export const hasIncome = (def: TowerDef): boolean => def.income > 0;
+export const hasReveal = (def: TowerDef): boolean => def.revealRange > 0;
 
-export interface EnemyDef {
+export interface EnemySpec {
   label: string;
   armor: Armor;
   hp: number;
@@ -130,8 +139,58 @@ export interface EnemyDef {
   color: number;
   /** Drawn radius in cells. */
   radius: number;
+  /** Towers cannot target it unless a radar reveals it. */
+  stealth?: boolean;
+  /** Heals other enemies within `range` (FP) by `amount` every `every` ticks. */
+  heal?: { amount: number; range: number; every: number };
+  /** Hits absorbed before taking damage. */
+  shieldHits?: number;
+  /** On death, spawns `count` enemies of `kind` where it died. */
+  split?: { kind: string; count: number };
 }
 
-export function defineEnemies<K extends string>(specs: Record<K, EnemyDef>): Record<K, EnemyDef> {
-  return specs;
+/** Normalized: every behavior field present, zero or null when the enemy has no such behavior. */
+export interface EnemyDef {
+  label: string;
+  armor: Armor;
+  hp: number;
+  speed: number;
+  bounty: number;
+  livesCost: number;
+  color: number;
+  radius: number;
+  stealth: boolean;
+  healAmount: number;
+  healRange: number;
+  healEvery: number;
+  shieldHits: number;
+  /** Another enemy kind, checked at definition time; null when it does not split. */
+  splitKind: string | null;
+  splitCount: number;
+}
+
+export function defineEnemies<K extends string>(specs: Record<K, EnemySpec>): Record<K, EnemyDef> {
+  const out = {} as Record<K, EnemyDef>;
+  for (const kind of Object.keys(specs) as K[]) {
+    const spec = specs[kind];
+    if (spec.split && !(spec.split.kind in specs)) throw new Error(`enemy ${kind} splits into unknown kind ${spec.split.kind}`);
+    out[kind] = {
+      label: spec.label,
+      armor: spec.armor,
+      hp: spec.hp,
+      speed: spec.speed,
+      bounty: spec.bounty,
+      livesCost: spec.livesCost,
+      color: spec.color,
+      radius: spec.radius,
+      stealth: spec.stealth ?? false,
+      healAmount: spec.heal?.amount ?? 0,
+      healRange: spec.heal?.range ?? 0,
+      healEvery: spec.heal?.every ?? 0,
+      shieldHits: spec.shieldHits ?? 0,
+      splitKind: spec.split?.kind ?? null,
+      splitCount: spec.split?.count ?? 0,
+    };
+  }
+  return out;
 }

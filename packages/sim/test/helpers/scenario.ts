@@ -5,9 +5,11 @@ import {
   TOWERS,
   createBot,
   createInitialState,
+  initialShield,
   pathCells,
   step,
   type Bot,
+  type BossAffix,
   type Command,
   type Enemy,
   type EnemyKind,
@@ -54,6 +56,7 @@ export interface EnemyPlacement extends Cell {
   hp?: number;
   /** Extra distance along the path from the cell center, in FP units. */
   offset?: number;
+  affix?: BossAffix;
 }
 
 interface TowerPlacement extends Cell {
@@ -294,6 +297,8 @@ export class Scenario {
         slowPct: 0,
         slowUntil: 0,
         stunUntil: 0,
+        shield: initialShield(spec.kind, spec.affix ?? null),
+        affix: spec.affix ?? null,
       });
       this.enemyIds.push(id);
     }

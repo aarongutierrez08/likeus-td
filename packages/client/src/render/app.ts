@@ -82,7 +82,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     const def = TOWERS[hoverTower];
     const cx = (cell.x + 0.5) * BASE;
     const cy = (cell.y + 0.5) * BASE;
-    const reach = Math.max(def.range, def.controlRange);
+    const reach = Math.max(def.range, def.controlRange, def.revealRange);
     if (reach > 0) hover.circle(cx, cy, (reach / FP) * BASE).stroke({ width: 1, color: COLORS.range, alpha: 0.5 });
     if (hasAura(def)) {
       const side = (def.auraRadius * 2 + 1) * BASE;

@@ -18,6 +18,7 @@ export const TOWERS = defineTowers({
     color: 0xfff07a,
     control: { effect: "stun", range: 2500, cooldown: 120, duration: 20, splash: 1000 },
   },
+  radar: { cost: 80, label: "Radar", color: 0xd0d0d0, reveal: { range: 6000 } },
   aura: { cost: 80, label: "Aura daño", color: 0xb07cf0, aura: { stat: "damage", radius: 2, bonusPct: 25 } },
   haste: { cost: 80, label: "Aura cadencia", color: 0x7ad0c8, aura: { stat: "rate", radius: 2, bonusPct: 25 } },
   greed: { cost: 100, label: "Aura oro", color: 0xe0c060, aura: { stat: "gold", radius: 2, bonusPct: 50 } },

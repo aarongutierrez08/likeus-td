@@ -42,3 +42,8 @@ export function bestAttackTower(waves: readonly WaveDef[], candidates: readonly 
   }
   return best;
 }
+
+/** Whether any of these waves brings stealth enemies, which no tower can target without a radar. */
+export function wavesNeedReveal(waves: readonly WaveDef[]): boolean {
+  return waves.some((wave) => wave.groups.some((g) => ENEMIES[g.kind].stealth));
+}
