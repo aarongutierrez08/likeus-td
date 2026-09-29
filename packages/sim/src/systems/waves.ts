@@ -41,6 +41,9 @@ export function spawnDue(state: GameState): void {
       progress: 0,
       lastHitBy: 0,
       wave: entry.wave,
+      slowPct: 0,
+      slowUntil: 0,
+      stunUntil: 0,
     });
   }
 }

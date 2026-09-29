@@ -11,6 +11,8 @@ export {
   towerDamage,
   towerIncome,
   auraBonusOf,
+  controlPctOf,
+  controlDurationOf,
   mayManage,
   validateBuild,
   validateCommand,
@@ -24,7 +26,21 @@ export { getMap, isInside, isPathCell, isBuildable, pathCells, distanceToPath } 
 export { pathLength, positionAt, cellCenterFP } from "./path";
 export { MAPS, MAP_IDS, DEFAULT_MAP, isMapId, type MapId, type MapDef, type Point } from "./balance/maps";
 export { TOWERS, TOWER_KINDS, SELL_REFUND_PCT, UPGRADE, type TowerDef } from "./balance/towers";
-export { hasAttack, hasAura, hasIncome, type TowerSpec, type AttackSpec, type AuraSpec, type IncomeSpec } from "./balance/define";
+export {
+  hasAttack,
+  hasAura,
+  hasControl,
+  hasIncome,
+  AURA_STATS,
+  CONTROL_EFFECTS,
+  type TowerSpec,
+  type AttackSpec,
+  type AuraSpec,
+  type AuraStat,
+  type ControlSpec,
+  type ControlEffect,
+  type IncomeSpec,
+} from "./balance/define";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef } from "./balance/enemies";
 export {
   ATTACK_TYPES,
@@ -38,7 +54,8 @@ export {
 } from "./balance/damage";
 export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
 export { GAME } from "./balance/game";
-export { currentTarget, damageAgainst } from "./systems/towers";
+export { currentTarget, damageAgainst, effectiveCooldown } from "./systems/towers";
+export { currentSpeed } from "./systems/move";
 export { upcomingWaves, multiplierAgainstWaves, bestAttackTower } from "./preview";
 export { ECONOMY } from "./balance/economy";
 export { attenuatedBounty, scaledEnemyHp, startingGold, interestOn, callWaveBonus, callQuorum } from "./economy";

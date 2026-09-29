@@ -4,7 +4,6 @@ import {
   TOWERS,
   TOWER_KINDS,
   getMap,
-  hasAttack,
   hasAura,
   isBuildable,
   pathCells,
@@ -83,7 +82,8 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     const def = TOWERS[hoverTower];
     const cx = (cell.x + 0.5) * BASE;
     const cy = (cell.y + 0.5) * BASE;
-    if (hasAttack(def)) hover.circle(cx, cy, (def.range / FP) * BASE).stroke({ width: 1, color: COLORS.range, alpha: 0.5 });
+    const reach = Math.max(def.range, def.controlRange);
+    if (reach > 0) hover.circle(cx, cy, (reach / FP) * BASE).stroke({ width: 1, color: COLORS.range, alpha: 0.5 });
     if (hasAura(def)) {
       const side = (def.auraRadius * 2 + 1) * BASE;
       hover.rect(cx - side / 2, cy - side / 2, side, side).stroke({ width: 1, color: COLORS.aura, alpha: 0.6 });

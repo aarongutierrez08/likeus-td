@@ -8,33 +8,39 @@ import {
   ARMOR_LABELS,
   ENEMIES,
   auraBonusOf,
+  controlDurationOf,
+  controlPctOf,
   currentTarget,
   damageAgainst,
+  effectiveCooldown,
   hasAttack,
   hasAura,
+  hasControl,
   hasIncome,
   mayManage,
   sellRefund,
   towerDamage,
   towerIncome,
   upgradeCost,
+  type GameState,
   type Tower,
 } from "@td/sim";
 import type { GameStore } from "../game/store";
-import { attackSummary } from "./Shop";
+import { attackSummary, auraSummary, controlSummary } from "./Shop";
 
 export interface TowerActions {
   upgrade: (towerId: number) => void;
   sell: (towerId: number) => void;
 }
 
-function stats(tower: Tower): string {
+function stats(state: GameState, tower: Tower): string {
   const def = TOWERS[tower.kind];
   if (hasIncome(def)) return `+${towerIncome(tower)} oro por oleada`;
-  if (hasAura(def)) return `+${auraBonusOf(tower)}% daño a torres en ${def.auraRadius * 2 + 1}×${def.auraRadius * 2 + 1}`;
+  if (hasAura(def)) return auraSummary(def, auraBonusOf(tower));
+  if (hasControl(def)) return controlSummary(def, controlPctOf(tower), controlDurationOf(tower));
   if (!hasAttack(def)) return "";
   const damage = towerDamage(tower);
-  const perSecond = ((damage * TICKS_PER_SECOND) / def.cooldown).toFixed(0);
+  const perSecond = ((damage * TICKS_PER_SECOND) / effectiveCooldown(state, tower)).toFixed(0);
   const splash = def.splash > 0 ? ` · área ${def.splash / FP}` : "";
   return `${damage} daño · ${perSecond}/s · alcance ${def.range / FP}${splash}`;
 }
@@ -71,7 +77,7 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
             <Show when={!mine()}>
               <span class="muted">de {props.ownerName?.(t().owner) ?? `Jugador ${t().owner + 1}`}</span>
             </Show>
-            <span>{stats(t())}</span>
+            <span>{stats(props.store.state(), t())}</span>
           </div>
           <Show when={TOWERS[t().kind].attackType}>{(attack) => <div class="row muted">{attackSummary(attack())}</div>}</Show>
           <Show when={target()}>
@@ -91,7 +97,7 @@ export function TowerPanel(props: { store: GameStore; actions?: TowerActions; ow
                 <span class="muted">
                   Nv{n().level} (−{upgradeCost(t().kind)}):
                 </span>
-                <span>{stats(n())}</span>
+                <span>{stats(props.store.state(), n())}</span>
                 <Show when={mine() && props.actions}>
                   <button
                     type="button"

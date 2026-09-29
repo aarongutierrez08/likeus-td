@@ -3,8 +3,10 @@ import {
   ENEMIES,
   FP,
   TOWERS,
+  currentSpeed,
   hasAttack,
   hasAura,
+  hasControl,
   hasIncome,
   positionAt,
   type Enemy,
@@ -27,6 +29,13 @@ export interface KillEvent {
   x: number;
   y: number;
   kind: EnemyKind;
+}
+
+/** Stunned enemies fade the most, slowed ones a little: the status has to be readable without text. */
+function statusAlpha(state: GameState, enemy: Enemy): number {
+  const speed = currentSpeed(state, enemy);
+  if (speed === 0) return 0.35;
+  return speed < ENEMIES[enemy.kind].speed ? 0.65 : 1;
 }
 
 export class EntityLayer {
@@ -69,6 +78,11 @@ export class EntityLayer {
       if (hasAura(def)) g.circle(this.base / 2, this.base / 2, this.base * 0.18).fill(COLORS.background);
       if (hasAttack(def) && def.splash > 0) g.circle(this.base / 2, this.base / 2, this.base * 0.14).fill(COLORS.background);
       if (hasIncome(def)) g.rect(this.base * 0.35, this.base * 0.35, this.base * 0.3, this.base * 0.3).fill(COLORS.background);
+      if (hasControl(def)) {
+        const c = this.base / 2;
+        const r = this.base * 0.16;
+        g.poly([c, c - r, c + r, c, c, c + r, c - r, c]).fill(COLORS.background);
+      }
       const pip = this.base * 0.1;
       for (let i = 1; i < t.level; i++) g.rect(pad + pip * (2 * i - 1), this.base - pad - pip * 2, pip, pip).fill(COLORS.background);
       g.position.set(t.x * this.base, t.y * this.base);
@@ -94,6 +108,7 @@ export class EntityLayer {
       }
       const p = positionAt(state.mapId, e.progress);
       sprite.root.position.set((p.x / FP) * this.base, (p.y / FP) * this.base);
+      sprite.body.alpha = statusAlpha(state, e);
       const ratio = Math.max(0, e.hp) / e.maxHp;
       if (ratio !== sprite.lastHpRatio) {
         sprite.lastHpRatio = ratio;
@@ -141,8 +156,9 @@ export class EntityLayer {
       const def = TOWERS[t.kind];
       const cx = (t.x + 0.5) * this.base;
       const cy = (t.y + 0.5) * this.base;
-      if (def.range > 0) {
-        this.ranges.circle(cx, cy, (def.range / FP) * this.base).stroke({ width: 1, color: COLORS.range, alpha: 0.6 });
+      const reach = Math.max(def.range, def.controlRange);
+      if (reach > 0) {
+        this.ranges.circle(cx, cy, (reach / FP) * this.base).stroke({ width: 1, color: COLORS.range, alpha: 0.6 });
       }
       if (def.auraRadius > 0) {
         const side = (def.auraRadius * 2 + 1) * this.base;

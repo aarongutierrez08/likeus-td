@@ -30,6 +30,11 @@ export interface Enemy {
   lastHitBy: number;
   /** 1-based wave this enemy belongs to; 0 for enemies placed outside waves. */
   wave: number;
+  /** Percent of speed removed while tick < slowUntil. Same-effect control never stacks: only the strongest slow applies. */
+  slowPct: number;
+  slowUntil: number;
+  /** The enemy stands still while tick < stunUntil. */
+  stunUntil: number;
 }
 
 export interface SpawnEntry {

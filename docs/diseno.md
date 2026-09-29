@@ -115,7 +115,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 1. ✅ Sim determinista, lockstep, salas, lobby, 3 mapas, vender/mejorar, mina, aura, economía co-op.
 2. ✅ Contenido como datos; sin jitter de vida.
 3. 🔧 Tipos de ataque × armadura, 6 enemigos, oleadas por composición, calendario en HUD.
-4. ⬜ Familias: control (ralentizar, aturdir en área), muro con vida, auras de cadencia y de oro. Mismo tipo no apila.
+4. 🔧 Familias: control (ralentizar, aturdir en área), muro con vida, auras de cadencia y de oro. Mismo tipo no apila. Hecho salvo el muro.
 5. ⬜ Ramas excluyentes en nivel 3: cada torre elige una de dos identidades.
 6. ⬜ Enemigos con comportamiento: invisible (pide radar), sanador, escudo al primer golpe, se divide al morir, jefe cada 10 con afijo. Calendario a 20.
 7. ⬜ Color de jugador, sin diseños propios. Chico, mejora el co-op hoy.

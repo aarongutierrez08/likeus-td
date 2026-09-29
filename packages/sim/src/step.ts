@@ -1,4 +1,5 @@
 import { applyCommand } from "./commands";
+import { towersControl } from "./systems/control";
 import { moveEnemies } from "./systems/move";
 import { collectDead, towersAttack } from "./systems/towers";
 import { checkEnd, closeWaves, scheduleWave, spawnDue } from "./systems/waves";
@@ -25,6 +26,7 @@ export function step(state: GameState, commands: readonly Command[] = []): GameS
   spawnDue(next);
   moveEnemies(next);
   towersAttack(next);
+  towersControl(next);
   collectDead(next);
   closeWaves(next);
   checkEnd(next);

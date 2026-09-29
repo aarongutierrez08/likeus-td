@@ -283,7 +283,18 @@ export class Scenario {
       if (index < 0) throw new Error(`(${spec.x},${spec.y}) is not a path cell`);
       const hp = spec.hp ?? ENEMIES[spec.kind].hp;
       const id = nextId++;
-      enemies.push({ id, kind: spec.kind, hp, maxHp: hp, progress: index * FP + (spec.offset ?? 0), lastHitBy: 0, wave: 0 });
+      enemies.push({
+        id,
+        kind: spec.kind,
+        hp,
+        maxHp: hp,
+        progress: index * FP + (spec.offset ?? 0),
+        lastHitBy: 0,
+        wave: 0,
+        slowPct: 0,
+        slowUntil: 0,
+        stunUntil: 0,
+      });
       this.enemyIds.push(id);
     }
     this.current = { ...this.current, enemies, nextId };

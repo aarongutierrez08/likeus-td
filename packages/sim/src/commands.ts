@@ -64,6 +64,20 @@ export function auraBonusOf(tower: Tower): number {
   return def.auraBonusPct + UPGRADE.auraBonusPctPerLevel * (tower.level - 1);
 }
 
+function controlScale(tower: Tower): number {
+  return 100 + UPGRADE.controlPctPerLevel * (tower.level - 1);
+}
+
+/** Percent of speed a slow tower removes at its level; 0 for other towers. */
+export function controlPctOf(tower: Tower): number {
+  return Math.floor((TOWERS[tower.kind].controlPct * controlScale(tower)) / 100);
+}
+
+/** Ticks a control tower's effect lasts at its level; 0 for other towers. */
+export function controlDurationOf(tower: Tower): number {
+  return Math.floor((TOWERS[tower.kind].controlDuration * controlScale(tower)) / 100);
+}
+
 export function findPlayer(state: GameState, playerId: number): Player | undefined {
   return state.players.find((p) => p.id === playerId);
 }
