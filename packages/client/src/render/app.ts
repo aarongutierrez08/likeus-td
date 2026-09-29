@@ -8,6 +8,7 @@ import {
   hasAura,
   isBuildable,
   pathCells,
+  type EnemyKind,
   type GameState,
   type MapId,
   type Point,
@@ -23,8 +24,8 @@ const BASE = 48;
 export interface RendererOptions {
   mapId: MapId;
   onCellTap: (cell: Point) => void;
-  /** Screen position (CSS pixels within the map element) of each kill, for floating labels. */
-  onKills?: (positions: Point[]) => void;
+  /** Screen position (CSS pixels within the map element) and enemy kind of each kill, for floating labels. */
+  onKills?: (kills: (Point & { kind: EnemyKind })[]) => void;
 }
 
 export interface Renderer {
@@ -109,7 +110,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
         opts.onKills(
           kills.map((k) => {
             const global = world.toGlobal({ x: k.x, y: k.y });
-            return { x: global.x, y: global.y };
+            return { x: global.x, y: global.y, kind: k.kind };
           }),
         );
       }

@@ -12,6 +12,7 @@ import {
   validateBuild,
   validateCommand,
   type Command,
+  type EnemyKind,
   type GameState,
   type TowerKind,
 } from "@td/sim";
@@ -99,13 +100,12 @@ function makeNotifier(game: Game): (msg: string) => void {
   };
 }
 
-/** Every kill pays the same share to every player, so one label per kill is enough. */
-function killLabel(game: Game): (positions: { x: number; y: number }[]) => void {
-  return (positions) => {
-    const state = game.store.state();
-    const share = attenuatedBounty(ENEMIES.normal.bounty, state.players.length);
+/** Every kill pays the same share to every player, so one label per kill is enough; the share depends on the enemy kind. */
+function killLabel(game: Game): (kills: { x: number; y: number; kind: EnemyKind }[]) => void {
+  return (kills) => {
+    const players = game.store.state().players.length;
     const rect = mapEl.getBoundingClientRect();
-    for (const p of positions) game.labels.push(p.x + rect.left, p.y + rect.top, `+${share}`);
+    for (const k of kills) game.labels.push(k.x + rect.left, k.y + rect.top, `+${attenuatedBounty(ENEMIES[k.kind].bounty, players)}`);
   };
 }
 

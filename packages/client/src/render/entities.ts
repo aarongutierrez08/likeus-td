@@ -1,11 +1,24 @@
 import { Container, Graphics } from "pixi.js";
-import { ENEMIES, FP, TOWERS, hasAttack, hasAura, hasIncome, positionAt, type Enemy, type GameState, type Tower } from "@td/sim";
+import {
+  ENEMIES,
+  FP,
+  TOWERS,
+  hasAttack,
+  hasAura,
+  hasIncome,
+  positionAt,
+  type Enemy,
+  type EnemyKind,
+  type GameState,
+  type Tower,
+} from "@td/sim";
 import { COLORS } from "./colors";
 
 interface EnemySprite {
   root: Container;
   body: Graphics;
   hp: Graphics;
+  kind: EnemyKind;
   lastHpRatio: number;
 }
 
@@ -13,6 +26,7 @@ interface EnemySprite {
 export interface KillEvent {
   x: number;
   y: number;
+  kind: EnemyKind;
 }
 
 export class EntityLayer {
@@ -89,7 +103,8 @@ export class EntityLayer {
     const kills: KillEvent[] = [];
     for (const [id, sprite] of this.enemySprites) {
       if (seen.has(id)) continue;
-      if (sprite.lastHpRatio < 1 && !this.leaked(sprite)) kills.push({ x: sprite.root.position.x, y: sprite.root.position.y });
+      if (sprite.lastHpRatio < 1 && !this.leaked(sprite))
+        kills.push({ x: sprite.root.position.x, y: sprite.root.position.y, kind: sprite.kind });
       sprite.root.destroy({ children: true });
       this.enemySprites.delete(id);
     }
@@ -107,7 +122,7 @@ export class EntityLayer {
     body.circle(0, 0, ENEMIES[e.kind].radius * this.base).fill(ENEMIES[e.kind].color);
     const hp = new Graphics();
     root.addChild(body, hp);
-    return { root, body, hp, lastHpRatio: -1 };
+    return { root, body, hp, kind: e.kind, lastHpRatio: -1 };
   }
 
   private drawHpBar(g: Graphics, kind: Enemy["kind"], ratio: number): void {
