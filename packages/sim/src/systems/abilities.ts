@@ -45,9 +45,6 @@ export function castAbility(state: GameState, cmd: UseAbilityCommand): void {
   }
 }
 
-/** No tower gets the kill of an ability: no kill count, no gold aura. The bounty is paid as always. */
-const NO_TOWER = 0;
-
 /** A blast hits like an explosive area attack: armor and marks apply, a shield absorbs it, stealth does not hide from it. */
 function blastHit(state: GameState, enemy: Enemy, damage: number): void {
   if (enemy.shield > 0) {
@@ -58,7 +55,6 @@ function blastHit(state: GameState, enemy: Enemy, damage: number): void {
   const dealt = Math.floor((base * (100 + markOn(state, enemy))) / 100);
   state.stats.damageByAbility.bombard += Math.min(dealt, Math.max(0, enemy.hp));
   enemy.hp -= dealt;
-  enemy.lastHitBy = NO_TOWER;
 }
 
 /** Lands the blasts due this tick and melts the frost zones whose time is up, before enemies move. */

@@ -98,6 +98,25 @@ describe("bombard", () => {
     expect(marked.enemy(0).hp).toBe(hp - Math.floor((plain * (100 + TOWERS.radar.branches!.b.def.markPct)) / 100));
   });
 
+  it("a kill by bombard counts like any kill: the tower that was hitting it gets the kill", () => {
+    const game = pinned().tower("archer", { x: pinnedCell.x, y: 2 }).enemy("normal", { x: 2, y: 1, hp: 100 }).run(40);
+    game.useAbility("bombard", pinnedCell).run(bombard.delay + 1);
+    expect(game.alive(0)).toBe(false);
+    expect(game.tower(1).kills).toBe(1);
+  });
+
+  it("a kill by bombard pays the gold aura around the tower that was hitting it", () => {
+    const withAura = pinned()
+      .tower("archer", { x: pinnedCell.x, y: 2 })
+      .tower("greed", { x: pinnedCell.x + 1, y: 2 })
+      .enemy("normal", { x: 2, y: 1, hp: 100 })
+      .run(40);
+    const without = pinned().tower("archer", { x: pinnedCell.x, y: 2 }).enemy("normal", { x: 2, y: 1, hp: 100 }).run(40);
+    for (const game of [withAura, without]) game.useAbility("bombard", pinnedCell).run(bombard.delay + 1);
+    const cut = Math.floor((ENEMIES.normal.bounty * TOWERS.greed.auraBonusPct) / 100);
+    expect(withAura.gold() - without.gold()).toBe(cut);
+  });
+
   it("its last level hits harder", () => {
     const hp = 1000;
     const game = pinned().enemy("normal", { x: 2, y: 1, hp }).upgradeAbility("bombard").run(1).upgradeAbility("bombard").run(39);
