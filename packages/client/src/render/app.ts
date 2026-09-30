@@ -24,7 +24,8 @@ const BASE = 48;
 
 export interface RendererOptions {
   mapId: MapId;
-  onCellTap: (cell: Point) => void;
+  /** Returns true to keep the reach preview on that cell, so a touch player sees it without a mouse hover. */
+  onCellTap: (cell: Point) => boolean;
   /** Screen position (CSS pixels within the map element) and enemy kind of each kill, for floating labels. */
   onKills?: (kills: (Point & { kind: EnemyKind; owner: number | null })[]) => void;
 }
@@ -32,6 +33,8 @@ export interface RendererOptions {
 export interface Renderer {
   sync(state: GameState, showRanges: boolean): void;
   setHoverTower(kind: TowerKind | null): void;
+  /** Cell where the reach of the chosen tower is drawn, if any. */
+  previewCell(): Point | null;
   setSelectedCell(cell: Point | null): void;
   /** Draws the reach of that tower until it is deselected. */
   setSelectedTowerId(id: number | null): void;
@@ -72,6 +75,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   let hoverTower: TowerKind | null = TOWER_KINDS[0]!;
   let lastState: GameState | null = null;
   let lastShowRanges = false;
+  let previewCell: Point | null = null;
   const cellFromEvent = (e: FederatedPointerEvent): Point | null => {
     const local = world.toLocal(e.global);
     const x = Math.floor(local.x / BASE);
@@ -80,12 +84,14 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   };
   const drawHover = (cell: Point | null): void => {
     hover.clear();
+    previewCell = null;
     if (!cell || !lastState) return;
     const wanted = hoverTower ? TOWERS[hoverTower] : null;
     const placeable = wanted && hasWall(wanted) ? isPathCell(opts.mapId, cell.x, cell.y) : isBuildable(opts.mapId, cell.x, cell.y);
     const free = placeable && !lastState.towers.some((t) => t.x === cell.x && t.y === cell.y);
     hover.rect(cell.x * BASE, cell.y * BASE, BASE, BASE).stroke({ width: 2, color: free ? COLORS.hover : COLORS.exit });
     if (!free || !hoverTower) return;
+    previewCell = cell;
     const def = TOWERS[hoverTower];
     const cx = (cell.x + 0.5) * BASE;
     const cy = (cell.y + 0.5) * BASE;
@@ -102,17 +108,19 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   app.stage.on("pointermove", (e) => {
     if (e.pointerType === "mouse") drawHover(cellFromEvent(e));
   });
-  app.stage.on("pointerleave", () => drawHover(null));
+  app.stage.on("pointerleave", (e) => {
+    if (e.pointerType === "mouse") drawHover(null);
+  });
   app.stage.on("pointertap", (e) => {
     const cell = cellFromEvent(e);
-    if (cell) opts.onCellTap(cell);
-    drawHover(null);
+    drawHover(cell && opts.onCellTap(cell) ? cell : null);
   });
 
   return {
     sync(state, showRanges) {
       lastState = state;
       lastShowRanges = showRanges;
+      if (previewCell) drawHover(previewCell);
       const kills = entities.sync(state, showRanges);
       if (kills.length > 0 && opts.onKills) {
         opts.onKills(
@@ -125,7 +133,9 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     },
     setHoverTower(kind) {
       hoverTower = kind;
+      drawHover(kind ? previewCell : null);
     },
+    previewCell: () => previewCell,
     setSelectedTowerId(id) {
       entities.selectedTowerId = id;
       if (lastState) entities.sync(lastState, lastShowRanges);

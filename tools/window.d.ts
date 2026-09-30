@@ -10,5 +10,5 @@ interface TdDebugState {
 }
 
 interface Window {
-  __td?: { state(): TdDebugState; hash(): string; ready: boolean };
+  __td?: { state(): TdDebugState; hash(): string; ready: boolean; preview?: () => { x: number; y: number } | null };
 }

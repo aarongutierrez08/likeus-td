@@ -13,6 +13,7 @@ import {
   type Command,
   type EnemyKind,
   type GameState,
+  type Point,
 } from "@td/sim";
 import type { CommandReject, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
@@ -39,6 +40,8 @@ interface DebugHandle {
   state: () => GameState;
   hash: () => string;
   ready: boolean;
+  /** Cell where the map draws the chosen tower's reach, if any. */
+  preview?: () => Point | null;
 }
 
 declare global {
@@ -97,6 +100,12 @@ function exposeForTools(game: Game): void {
   window.__td = { runner: game.runner, state: game.store.state, hash: () => hashState(game.store.state()), ready: false };
 }
 
+/** A build refused for lack of gold keeps the reach on the map: the player is planning the next buy. */
+function rejectBuild(notify: (msg: string) => void, reason: CommandReject): boolean {
+  notify(REJECT_MESSAGES[reason]);
+  return reason === "no_gold";
+}
+
 function makeNotifier(game: Game): (msg: string) => void {
   let timer = 0;
   return (msg) => {
@@ -127,6 +136,7 @@ function selectTowerAt(game: Game, cell: { x: number; y: number }): boolean {
 
 /** Keeps the Pixi scene in sync with the store; a root so the effects have an owner. */
 function bindRenderer(renderer: Renderer, game: Game): void {
+  if (window.__td) window.__td.preview = () => renderer.previewCell();
   createRoot(() => {
     createEffect(() => renderer.setHoverTower(game.store.selectedTower()));
     createEffect(() => {
@@ -251,14 +261,15 @@ async function bootSolo(params: UrlParams): Promise<void> {
     mapId: initial.mapId,
     onKills: killLabel(game),
     onCellTap: (cell) => {
-      if (selectTowerAt(game, cell)) return;
+      if (selectTowerAt(game, cell)) return false;
       const tower = store.selectedTower();
-      if (!tower) return;
+      if (!tower) return false;
       const cmd = { type: "build" as const, tick: runner.state.tick, playerId: 0, tower, x: cell.x, y: cell.y };
       const reason = validateBuild(runner.state, cmd);
-      if (reason) return notify(REJECT_MESSAGES[reason]);
+      if (reason) return rejectBuild(notify, reason);
       runner.enqueue(cmd);
       if (runner.paused || runner.speed === 0) runner.stepAndPublish();
+      return false;
     },
   });
   bindRenderer(renderer, game);
@@ -345,13 +356,14 @@ function bootCoop(params: UrlParams): void {
       mapId: snapshot.state.mapId,
       onKills: killLabel(created),
       onCellTap: (cell) => {
-        if (selectTowerAt(created, cell)) return;
+        if (selectTowerAt(created, cell)) return false;
         const tower = store.selectedTower();
-        if (!tower || net.roomInfo()?.phase !== "playing") return;
+        if (!tower || net.roomInfo()?.phase !== "playing") return false;
         const cmd = { type: "build" as const, tick: runner.state.tick, playerId: snapshot.you, tower, x: cell.x, y: cell.y };
         const reason = validateBuild(runner.state, cmd);
-        if (reason) return notify(REJECT_MESSAGES[reason]);
+        if (reason) return rejectBuild(notify, reason);
         connection.send("cmd", { type: "build", tower, x: cell.x, y: cell.y });
+        return false;
       },
     }).then((r) => {
       renderer = r;

@@ -91,22 +91,24 @@ export function Shop(props: { store: GameStore }) {
   return (
     <div class="shop">
       <For each={TOWER_KINDS}>
-        {(kind) => (
-          <button
-            type="button"
-            classList={{ selected: props.store.selectedTower() === kind }}
-            disabled={gold() < TOWERS[kind].cost}
-            style={{ "--swatch": cssColor(TOWERS[kind].color) }}
-            title={tooltip(kind)}
-            onClick={() => props.store.setSelectedTower(props.store.selectedTower() === kind ? null : kind)}
-          >
-            <span class="name">{label(kind)}</span>
-            <span class="cost">
-              {TOWERS[kind].cost} oro{attackLine(kind)}
-            </span>
-            <span class="info">{describe(kind)}</span>
-          </button>
-        )}
+        {(kind) => {
+          const poor = () => gold() < TOWERS[kind].cost;
+          return (
+            <button
+              type="button"
+              classList={{ selected: props.store.selectedTower() === kind, poor: poor() }}
+              style={{ "--swatch": cssColor(TOWERS[kind].color) }}
+              title={poor() ? `${tooltip(kind)} · te falta oro` : tooltip(kind)}
+              onClick={() => props.store.setSelectedTower(props.store.selectedTower() === kind ? null : kind)}
+            >
+              <span class="name">{label(kind)}</span>
+              <span class="cost">
+                {TOWERS[kind].cost} oro{attackLine(kind)}
+              </span>
+              <span class="info">{describe(kind)}</span>
+            </button>
+          );
+        }}
       </For>
       <span class="hint">Elegí una torre y tocá una celda · Esc suelta · ~ debug</span>
     </div>

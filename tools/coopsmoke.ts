@@ -50,7 +50,7 @@ const done = (label: string): void => {
 };
 
 const newPage = async (): Promise<Page> => {
-  const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
+  const page = await browser.newPage({ viewport: { width: 1000, height: 700 }, hasTouch: true });
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
@@ -132,6 +132,24 @@ try {
   await b.waitForFunction(() => (window.__td?.state().towers.length ?? 0) === 2, null, { timeout: 15000 });
   await a.waitForFunction(() => document.querySelector(".topbar")?.textContent?.includes("2/2"));
   done("B reconectado tras recargar");
+
+  const atB2 = await cellOf(b);
+  await b.locator(".shop button").filter({ hasText: "Cachetazo" }).click({ delay: 120 });
+  for (let x = 8; x <= 14 && (await b.locator(".shop button.poor").count()) === 0; x++) {
+    const before = await towers(b);
+    await b.mouse.click(atB2(x, 3).x, atB2(x, 3).y);
+    await b.waitForFunction((n) => (window.__td?.state().towers.length ?? 0) > n, before, { timeout: 10000 });
+  }
+  const builtBefore = await towers(b);
+  await b.keyboard.press("Escape");
+  await b.locator(".shop button.poor").first().click({ delay: 120 });
+  await b.touchscreen.tap(atB2(8, 4).x, atB2(8, 4).y);
+  await b.getByText("Oro insuficiente").waitFor({ timeout: 2000 });
+  const kept = await b.evaluate(() => window.__td?.preview?.() ?? null);
+  if (kept?.x !== 8 || kept.y !== 4) throw new Error(`tras el toque sin oro el alcance quedó en ${JSON.stringify(kept)}`);
+  await b.waitForTimeout(300);
+  if ((await towers(b)) !== builtBefore) throw new Error("B construyó sin poder pagarla");
+  done("B elige una torre que no puede pagar, la toca en el mapa, ve su alcance y no construye");
 
   await a.locator("button", { hasText: "1×" }).first().click();
   await a.waitForFunction(() => (window.__td?.state().tick ?? 0) >= 200);

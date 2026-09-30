@@ -140,9 +140,17 @@ body {
   background: #24304a;
 }
 
-.shop button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+/* Still selectable without gold: the reach preview is how a player plans the next buy. */
+.shop button.poor {
+  opacity: 0.6;
+}
+
+.shop button.poor.selected {
+  opacity: 1;
+}
+
+.shop button.poor .cost {
+  color: var(--lives);
 }
 
 .shop button .name {

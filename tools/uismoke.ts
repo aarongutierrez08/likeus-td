@@ -37,7 +37,7 @@ async function assertStable(page: Page, target: Locator, what: string): Promise<
 
 let failed = false;
 try {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, hasTouch: true });
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
@@ -108,6 +108,25 @@ try {
     { timeout: 60000 },
   );
   done("los enemigos golpean la tranquera");
+
+  await page.goto(`${base}?seed=42&wave=4&gold=0&speed=1&bot=0`);
+  await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await page.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);
+  const pricey = page.locator(".shop button.poor").first();
+  await pricey.click({ delay: HOLD_MS });
+  await page.waitForSelector(".shop button.poor.selected");
+  await page.mouse.move(px(15), py(3));
+  await page.waitForFunction(() => {
+    const cell = window.__td?.preview?.();
+    return cell?.x === 15 && cell.y === 3;
+  });
+  await page.mouse.move(px(0), py(11));
+  await page.touchscreen.tap(px(15), py(3));
+  await page.getByText("Oro insuficiente").waitFor({ timeout: 2000 });
+  if ((await state(page)).towers.length !== 0) throw new Error("se construyó sin oro");
+  const kept = await page.evaluate(() => window.__td?.preview?.() ?? null);
+  if (kept?.x !== 15 || kept.y !== 3) throw new Error(`tras el toque sin oro el alcance quedó en ${JSON.stringify(kept)}`);
+  done("sin oro se elige la torre y se ve su alcance con mouse y con toque, pero no se construye");
 } catch (err) {
   failed = true;
   console.error(`FALLÓ tras ${steps.length} pasos: ${err instanceof Error ? err.message : String(err)}`);
