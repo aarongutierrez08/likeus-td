@@ -9,12 +9,13 @@ import {
   getMap,
   hasAttack,
   isBuildable,
+  isPathCell,
   pathCells,
   type Command,
   type GameState,
   type TowerKind,
 } from "../src/index";
-import { scenario } from "./helpers/scenario";
+import { scenario, type Scenario } from "./helpers/scenario";
 
 const cheapest = Math.min(...TOWER_KINDS.map((k) => TOWERS[k].cost));
 const richest = Math.max(...TOWER_KINDS.map((k) => TOWERS[k].cost));
@@ -123,5 +124,93 @@ describe("informed bot and radar", () => {
     expect(builtKind(createBot("trivial").decide(before))).toBe("radar");
     const covered = scenario({ seed: 1, waves: true, startWave: stealthWave, gold: richest }).tower("radar", { x: 4, y: 2 }).state();
     expect(builtKind(createBot("trivial").decide(covered))).not.toBe("radar");
+  });
+});
+
+describe("informed bot spending", () => {
+  const longest = Math.max(...TOWER_KINDS.map((k) => TOWERS[k].range));
+  const coverageOf = (x: number, y: number): number =>
+    pathCells("s").filter((c) => ((c.x - x) * FP) ** 2 + ((c.y - y) * FP) ** 2 <= longest * longest).length;
+  /** Every free cell that covers at least `min` path cells gets a rival's archer, so building elsewhere is a poor deal. */
+  const crowded = (min: number, mine: { x: number; y: number; level: number }): Scenario => {
+    const game = scenario({ seed: 1, players: [0, 1], gold: TOWERS.archer.cost });
+    const map = getMap("s");
+    for (let y = 0; y < map.height; y++)
+      for (let x = 0; x < map.width; x++) {
+        if (!isBuildable("s", x, y) || (x === mine.x && y === mine.y)) continue;
+        if (coverageOf(x, y) >= min) game.tower("archer", { x, y, owner: 1 });
+      }
+    game.tower("archer", { x: mine.x, y: mine.y, owner: 0 });
+    game.run(0);
+    const own = game.towers().find((t) => t.owner === 0)!;
+    own.level = mine.level;
+    return game;
+  };
+
+  it("upgrades its well-placed tower when every remaining cell covers much less path", () => {
+    const game = crowded(5, { x: 15, y: 3, level: 1 });
+    const command = createBot("trivial").decide(game.state())[0];
+    expect(command?.type).toBe("upgrade");
+  });
+
+  it("takes the first branch when the upgrade is the last level", () => {
+    const game = crowded(5, { x: 15, y: 3, level: 2 });
+    const command = createBot("trivial").decide(game.state())[0];
+    expect(command?.type === "upgrade" && command.branch).toBe("a");
+  });
+
+  it("builds a damage aura where four of its attack towers share the square", () => {
+    const game = scenario({ seed: 1, gold: TOWERS.aura.cost })
+      .tower("archer", { x: 14, y: 3 })
+      .tower("archer", { x: 16, y: 3 })
+      .tower("archer", { x: 14, y: 2 })
+      .tower("archer", { x: 16, y: 2 })
+      .run(0);
+    const command = createBot("trivial").decide(game.state())[0];
+    expect(command?.type === "build" && command.tower).toBe("aura");
+    expect(command?.type === "build" && Math.max(Math.abs(command.x - 15), Math.abs(command.y - 2.5))).toBeLessThanOrEqual(2);
+  });
+
+  it("adds a slowing tower once it has four attack towers and no control", () => {
+    const game = scenario({ seed: 1, gold: TOWERS.frost.cost })
+      .tower("archer", { x: 14, y: 3 })
+      .tower("archer", { x: 16, y: 3 })
+      .tower("archer", { x: 13, y: 3 })
+      .tower("archer", { x: 12, y: 3 })
+      .tower("aura", { x: 15, y: 3 })
+      .run(0);
+    const command = createBot("trivial").decide(game.state())[0];
+    expect(command?.type === "build" && command.tower).toBe("frost");
+  });
+
+  it("puts a wall on the path cell its towers cover best right before a boss wave", () => {
+    const bossWave = WAVES.findIndex((w) => w.groups.some((g) => g.kind === "boss")) + 1;
+    const game = scenario({ seed: 1, waves: true, startWave: bossWave, gold: TOWERS.wall.cost })
+      .tower("archer", { x: 15, y: 3 })
+      .tower("archer", { x: 16, y: 3 })
+      .run(0);
+    const command = createBot("trivial").decide(game.state())[0];
+    expect(command?.type === "build" && command.tower).toBe("wall");
+    expect(command?.type === "build" && isPathCell("s", command.x, command.y)).toBe(true);
+    expect(command?.type === "build" && command.y).toBe(1);
+  });
+});
+
+describe("random bot spending", () => {
+  it("sometimes upgrades one of its towers instead of building, choosing any branch", () => {
+    const kinds = new Set<string>();
+    let upgrades = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      const game = scenario({ seed: 1, gold: richest }).tower("archer", { x: 15, y: 3 }).run(0);
+      game.tower(0).level = 2;
+      const command = createBot("variant", seed).decide(game.state())[0];
+      if (command?.type === "upgrade") {
+        upgrades++;
+        kinds.add(command.branch ?? "none");
+      }
+    }
+    expect(upgrades).toBeGreaterThan(0);
+    expect(upgrades).toBeLessThan(40);
+    expect(kinds.has("a") || kinds.has("b")).toBe(true);
   });
 });

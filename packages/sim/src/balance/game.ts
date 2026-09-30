@@ -1,5 +1,5 @@
 export const GAME = {
-  startGold: 140,
+  startGold: 300,
   lives: 20,
   firstWaveTick: 100,
   /** Ticks between the last spawn of a wave and the start of the next one. */
