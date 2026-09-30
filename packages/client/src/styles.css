@@ -304,7 +304,8 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: min(420px, calc(100vw - 32px));
+  z-index: 10;
+  width: min(560px, calc(100vw - 32px));
   max-height: calc(100vh - 32px);
   overflow: auto;
   padding: 20px;
@@ -321,7 +322,8 @@ body {
   font-size: 20px;
 }
 
-.lobby .row {
+.lobby .row,
+.deck-screen .row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -333,6 +335,7 @@ body {
 }
 
 .lobby button,
+.deck-screen button,
 .chat button {
   min-height: 40px;
   padding: 6px 12px;
@@ -343,7 +346,8 @@ body {
   cursor: pointer;
 }
 
-.lobby button.primary {
+.lobby button.primary,
+.deck-screen button.primary {
   border-color: var(--accent);
   background: #24304a;
 }
@@ -355,7 +359,8 @@ body {
   font-size: 12px;
 }
 
-.lobby button:disabled {
+.lobby button:disabled,
+.deck-screen button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -424,18 +429,21 @@ body {
 }
 
 .lobby .muted,
+.deck-screen .muted,
 .chat .muted {
   color: var(--muted);
   font-size: 12px;
 }
 
-.lobby .error {
+.lobby .error,
+.deck-screen .error {
   margin: 0;
   color: var(--lives);
   font-size: 13px;
 }
 
-.lobby a {
+.lobby a,
+.deck-screen a {
   color: var(--accent);
 }
 
@@ -885,4 +893,72 @@ body {
 .ability .up.poor {
   color: var(--lives);
   opacity: 0.6;
+}
+
+.deck-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.deck-builder h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.deck-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.deck-builder .deck-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #1f232d;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-builder .deck-card.in {
+  border-color: var(--accent);
+  background: #24304a;
+}
+
+.deck-builder .deck-card.full {
+  opacity: 0.5;
+}
+
+.deck-builder .deck-card .name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.deck-builder .deck-card .note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.deck-screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg);
+}
+
+.deck-screen .inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }

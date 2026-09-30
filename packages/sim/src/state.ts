@@ -7,11 +7,14 @@ import { WAVES } from "./balance/waves";
 import { startingGold } from "./economy";
 import { pickColor } from "./colors";
 import { seedRng } from "./rng";
-import type { AbilityKind, AbilitySlot, GameState, Player, TowerKind } from "./types";
+import { deckProblem } from "./deck";
+import type { AbilityKind, AbilitySlot, Deck, GameState, Player, TowerKind } from "./types";
 
 export interface PlayerSetup {
   id: number;
   gold?: number;
+  /** Required when the game plays with decks. */
+  deck?: Deck;
   /** Preferred color; the first free one when absent or taken. */
   color?: number;
 }
@@ -27,6 +30,8 @@ export interface InitialStateOptions {
   startWave?: number;
   /** Set false to opt out of records; any gold or startWave override forces false. */
   ranked?: boolean;
+  /** Towers each player's deck holds (DECK.soloTowers or DECK.coopTowers). Absent: no decks, every card for everyone. */
+  deckTowers?: number;
 }
 
 export function createInitialState(opts: InitialStateOptions): GameState {
@@ -40,6 +45,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     tick: 0,
     status: "playing",
     ranked: isRanked(opts),
+    deckTowers: opts.deckTowers ?? 0,
     players: initialPlayers(opts),
     lives: GAME.lives,
     wave: startWave - 1,
@@ -71,6 +77,17 @@ export function freshAbilities(): Record<AbilityKind, AbilitySlot> {
   return perAbility(() => ({ level: 1, readyTick: 0 }));
 }
 
+/** Every card: the deck of a player in a game without decks. */
+export function fullDeck(): Deck {
+  return { towers: [...TOWER_KINDS], abilities: [...ABILITY_KINDS] };
+}
+
+function initialDeck(setup: PlayerSetup, towers: number): Deck {
+  if (towers === 0) return fullDeck();
+  if (deckProblem(setup.deck, towers) !== null) throw new Error(`player ${setup.id} has no valid deck of ${towers} towers`);
+  return { towers: [...setup.deck!.towers], abilities: [...setup.deck!.abilities] };
+}
+
 function isRanked(opts: InitialStateOptions): boolean {
   const perPlayerOverride = opts.players?.some((p) => p.gold !== undefined) ?? false;
   return (opts.ranked ?? true) && opts.gold === undefined && !perPlayerOverride && opts.startWave === undefined;
@@ -88,6 +105,7 @@ function initialPlayers(opts: InitialStateOptions): Player[] {
       wallReadyTick: 0,
       color,
       abilities: freshAbilities(),
+      deck: initialDeck(p, opts.deckTowers ?? 0),
     });
   }
   return players;

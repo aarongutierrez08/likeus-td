@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { Client, type Room } from "@colyseus/sdk";
 import type { Server } from "@colyseus/core";
-import { hashState, startingGold, step, type Command, type GameState } from "@td/sim";
+import { DEFAULT_DECKS, hashState, startingGold, step, type Command, type Deck, type GameState } from "@td/sim";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   MAX_COMMANDS_PER_TICK,
@@ -94,7 +94,7 @@ function watch(room: Room): Inbox {
   };
 }
 
-async function createRoom(options: { name?: string; private?: boolean; seed?: number; map?: string } = {}): Promise<Inbox> {
+async function createRoom(options: { name?: string; private?: boolean; seed?: number; map?: string; deck?: Deck } = {}): Promise<Inbox> {
   return watch(await client().create(ROOM_NAME, options));
 }
 
@@ -214,7 +214,7 @@ describe("game room", () => {
     const lateSnapshot = await late.next<SnapshotMessage>("snapshot");
     expect(lateSnapshot.you).toBe(2);
     const joinTick = await host.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "join"));
-    expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2, color: 2 });
+    expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2, color: 2, deck: DEFAULT_DECKS.coop });
   });
 
   it("relays a wave call: the wave starts and everyone gets the bonus", async () => {
@@ -250,6 +250,57 @@ describe("game room", () => {
     expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("bad_shape");
     guest.room.send("cmd", { type: "useAbility", ability: "overcharge", towerId: "x" });
     expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("bad_shape");
+  });
+
+  it("plays each player's deck: chosen on entering or in the lobby, checked, and enforced by the sim", async () => {
+    const guestDeck: Deck = { towers: ["archer", "mage", "frost", "wall", "aura"], abilities: ["frost", "overcharge"] };
+    const host = await createRoom({ name: "host", deck: DEFAULT_DECKS.coop });
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    guest.room.send("setDeck", { deck: { towers: ["archer"], abilities: ["bombard", "repair"] } });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("bad_deck");
+    guest.room.send("setDeck", { deck: guestDeck });
+    const listed = await host.next<PlayerInfo[]>("players", (list) =>
+      list.some((p) => p.playerId === 1 && p.deck.towers.includes("frost")),
+    );
+    expect(listed.find((p) => p.playerId === 0)?.deck).toEqual(DEFAULT_DECKS.coop);
+    guest.room.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.every((p) => p.playerId === 0 || p.ready));
+    host.room.send("start", {});
+    const started = await guest.next<SnapshotMessage>("snapshot");
+    expect(started.state.players.find((p) => p.id === 1)?.deck).toEqual(guestDeck);
+    guest.room.send("cmd", { type: "build", tower: "cannon", x: 3, y: 3 });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("not_in_deck");
+  });
+
+  it("a deck change takes back a ready mark, is ignored once playing, and a bad deck on entering falls back to the default", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await client().joinById(host.room.roomId, { name: "guest", deck: { towers: ["archer"], abilities: [] } });
+    const guestInbox = watch(guest);
+    await guestInbox.next<SnapshotMessage>("snapshot");
+    const joined = await host.next<PlayerInfo[]>("players", (list) => list.length === 2);
+    expect(joined.find((p) => p.playerId === 1)?.deck).toEqual(DEFAULT_DECKS.coop);
+    guest.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.find((p) => p.playerId === 1)?.ready === true);
+    const other: Deck = { towers: ["archer", "mage", "frost", "wall", "aura"], abilities: ["frost", "overcharge"] };
+    guest.send("setDeck", { deck: other });
+    const changed = await host.next<PlayerInfo[]>(
+      "players",
+      (list) => list.find((p) => p.playerId === 1)?.deck.towers.includes("frost") === true,
+    );
+    expect(changed.find((p) => p.playerId === 1)?.ready).toBe(false);
+    guest.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.find((p) => p.playerId === 1)?.ready === true);
+    host.room.send("start", {});
+    const started = await guestInbox.next<SnapshotMessage>("snapshot");
+    expect(started.state.players.find((p) => p.id === 1)?.deck).toEqual(other);
+    guest.send("setDeck", { deck: DEFAULT_DECKS.coop });
+    const swapped = await host
+      .next<PlayerInfo[]>("players", (list) => list.find((p) => p.playerId === 1)?.deck.towers.includes("cannon") === true, 500)
+      .catch(() => null);
+    expect(swapped).toBeNull();
   });
 
   it("limits commands per tick per player", async () => {

@@ -77,14 +77,31 @@ try {
   await b.waitForSelector(".lobby .players li:nth-child(2)");
   done("segundo jugador unido por código");
 
+  const bCard = (name: string) => b.locator(".deck-card").filter({ hasText: name });
+  await bCard("Chusma").click();
+  if (await b.getByRole("button", { name: /^Listo/ }).isEnabled()) throw new Error("B puede marcar listo con un mazo incompleto");
+  await bCard("Heladera").click();
+  await b.waitForFunction(() => !document.querySelector<HTMLButtonElement>(".lobby button.primary")?.disabled);
+  done("B cambia su mazo en el lobby: incompleto no deja marcar listo");
+
   await b.getByRole("button", { name: /^Listo/ }).click();
   await a.waitForFunction(() => !document.querySelector<HTMLButtonElement>(".lobby button.primary")?.disabled);
   done("B marcó listo y A tiene Empezar habilitado");
 
+  await bCard("Heladera").click();
+  await a.waitForFunction(() => document.querySelector<HTMLButtonElement>(".lobby button.primary")?.disabled === true);
+  await bCard("Heladera").click();
+  await b.getByRole("button", { name: /^Listo/ }).click();
+  await a.waitForFunction(() => !document.querySelector<HTMLButtonElement>(".lobby button.primary")?.disabled);
+  done("B deja su mazo incompleto estando listo: deja de estar listo y A no puede empezar");
+
   await a.getByRole("button", { name: "Empezar" }).click();
   await a.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);
   await b.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);
-  done("partida iniciada en ambas pestañas");
+  const bShop = await b.locator(".shop button .name").allInnerTexts();
+  if (!bShop.some((n) => n.startsWith("Heladera")) || bShop.some((n) => n.startsWith("Chusma")))
+    throw new Error(`la tienda de B no muestra su mazo: ${bShop.join(", ")}`);
+  done("partida iniciada en ambas pestañas, cada tienda con su mazo");
 
   const cellOf = async (page: Page): Promise<(x: number, y: number) => { x: number; y: number }> => {
     const box = (await (await page.$("#map canvas"))!.boundingBox())!;
@@ -133,16 +150,18 @@ try {
   await a.waitForFunction(() => document.querySelector(".topbar")?.textContent?.includes("2/2"));
   done("B reconectado tras recargar");
 
+  await a.locator("button", { hasText: "1×" }).first().click();
   const atB2 = await cellOf(b);
-  await b.locator(".shop button").filter({ hasText: "Cachetazo" }).click({ delay: 120 });
-  for (let x = 8; x <= 14 && (await b.locator(".shop button.poor").count()) === 0; x++) {
+  await b.locator(".shop button").filter({ hasText: "Reviente" }).click({ delay: 120 });
+  const priciestPoor = b.locator(".shop button.poor").filter({ hasText: "Reviente" });
+  for (let x = 8; x <= 14 && (await priciestPoor.count()) === 0; x++) {
     const before = await towers(b);
     await b.mouse.click(atB2(x, 3).x, atB2(x, 3).y);
     await b.waitForFunction((n) => (window.__td?.state().towers.length ?? 0) > n, before, { timeout: 10000 });
   }
   const builtBefore = await towers(b);
   await b.keyboard.press("Escape");
-  await b.locator(".shop button.poor").first().click({ delay: 120 });
+  await priciestPoor.click({ delay: 120 });
   await b.touchscreen.tap(atB2(8, 4).x, atB2(8, 4).y);
   await b.getByText("Oro insuficiente").waitFor({ timeout: 2000 });
   const kept = await b.evaluate(() => window.__td?.preview?.() ?? null);

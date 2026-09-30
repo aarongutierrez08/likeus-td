@@ -12,6 +12,7 @@ import type {
   TickMessage,
 } from "@td/server/protocol";
 import { KICKED_CLOSE_CODE, ROOM_NAME } from "@td/server/protocol";
+import type { Deck } from "@td/sim";
 
 export interface RoomHandlers {
   snapshot: (msg: SnapshotMessage) => void;
@@ -84,16 +85,19 @@ export class Connection {
     return body.rooms;
   }
 
-  async create(opts: { name: string; private: boolean; map: string; color?: number }, handlers: RoomHandlers): Promise<string> {
+  async create(
+    opts: { name: string; private: boolean; map: string; color?: number; deck?: Deck },
+    handlers: RoomHandlers,
+  ): Promise<string> {
     return this.attach(await this.client.create(ROOM_NAME, opts), handlers);
   }
 
-  async join(code: string, name: string, handlers: RoomHandlers, color?: number): Promise<string> {
-    return this.attach(await this.client.joinById(code, { name, color }), handlers);
+  async join(code: string, name: string, handlers: RoomHandlers, color?: number, deck?: Deck): Promise<string> {
+    return this.attach(await this.client.joinById(code, { name, color, deck }), handlers);
   }
 
   /** Reconnects with the stored token for that code, or joins fresh when there is none. */
-  async rejoin(code: string, name: string, handlers: RoomHandlers): Promise<string> {
+  async rejoin(code: string, name: string, handlers: RoomHandlers, deck?: Deck): Promise<string> {
     const token = readToken(code);
     if (token) {
       try {
@@ -102,7 +106,7 @@ export class Connection {
         writeToken(code, null);
       }
     }
-    return this.join(code, name, handlers);
+    return this.join(code, name, handlers, undefined, deck);
   }
 
   send<K extends keyof ClientMessages>(type: K, payload: ClientMessages[K]): void {

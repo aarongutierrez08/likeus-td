@@ -5,6 +5,8 @@ import type { MapId } from "./balance/maps";
 export type { TowerKind } from "./balance/towers";
 export type { EnemyKind } from "./balance/enemies";
 export type { AbilityKind } from "./balance/abilities";
+export type { Deck } from "./balance/deck";
+import type { Deck } from "./balance/deck";
 import type { AbilityKind } from "./balance/abilities";
 import type { TowerKind } from "./balance/towers";
 import type { EnemyKind } from "./balance/enemies";
@@ -77,6 +79,8 @@ export interface JoinCommand {
   playerId: number;
   /** Preferred color; the first free one when absent or taken. */
   color?: number;
+  /** Required when the game plays with decks. */
+  deck?: Deck;
 }
 
 export interface SetColorCommand {
@@ -194,6 +198,8 @@ export interface Player {
   /** Index into PLAYER_COLORS; unique among the players present. */
   color: number;
   abilities: Record<AbilityKind, AbilitySlot>;
+  /** Cards this player may buy and use. Every card when the game plays without decks. */
+  deck: Deck;
 }
 
 export interface GameStats {
@@ -211,6 +217,8 @@ export interface GameState {
   mapId: MapId;
   tick: number;
   status: GameStatus;
+  /** Towers each deck must hold; 0 when the game plays without decks and everyone has every card. */
+  deckTowers: number;
   /** False when the game started with dev overrides; such games never submit records. */
   ranked: boolean;
   /** Sorted by id. Each player owns their gold and their towers. */

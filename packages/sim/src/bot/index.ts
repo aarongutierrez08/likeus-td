@@ -8,7 +8,10 @@ import { inAuraSquare } from "../systems/towers";
 import { bestAttackTower, multiplierAgainstWaves, upcomingWaves, wavesNeedReveal } from "../preview";
 import { nextRng, seedRng } from "../rng";
 import type { WaveDef } from "../balance/waves";
-import type { Command, GameState, Tower, TowerKind } from "../types";
+import type { Command, Deck, GameState, Tower, TowerKind } from "../types";
+import { ABILITY_KINDS } from "../balance/abilities";
+import { DECK } from "../balance/deck";
+import { deckProblem } from "../deck";
 
 export type BotMode = "trivial" | "variant";
 
@@ -33,11 +36,55 @@ const VARIANT_UPGRADE_ODDS = 4;
 /** The "more of the same" branch: the informed bot never gambles on identity. */
 const SAFE_BRANCH: Branch = "a";
 
-const ATTACK_KINDS = TOWER_KINDS.filter((kind) => hasAttack(TOWERS[kind]));
-const RADAR_KIND = TOWER_KINDS.find((kind) => hasReveal(TOWERS[kind]));
-const WALL_KIND = TOWER_KINDS.find((kind) => hasWall(TOWERS[kind]));
-const DAMAGE_AURA_KIND = TOWER_KINDS.find((kind) => TOWERS[kind].auraStat === "damage");
-const SLOW_KIND = TOWER_KINDS.find((kind) => TOWERS[kind].controlEffect === "slow");
+/** The towers of each role this player may buy: only what their deck holds. */
+interface Kinds {
+  attack: TowerKind[];
+  radar: TowerKind | undefined;
+  wall: TowerKind | undefined;
+  damageAura: TowerKind | undefined;
+  slow: TowerKind | undefined;
+}
+
+/** A deck never changes during a game, so its roles are worked out once per deck. */
+const kindsCache = new WeakMap<readonly TowerKind[], Kinds>();
+
+function kindsOf(state: GameState, playerId: number): Kinds {
+  const deck = state.players.find((p) => p.id === playerId)?.deck.towers ?? [];
+  const cached = kindsCache.get(deck);
+  if (cached) return cached;
+  const inDeck = TOWER_KINDS.filter((kind) => deck.includes(kind));
+  const kinds: Kinds = {
+    attack: inDeck.filter((kind) => hasAttack(TOWERS[kind])),
+    radar: inDeck.find((kind) => hasReveal(TOWERS[kind])),
+    wall: inDeck.find((kind) => hasWall(TOWERS[kind])),
+    damageAura: inDeck.find((kind) => TOWERS[kind].auraStat === "damage"),
+    slow: inDeck.find((kind) => TOWERS[kind].controlEffect === "slow"),
+  };
+  kindsCache.set(deck, kinds);
+  return kinds;
+}
+
+/** Draws before giving up: a valid deck is the common case, so hitting this means the deck rules cannot be met. */
+const RANDOM_DECK_ATTEMPTS = 1000;
+
+/** A valid deck drawn with its own RNG, for bots that play a random deck. */
+export function randomDeck(seed: number, towers: number): Deck {
+  let rng = seedRng(seed);
+  const shuffled = <T>(items: readonly T[]): T[] => {
+    const out = [...items];
+    for (let i = out.length - 1; i > 0; i--) {
+      rng = nextRng(rng);
+      const j = rng % (i + 1);
+      [out[i], out[j]] = [out[j]!, out[i]!];
+    }
+    return out;
+  };
+  for (let attempt = 0; attempt < RANDOM_DECK_ATTEMPTS; attempt++) {
+    const deck = { towers: shuffled(TOWER_KINDS).slice(0, towers), abilities: shuffled(ABILITY_KINDS).slice(0, DECK.abilities) };
+    if (deckProblem(deck, towers) === null) return deck;
+  }
+  throw new Error(`no valid deck of ${towers} towers in ${RANDOM_DECK_ATTEMPTS} draws: check DECK against the towers`);
+}
 
 const coverageCache = new Map<string, number[]>();
 
@@ -207,28 +254,30 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
   const next = upcomingWaves(state, 1)[0]?.def;
   const bossAhead = next?.groups.some((g) => g.kind === "boss") ?? false;
   const wallStanding = state.towers.some((t) => t.owner === playerId && hasWall(towerDef(t)));
-  if (WALL_KIND && bossAhead && !wallStanding && player && state.tick >= player.wallReadyTick) {
+  const kinds = kindsOf(state, playerId);
+  if (kinds.wall && bossAhead && !wallStanding && player && state.tick >= player.wallReadyTick) {
     const cell = wallCell(state, playerId);
-    if (cell) return { command: build(state, playerId, WALL_KIND, cell), cost: TOWERS[WALL_KIND].cost, value: 0 };
+    if (cell) return { command: build(state, playerId, kinds.wall, cell), cost: TOWERS[kinds.wall].cost, value: 0 };
   }
-  if (RADAR_KIND && needsRadar(state, waves)) {
-    return buildOption(state, playerId, RADAR_KIND, waves);
+  if (kinds.radar && needsRadar(state, waves)) {
+    return buildOption(state, playerId, kinds.radar, waves);
   }
   if (own.length > 0) {
-    const cell = DAMAGE_AURA_KIND ? auraCell(state, DAMAGE_AURA_KIND) : null;
-    if (DAMAGE_AURA_KIND && cell)
-      return { command: build(state, playerId, DAMAGE_AURA_KIND, cell), cost: TOWERS[DAMAGE_AURA_KIND].cost, value: 0 };
-    const slow = SLOW_KIND && teamNeedsControl(state) ? buildOption(state, playerId, SLOW_KIND, waves) : null;
+    const cell = kinds.damageAura ? auraCell(state, kinds.damageAura) : null;
+    if (kinds.damageAura && cell)
+      return { command: build(state, playerId, kinds.damageAura, cell), cost: TOWERS[kinds.damageAura].cost, value: 0 };
+    const slow = kinds.slow && teamNeedsControl(state) ? buildOption(state, playerId, kinds.slow, waves) : null;
     if (slow) return slow;
   }
-  const kind = bestAttackTower(waves) ?? ATTACK_KINDS[0]!;
+  const kind = bestAttackTower(waves, kinds.attack) ?? kinds.attack[0];
+  if (kind === undefined) return null;
   const construct = buildOption(state, playerId, kind, waves);
   const improve = own.length > 0 ? upgradeOption(state, playerId, waves) : null;
   const chosen = improve && (construct === null || improve.value > construct.value) ? improve : construct;
   if (chosen && chosen.cost > gold && own.length === 0) {
     const affordable = bestAttackTower(
       waves,
-      ATTACK_KINDS.filter((k) => TOWERS[k].cost <= gold),
+      kinds.attack.filter((k) => TOWERS[k].cost <= gold),
     );
     return affordable ? buildOption(state, playerId, affordable, waves) : null;
   }
@@ -250,18 +299,19 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
     return rng % n;
   };
   let plan: { build: TowerKind } | { upgrade: number } | null = null;
-  const nextPlan = (state: GameState, ownTowers: Tower[]): { build: TowerKind } | { upgrade: number } => {
+  const nextPlan = (state: GameState, ownTowers: Tower[]): { build: TowerKind } | { upgrade: number } | null => {
+    const kinds = kindsOf(state, playerId);
     if (
-      RADAR_KIND &&
+      kinds.radar &&
       needsRadar(
         state,
         upcomingWaves(state, LOOKAHEAD_WAVES).map((w) => w.def),
       )
     )
-      return { build: RADAR_KIND };
+      return { build: kinds.radar };
     const upgradable = ownTowers.filter((t) => t.level < UPGRADE.maxLevel && !hasWall(towerDef(t)));
     if (upgradable.length > 0 && roll(VARIANT_UPGRADE_ODDS) === 0) return { upgrade: upgradable[roll(upgradable.length)]!.id };
-    return { build: ATTACK_KINDS[roll(ATTACK_KINDS.length)]! };
+    return kinds.attack.length > 0 ? { build: kinds.attack[roll(kinds.attack.length)]! } : null;
   };
   return {
     decide(state: GameState): Command[] {
@@ -273,6 +323,7 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
       }
       const ownTowers = state.towers.filter((t) => t.owner === playerId);
       plan ??= nextPlan(state, ownTowers);
+      if (plan === null) return [];
       if ("upgrade" in plan) {
         const towerId = plan.upgrade;
         const tower = ownTowers.find((t) => t.id === towerId && t.level < UPGRADE.maxLevel);
@@ -286,7 +337,7 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
       }
       const wanted = plan.build;
       if (
-        wanted === RADAR_KIND &&
+        wanted === kindsOf(state, playerId).radar &&
         !needsRadar(
           state,
           upcomingWaves(state, LOOKAHEAD_WAVES).map((w) => w.def),

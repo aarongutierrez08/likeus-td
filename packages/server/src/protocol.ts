@@ -1,4 +1,4 @@
-import type { AbilityKind, Branch, Command, GameState, RejectReason, TowerKind } from "@td/sim";
+import type { AbilityKind, Branch, Command, Deck, GameState, RejectReason, TowerKind } from "@td/sim";
 
 /** Wire protocol between GameRoom and the client. Types and constants only: no Colyseus imports. */
 
@@ -25,6 +25,8 @@ export interface PlayerInfo {
   connected: boolean;
   /** Marked in the lobby and on the end screen; start and restart wait for every connected player. */
   ready: boolean;
+  /** Chosen on entering and changed in the lobby; the lobby shows the team's to warn about uncovered armors. */
+  deck: Deck;
 }
 
 export interface CreateRoomOptions {
@@ -34,6 +36,8 @@ export interface CreateRoomOptions {
   map?: string;
   /** Preferred player color; the first free one when absent or taken. */
   color?: number;
+  /** The default co-op deck when absent or invalid. */
+  deck?: Deck;
 }
 
 export const SPEEDS = [1, 2, 4] as const;
@@ -42,6 +46,8 @@ export type Speed = (typeof SPEEDS)[number];
 export interface JoinRoomOptions {
   name?: string;
   color?: number;
+  /** The default co-op deck when absent or invalid. */
+  deck?: Deck;
 }
 
 export interface RoomMetadata {
@@ -213,4 +219,6 @@ export interface ClientMessages {
   ready: { ready: boolean };
   /** Lobby and end screen only: pick a free color. */
   setColor: { color: number };
+  /** Lobby and end screen only: an invalid deck is rejected with bad_deck. */
+  setDeck: { deck: Deck };
 }

@@ -49,7 +49,7 @@ Una carta es cualquier cosa que un jugador lleva a la partida. Tres tipos:
 - Restricción de cobertura: el mazo debe incluir al menos dos tipos de ataque distintos. El lobby avisa si el equipo no cubre las cuatro armaduras, pero no lo impide: es parte del chiste.
 - En una sala, cada jugador solo compra torres de su propio mazo. Las torres ajenas se ven y se benefician de auras ajenas, pero no se compran. Así el equipo se completa entre todos.
 - Mazos guardados con nombre (hasta 5 por cuenta). Invitados tienen un mazo por defecto y uno editable no persistente.
-- El bot de referencia arma mazos válidos al azar; `/balance` mide también por mazo.
+- El bot informado juega el mazo por defecto (el simtest lo mide); el bot al azar arma un mazo válido al azar, y así `/balance` mide mazos distintos.
 
 ### Colección
 - Un **set base** de cartas siempre disponible para todos.
@@ -152,8 +152,8 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 6. ✅ Enemigos con comportamiento: invisible (pide radar), sanador, escudo al primer golpe, se divide al morir, jefe cada 10 con afijo. Calendario a 20.
 7. ✅ Color de jugador, sin diseños propios. Torre: forma por familia, color de dueño en el anillo, tipo por glifo y panel, nivel por marcas.
 8. ✅ Bichos al azar dentro de la oleada: los comunes salen en orden mezclado con la RNG de la sim y los jefes siempre después de todos los comunes; el calendario muestra la composición, no el orden. Si algún día hay comunes con afijo, se decide ahí dónde salen.
-9. ✅ Habilidades, como primer tipo de carta nuevo (ADR 010). Las cuatro para todos hasta que llegue el mazo; cada habilidad es carta de su dueño: la mejora, la usa y la espera solo él, aunque su efecto ayude al equipo. Números de relleno hasta el punto 15; el bot todavía no las usa.
-10. ⬜ Mazo por jugador, primero con el set base y sin colección persistente.
+9. ✅ Habilidades, como primer tipo de carta nuevo (ADR 010). Cada habilidad es carta de su dueño: la mejora, la usa y la espera solo él, aunque su efecto ayude al equipo. Números de relleno hasta el punto 15; el bot todavía no las usa.
+10. ✅ Mazo por jugador, con el set base y sin colección persistente (ADR 011). En solo se arma en una pantalla previa; en co-op, en el lobby antes de marcar listo, con aviso de armaduras sin cubrir. El navegador recuerda el último mazo por modo. El bot informado juega el mazo por defecto y el simtest lo mide; `/balance` suma mazos al azar.
 11. ⬜ Doctrinas por jugador.
 12. ⬜ Anfitrión libera la oleada. Chico; pendiente de ADR corto porque reemplaza el quórum del ADR 007.
 13. ⬜ Economía: mercado con precios que suben al comprar y bajan por oleada; rebalance de mina.

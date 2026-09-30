@@ -7,7 +7,8 @@ import { TEAM_OWNER } from "./constants";
 import { WAVES } from "./balance/waves";
 import { isPlayerColor, pickColor } from "./colors";
 import { callQuorum, callWaveBonus, startingGold } from "./economy";
-import { freshAbilities } from "./state";
+import { deckProblem } from "./deck";
+import { freshAbilities, fullDeck } from "./state";
 import { castAbility } from "./systems/abilities";
 import type {
   AbilityKind,
@@ -53,7 +54,9 @@ export type RejectReason =
   | "bad_branch"
   | "unknown_ability"
   | "ability_cooldown"
-  | "bad_target";
+  | "bad_target"
+  | "not_in_deck"
+  | "bad_deck";
 
 export function upgradeCost(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
@@ -107,6 +110,7 @@ export function validateBuild(state: GameState, cmd: BuildCommand): RejectReason
   if (!def) return "unknown_tower";
   const player = findPlayer(state, cmd.playerId);
   if (!player) return "no_player";
+  if (!player.deck.towers.includes(cmd.tower)) return "not_in_deck";
   if (!isInside(state.mapId, cmd.x, cmd.y)) return "outside";
   if (hasWall(def)) {
     if (!isPathCell(state.mapId, cmd.x, cmd.y)) return "not_on_path";
@@ -125,9 +129,10 @@ export function underAttack(state: GameState, tower: Tower): boolean {
   return hasWall(towerDef(tower)) && tower.lastHitTick >= state.tick - 1;
 }
 
-/** Joining twice is harmless: the second join is ignored. */
-export function validateJoin(_state: GameState, _cmd: JoinCommand): RejectReason | null {
-  return null;
+/** Joining twice is harmless: the second join is ignored. In a game with decks a newcomer must bring a valid one. */
+export function validateJoin(state: GameState, cmd: JoinCommand): RejectReason | null {
+  if (state.deckTowers === 0 || findPlayer(state, cmd.playerId)) return null;
+  return deckProblem(cmd.deck, state.deckTowers);
 }
 
 export function validateCallWave(state: GameState, cmd: CallWaveCommand): RejectReason | null {
@@ -208,6 +213,7 @@ export function validateUseAbility(state: GameState, cmd: UseAbilityCommand): Re
   const player = findPlayer(state, cmd.playerId);
   if (!player) return "no_player";
   if (!isAbility(cmd.ability)) return "unknown_ability";
+  if (!player.deck.abilities.includes(cmd.ability)) return "not_in_deck";
   if (state.tick < player.abilities[cmd.ability].readyTick) return "ability_cooldown";
   return validateAbilityTarget(state, cmd);
 }
@@ -216,6 +222,7 @@ export function validateUpgradeAbility(state: GameState, cmd: UpgradeAbilityComm
   const player = findPlayer(state, cmd.playerId);
   if (!player) return "no_player";
   if (!isAbility(cmd.ability)) return "unknown_ability";
+  if (!player.deck.abilities.includes(cmd.ability)) return "not_in_deck";
   const def = ABILITIES[cmd.ability];
   if (player.abilities[cmd.ability].level >= def.levels.length) return "max_level";
   if (player.gold < def.upgradeCost) return "no_gold";
@@ -279,6 +286,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
           earned: 0,
           wallReadyTick: 0,
           abilities: freshAbilities(),
+          deck: state.deckTowers === 0 ? fullDeck() : { towers: [...cmd.deck!.towers], abilities: [...cmd.deck!.abilities] },
           color: pickColor(state.players, cmd.color),
         });
         state.players.sort((a, b) => a.id - b.id);

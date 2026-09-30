@@ -9,6 +9,9 @@ export type AttackType = (typeof ATTACK_TYPES)[number];
 export const ARMORS = ["none", "light", "heavy", "enchanted"] as const;
 export type Armor = (typeof ARMORS)[number];
 
+/** The multiplier of an attack that is neither strong nor weak against an armor. */
+export const NEUTRAL_PCT = 100;
+
 export const DAMAGE_TABLE: Record<AttackType, Record<Armor, number>> = {
   pierce: { none: 100, light: 150, heavy: 100, enchanted: 50 },
   blunt: { none: 100, light: 50, heavy: 150, enchanted: 100 },

@@ -42,7 +42,26 @@ try {
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
   });
-  await page.goto(`${base}?seed=42&wave=4&gold=900&speed=1&bot=0`);
+  await page.goto(`${base}?seed=42`);
+  await page.waitForSelector(".deck-screen");
+  const play = page.getByRole("button", { name: "Jugar", exact: true });
+  const card = (name: string) => page.locator(".deck-card").filter({ hasText: name });
+  await card("Pincha").click();
+  if (await play.isEnabled()) throw new Error("Jugar habilitado con un mazo incompleto");
+  await page.locator(".deck-builder .error").waitFor();
+  await card("Alcancía").click();
+  await play.click();
+  await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  const shopNames = await page.locator(".shop button .name").allInnerTexts();
+  if (!shopNames.some((n) => n.startsWith("Alcancía")) || shopNames.some((n) => n.startsWith("Pincha")))
+    throw new Error(`la tienda no muestra el mazo elegido: ${shopNames.join(", ")}`);
+  await page.goto(`${base}?seed=42`);
+  await page.waitForSelector(".deck-screen");
+  if (!(await card("Alcancía").evaluate((el) => el.classList.contains("in")))) throw new Error("el mazo elegido no se recordó");
+  done("pantalla de mazo: incompleto no juega, la tienda muestra el mazo y se recuerda");
+
+  const testDeck = "archer,mage,hammer,cannon,frost,radar,wall,aura";
+  await page.goto(`${base}?seed=42&wave=4&gold=900&speed=1&bot=0&deck=${testDeck};bombard,frost`);
   await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
   const box = (await (await page.$("#map canvas"))!.boundingBox())!;
   const cell = Math.min(box.width / 20, box.height / 12);
@@ -129,6 +148,10 @@ try {
   await page.waitForFunction(() => window.__td!.state().frostZones.length === 1);
   done("escarcha con la tecla 2: rechazada fuera del camino, lanzada sobre él");
 
+  await page.goto(`${base}?seed=42&wave=4&gold=900&speed=1&bot=0&deck=${testDeck};overcharge,repair`);
+  await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await page.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);
+  if ((await page.locator(".ability").count()) !== 2) throw new Error("la barra no muestra solo las dos habilidades del mazo");
   await page.locator(".shop button").first().click({ delay: HOLD_MS });
   await clickCell(12, 3);
   await page.waitForFunction(() => window.__td!.state().towers.some((t) => t.x === 12 && t.y === 3));

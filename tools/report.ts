@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { dumpState, hashState, step, type Command, type GameState } from "@td/sim";
+import { BALANCE_VERSION, dumpState, hashState, step, type Command, type GameState } from "@td/sim";
 import type { BugReport } from "@td/server/protocol";
 import { intArg, parseArgs } from "./args";
 
@@ -65,6 +65,10 @@ function sanitize(text: string): string {
 
 function replayTo(report: BugReport, targetTick: number): GameState {
   if (!report.initialState) throw new Error("el reporte no trae estado inicial (partida en lobby)");
+  if (report.balanceVersion !== BALANCE_VERSION)
+    throw new Error(
+      `el reporte es de balance v${report.balanceVersion} y la sim es v${BALANCE_VERSION}: reproducilo desde el commit ${report.commit}`,
+    );
   let state = report.initialState;
   const byTick = new Map<number, Command[]>(report.history.map((h) => [h.tick, h.commands]));
   while (state.tick < targetTick && state.status === "playing") state = step(state, byTick.get(state.tick) ?? []);

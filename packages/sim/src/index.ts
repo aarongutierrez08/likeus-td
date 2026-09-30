@@ -20,9 +20,10 @@ export {
   type RejectReason,
 } from "./commands";
 export { hashState } from "./hash";
+export { deckProblem } from "./deck";
 export { canSubmitRecord } from "./records";
 export { dumpState } from "./dump";
-export { createBot, type Bot, type BotMode } from "./bot/index";
+export { createBot, randomDeck, type Bot, type BotMode } from "./bot/index";
 export { getMap, isInside, isPathCell, isBuildable, pathCells, distanceToPath, pathIndex } from "./grid";
 export { pathLength, positionAt, cellCenterFP } from "./path";
 export { MAPS, MAP_IDS, DEFAULT_MAP, isMapId, type MapId, type MapDef, type Point } from "./balance/maps";
@@ -56,6 +57,7 @@ export {
   type AbilityTarget,
 } from "./balance/define";
 export { ABILITIES, ABILITY_KINDS, abilityLevel } from "./balance/abilities";
+export { DECK, DEFAULT_DECKS } from "./balance/deck";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef, type EnemySpec } from "./balance/enemies";
 export { AFFIXES, BOSS_AFFIXES, type BossAffix } from "./balance/affixes";
 export { bossAffix, initialShield } from "./affixes";
@@ -64,6 +66,7 @@ export {
   ATTACK_TYPES,
   ARMORS,
   DAMAGE_TABLE,
+  NEUTRAL_PCT,
   ATTACK_LABELS,
   ARMOR_LABELS,
   damageMultiplier,

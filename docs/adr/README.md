@@ -14,6 +14,7 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 008 | Contenido como datos: una torre o enemigo es una entrada en `balance/` |
 | 009 | La tabla tipo de ataque × armadura es regla del juego, no balance |
 | 010 | Habilidades: carta como datos, lanzada por comando |
+| 011 | Mazo por jugador, validado por la sim |
 | 012 | Una kill por habilidad es una kill normal (reemplaza la regla de kills del 010) |
 
 Plantilla: `000-template.md`.

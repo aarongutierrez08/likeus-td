@@ -1,5 +1,5 @@
-import { For, Show, createSignal } from "solid-js";
-import { ABILITIES, ABILITY_KINDS, FP, TICKS_PER_SECOND, abilityLevel, findPlayer, type AbilityKind, type AbilityLevel } from "@td/sim";
+import { For, Show, createMemo, createSignal } from "solid-js";
+import { ABILITIES, FP, TICKS_PER_SECOND, abilityLevel, findPlayer, type AbilityKind, type AbilityLevel } from "@td/sim";
 import type { GameStore } from "../game/store";
 
 export interface AbilityRequest {
@@ -45,6 +45,8 @@ export function pickAbility(store: GameStore, actions: AbilityActions, kind: Abi
 export function AbilityBar(props: { store: GameStore; actions: AbilityActions }) {
   const me = () => findPlayer(props.store.state(), props.store.you);
   const pick = (kind: AbilityKind): void => pickAbility(props.store, props.actions, kind);
+  /** Only the abilities of your deck, in its order: key 1 is the first one. */
+  const deck = createMemo(() => me()?.deck.abilities ?? []);
   /** Touch has no hover: the ability being aimed, or the last one touched or pointed at, gets its detail in plain text. */
   const [touched, setTouched] = createSignal<AbilityKind | null>(null);
   const shown = () => props.store.aimingAbility() ?? touched();
@@ -61,7 +63,7 @@ export function AbilityBar(props: { store: GameStore; actions: AbilityActions })
   return (
     <div class="abilities" onPointerLeave={(e) => e.pointerType === "mouse" && setTouched(null)}>
       <Show when={detail()}>{(text) => <p class="ability-detail">{text()}</p>}</Show>
-      <For each={ABILITY_KINDS}>
+      <For each={deck()}>
         {(kind) => {
           const def = ABILITIES[kind];
           const level = () => me()?.abilities[kind].level ?? 1;

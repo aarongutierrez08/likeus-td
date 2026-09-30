@@ -1,7 +1,8 @@
-import { For, Show, createSignal, onMount } from "solid-js";
+import { For, Show, createEffect, createSignal, onMount } from "solid-js";
 import type { RoomMetadata } from "@td/server/protocol";
 import { PLAYER_LIMIT } from "@td/server/protocol";
-import { MAP_IDS, PLAYER_COLORS } from "@td/sim";
+import { DECK, MAP_IDS, PLAYER_COLORS, type Deck } from "@td/sim";
+import { DeckBuilder, deckIssue } from "./DeckBuilder";
 import { cssColor } from "./colors";
 import type { NetStore } from "../net/store";
 
@@ -14,6 +15,7 @@ export interface LobbyActions {
   leave(): Promise<void>;
   setReady(ready: boolean): void;
   setColor(color: number): void;
+  setDeck(deck: Deck): void;
 }
 
 export function Lobby(props: { net: NetStore; actions: LobbyActions; defaultName: string; initialCode?: string | undefined }) {
@@ -111,6 +113,18 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
   const isCreator = () => props.info.you === props.info.creator;
   const me = () => props.info.players.find((p) => p.playerId === props.info.you);
   const notReady = () => props.info.players.filter((p) => p.playerId !== props.info.creator && p.connected && !p.ready);
+  /** Edited locally; the room only hears about it once it is a deck that can play. */
+  const [draft, setDraft] = createSignal<Deck | null>(null);
+  createEffect(() => {
+    if (draft() === null && me()) setDraft(me()!.deck);
+  });
+  const draftIssue = () => (draft() ? deckIssue(draft()!, DECK.coopTowers) : null);
+  const editDeck = (deck: Deck): void => {
+    setDraft(deck);
+    if (deckIssue(deck, DECK.coopTowers) === null) props.actions.setDeck(deck);
+    else if (me()?.ready) props.actions.setReady(false);
+  };
+  const teamDecks = () => props.info.players.filter((p) => p.playerId !== props.info.you).map((p) => p.deck);
   return (
     <div class="lobby">
       <h2>
@@ -155,16 +169,27 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
           )}
         </For>
       </div>
+      <Show when={draft()}>{(deck) => <DeckBuilder towers={DECK.coopTowers} deck={deck()} onChange={editDeck} team={teamDecks()} />}</Show>
       <div class="row">
         <Show
           when={isCreator()}
           fallback={
-            <button type="button" class="primary" onClick={() => props.actions.setReady(!me()?.ready)}>
+            <button
+              type="button"
+              class="primary"
+              disabled={draftIssue() !== null && !me()?.ready}
+              onClick={() => props.actions.setReady(!me()?.ready)}
+            >
               {me()?.ready ? "Listo ✓ (cancelar)" : "Listo"}
             </button>
           }
         >
-          <button type="button" class="primary" disabled={notReady().length > 0} onClick={() => props.actions.start()}>
+          <button
+            type="button"
+            class="primary"
+            disabled={notReady().length > 0 || draftIssue() !== null}
+            onClick={() => props.actions.start()}
+          >
             Empezar
           </button>
           <Show when={notReady().length > 0}>

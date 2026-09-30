@@ -7,6 +7,9 @@ import {
   canSubmitRecord,
   cloneState,
   createInitialState,
+  deckProblem,
+  DECK,
+  DEFAULT_DECKS,
   dumpState,
   isMapId,
   DEFAULT_MAP,
@@ -17,6 +20,7 @@ import {
   step,
   validateCommand,
   type Command,
+  type Deck,
   type GameState,
 } from "@td/sim";
 import {
@@ -111,6 +115,7 @@ export class GameRoom extends Room {
     this.onMessage("restart", (client) => void this.handleRestart(client));
     this.onMessage<{ ready?: unknown }>("ready", (client, msg) => this.handleReady(client, msg));
     this.onMessage<{ color?: unknown }>("setColor", (client, msg) => this.handleSetColor(client, msg));
+    this.onMessage<{ deck?: unknown }>("setDeck", (client, msg) => this.handleSetDeck(client, msg));
   }
 
   override async onJoin(client: Client, options?: JoinRoomOptions): Promise<void> {
@@ -121,11 +126,13 @@ export class GameRoom extends Room {
       color: pickColor([...this.players.values()], options?.color),
       connected: true,
       ready: false,
+      deck: validDeck(options?.deck) ?? DEFAULT_DECKS.coop,
       sessionId: client.sessionId,
     };
     this.players.set(client.sessionId, player);
     if (this.players.size === 1) this.creatorPlayerId = playerId;
-    if (this.phase === "playing") this.pending.push({ type: "join", tick: this.sim.tick, playerId, color: player.color });
+    if (this.phase === "playing")
+      this.pending.push({ type: "join", tick: this.sim.tick, playerId, color: player.color, deck: player.deck });
     client.send("snapshot", this.snapshotFor(player));
     this.broadcastPlayers();
     await this.publishMetadata();
@@ -160,8 +167,8 @@ export class GameRoom extends Room {
   private handleStart(client: Client): void {
     if (!this.isCreator(client) || this.phase !== "lobby" || !this.everyoneReady(client)) return;
     this.clearReady();
-    const players = [...this.players.values()].map((p) => ({ id: p.playerId, color: p.color }));
-    this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players });
+    const players = [...this.players.values()].map((p) => ({ id: p.playerId, color: p.color, deck: p.deck }));
+    this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players, deckTowers: DECK.coopTowers });
     this.initialState = this.sim;
     this.history.length = 0;
     this.setPhase("playing");
@@ -302,6 +309,20 @@ export class GameRoom extends Room {
     if (!player || this.phase === "playing" || !isPlayerColor(msg?.color)) return;
     if ([...this.players.values()].some((p) => p !== player && p.color === msg.color)) return;
     player.color = msg.color;
+    this.broadcastPlayers();
+  }
+
+  /** Decks are chosen while nobody plays; changing it takes back a ready mark, since the team may have counted on the old one. */
+  private handleSetDeck(client: Client, msg: { deck?: unknown }): void {
+    const player = this.players.get(client.sessionId);
+    if (!player || this.phase === "playing") return;
+    const deck = validDeck(msg?.deck);
+    if (!deck) {
+      client.send("rejected", { reason: "bad_deck" satisfies CommandReject });
+      return;
+    }
+    player.deck = deck;
+    player.ready = false;
     this.broadcastPlayers();
   }
 
@@ -461,7 +482,7 @@ export class GameRoom extends Room {
 
   private playerList(): PlayerInfo[] {
     return [...this.players.values()]
-      .map(({ playerId, name, color, connected, ready }) => ({ playerId, name, color, connected, ready }))
+      .map(({ playerId, name, color, connected, ready, deck }) => ({ playerId, name, color, connected, ready, deck }))
       .sort((a, b) => a.playerId - b.playerId);
   }
 
@@ -490,6 +511,13 @@ export class GameRoom extends Room {
     };
     return this.setMetadata(metadata);
   }
+}
+
+/** A copy of the deck when it is a valid co-op deck; null otherwise. */
+function validDeck(value: unknown): Deck | null {
+  const deck = value as Deck | undefined;
+  if (deckProblem(deck, DECK.coopTowers) !== null) return null;
+  return { towers: [...deck!.towers], abilities: [...deck!.abilities] };
 }
 
 function pickSeed(requested: number | undefined): number {

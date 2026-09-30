@@ -2,19 +2,21 @@ import { render } from "solid-js/web";
 import { Show, createEffect, createRoot, createSignal } from "solid-js";
 import {
   ABILITIES,
-  ABILITY_KINDS,
+  DECK,
   ECONOMY,
   ENEMIES,
   attenuatedBounty,
   createBot,
   dumpState,
   createInitialState,
+  deckProblem,
   findPlayer,
   hashState,
   validateBuild,
   validateCommand,
   type AbilityKind,
   type Command,
+  type Deck,
   type EnemyKind,
   type GameState,
   type Point,
@@ -37,6 +39,8 @@ import { EndScreen, type EndActions } from "./ui/EndScreen";
 import { createFloatingLabels } from "./ui/FloatingLabels";
 import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
+import { DeckScreen } from "./ui/DeckScreen";
+import { readDeck, writeDeck } from "./game/deck";
 import { AbilityBar, pickAbility, type AbilityActions, type AbilityRequest } from "./ui/AbilityBar";
 import { Shop } from "./ui/Shop";
 import { TowerPanel } from "./ui/TowerPanel";
@@ -83,6 +87,8 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   unknown_ability: "Habilidad desconocida",
   ability_cooldown: "Todavía se está recargando",
   bad_target: "Tiene que ser una torre tuya que ataque",
+  not_in_deck: "Esa carta no está en tu mazo",
+  bad_deck: "Ese mazo no vale",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -219,6 +225,11 @@ function debugActions(game: Game): DebugActions {
   };
 }
 
+/** The n-th ability of the player's deck (1-based), as the keys 1, 2… pick it. */
+function deckAbility(game: Game, n: number): AbilityKind | undefined {
+  return findPlayer(game.store.state(), game.store.you)?.deck.abilities[n - 1];
+}
+
 function bindKeyboard(getGame: () => Game | null): void {
   window.addEventListener("keydown", (e) => {
     const game = getGame();
@@ -232,8 +243,8 @@ function bindKeyboard(getGame: () => Game | null): void {
       game.store.setSelectedTower(null);
       game.store.setSelectedTowerId(null);
       game.store.setAimingAbility(null);
-    } else if (/^[1-9]$/.test(e.key) && ABILITY_KINDS[Number(e.key) - 1]) {
-      pickAbility(game.store, game.abilities, ABILITY_KINDS[Number(e.key) - 1]!);
+    } else if (/^[1-9]$/.test(e.key) && deckAbility(game, Number(e.key))) {
+      pickAbility(game.store, game.abilities, deckAbility(game, Number(e.key))!);
     } else if (e.key === " " && game.store.debugOpen()) {
       e.preventDefault();
       debugActions(game).togglePause();
@@ -297,15 +308,39 @@ function GameView(props: {
   );
 }
 
-async function bootSolo(params: UrlParams): Promise<void> {
+/** Solo opens on the deck screen; a dev URL goes straight to the game with its `deck`, or the last one played. */
+function bootSolo(params: UrlParams): void {
+  const fromUrl = params.deck && deckProblem(params.deck, DECK.soloTowers) === null ? params.deck : null;
+  if (fromUrl || params.usesDevParams) {
+    void startSolo(params, fromUrl ?? readDeck("solo"));
+    return;
+  }
+  const dispose = render(
+    () => (
+      <DeckScreen
+        onPlay={(deck) => {
+          writeDeck("solo", deck);
+          dispose();
+          void startSolo(params, deck);
+        }}
+      />
+    ),
+    hudEl,
+  );
+}
+
+async function startSolo(params: UrlParams, deck: Deck): Promise<void> {
   const initial = createInitialState({
     seed: params.seed,
     mapId: params.map,
     gold: params.gold,
     startWave: params.wave,
     ranked: !params.usesDevParams,
+    deckTowers: DECK.soloTowers,
+    players: [{ id: 0, deck }],
   });
-  const store = createGameStore(initial, params.tower ?? null, 0);
+  const preselected = params.tower && deck.towers.includes(params.tower) ? params.tower : null;
+  const store = createGameStore(initial, preselected, 0);
   const runner = new GameRunner(initial, {
     speed: params.speed,
     bot: params.bot ? createBot("trivial") : undefined,
@@ -522,8 +557,8 @@ function bootCoop(params: UrlParams): void {
 
   const actions: LobbyActions = {
     create: (name, isPrivate, map) =>
-      guarded(() => connection.create({ name, private: isPrivate, map, color: readPreferredColor() }, handlers)),
-    join: (code, name) => guarded(() => connection.join(code, name, handlers, readPreferredColor())),
+      guarded(() => connection.create({ name, private: isPrivate, map, color: readPreferredColor(), deck: readDeck("coop") }, handlers)),
+    join: (code, name) => guarded(() => connection.join(code, name, handlers, readPreferredColor(), readDeck("coop"))),
     listRooms: () => connection.listRooms(),
     start: () => connection.send("start", {}),
     kick: (playerId) => connection.send("kick", { playerId }),
@@ -531,6 +566,10 @@ function bootCoop(params: UrlParams): void {
     setColor: (color) => {
       writePreferredColor(color);
       connection.send("setColor", { color });
+    },
+    setDeck: (deck) => {
+      writeDeck("coop", deck);
+      connection.send("setDeck", { deck });
     },
     leave: async () => {
       await connection.leave();
@@ -594,10 +633,10 @@ function bootCoop(params: UrlParams): void {
   );
 
   const initialRoom = params.room;
-  if (initialRoom) void guarded(() => connection.rejoin(initialRoom, defaultName, handlers));
+  if (initialRoom) void guarded(() => connection.rejoin(initialRoom, defaultName, handlers, readDeck("coop")));
   markReady();
 }
 
 const params = parseUrlParams(location.search);
 if (params.mode === "coop") bootCoop(params);
-else void bootSolo(params);
+else bootSolo(params);

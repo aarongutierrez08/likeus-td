@@ -1,4 +1,4 @@
-import { For } from "solid-js";
+import { For, createMemo } from "solid-js";
 import {
   ARMORS,
   ARMOR_LABELS,
@@ -14,6 +14,7 @@ import {
   hasIncome,
   hasReveal,
   hasWall,
+  findPlayer,
   type AttackType,
   type AuraStat,
   type TowerDef,
@@ -88,9 +89,12 @@ function tooltip(kind: TowerKind): string {
 
 export function Shop(props: { store: GameStore }) {
   const gold = () => props.store.gold();
+  /** Only the towers of your deck; the memo keeps the list stable across ticks, since the deck never changes in play. */
+  const deck = createMemo(() => findPlayer(props.store.state(), props.store.you)?.deck.towers ?? []);
+  const kinds = createMemo(() => TOWER_KINDS.filter((kind) => deck().includes(kind)));
   return (
     <div class="shop">
-      <For each={TOWER_KINDS}>
+      <For each={kinds()}>
         {(kind) => {
           const poor = () => gold() < TOWERS[kind].cost;
           return (

@@ -10,9 +10,11 @@ import {
   step,
   type AbilityKind,
   type Bot,
+  type BotMode,
   type BossAffix,
   type Branch,
   type Command,
+  type Deck,
   type Enemy,
   type EnemyKind,
   type GameState,
@@ -33,13 +35,16 @@ export interface ScenarioOptions {
   players?: number[];
   /** Let waves spawn as in a real game. Off by default so only scenario enemies exist. */
   waves?: boolean;
-  /** Let the reference bot issue commands on every tick. */
-  bot?: boolean;
+  /** Let the reference bot issue commands on every tick: true or "trivial" for the informed one, "variant" for the random one. */
+  bot?: boolean | BotMode;
   /** 1-based wave to start at (requires waves). */
   startWave?: number;
   /** Explicitly mark the game as not eligible for records. */
   ranked?: boolean;
   map?: string;
+  /** Towers each deck holds; with it, every player needs an entry in `decks`. */
+  deckTowers?: number;
+  decks?: Record<number, Deck>;
 }
 
 export interface Cell {
@@ -90,6 +95,8 @@ export class Scenario {
   private readonly rankedOption: boolean | undefined;
   private readonly players: number[];
   private readonly mapId: string | undefined;
+  private readonly deckTowers: number | undefined;
+  private readonly decks: Record<number, Deck>;
 
   constructor(opts: ScenarioOptions) {
     this.current = createInitialState({ seed: opts.seed });
@@ -98,8 +105,10 @@ export class Scenario {
     this.rankedOption = opts.ranked;
     this.players = opts.players ?? [DEFAULT_PLAYER];
     this.mapId = opts.map;
+    this.deckTowers = opts.deckTowers;
+    this.decks = opts.decks ?? {};
     this.wavesOn = opts.waves ?? false;
-    this.bot = opts.bot ? createBot("trivial") : undefined;
+    this.bot = opts.bot ? createBot(opts.bot === true ? "trivial" : opts.bot) : undefined;
   }
 
   /** Builder form: places a tower for free before the scenario starts (owner defaults to player 0). */
@@ -132,8 +141,8 @@ export class Scenario {
   }
 
   /** Queues a real join command for the next tick that runs. */
-  join(playerId: number): this {
-    this.queued.push({ type: "join", tick: 0, playerId });
+  join(playerId: number, deck?: Deck): this {
+    this.queued.push(deck ? { type: "join", tick: 0, playerId, deck } : { type: "join", tick: 0, playerId });
     return this;
   }
 
@@ -270,7 +279,9 @@ export class Scenario {
       .sort((a, b) => a - b)
       .map((id) => {
         const setupCost = this.pendingTowers.filter((t) => t.owner === id).reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
-        return anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
+        const deck = this.decks[id];
+        const base = anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
+        return deck ? { ...base, deck } : base;
       });
     this.current = createInitialState({
       seed: this.current.seed,
@@ -278,6 +289,7 @@ export class Scenario {
       players,
       startWave: this.startWave,
       ranked: this.rankedOption,
+      deckTowers: this.deckTowers,
     });
     if (!this.wavesOn) this.current = { ...this.current, nextWaveTick: WAVES_OFF };
     if (this.pendingTowers.length > 0) this.placeTowers();
