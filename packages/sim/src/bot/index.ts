@@ -1,9 +1,10 @@
-import { FP } from "../constants";
+import { FP, TICKS_PER_SECOND } from "../constants";
 import { getMap, distanceToPath, isBuildable, pathCells } from "../grid";
 import { hasAttack, hasControl, hasReveal, hasWall, type Branch } from "../balance/define";
 import { TOWER_KINDS, TOWERS, UPGRADE, towerDef } from "../balance/towers";
 import { upgradeCost } from "../commands";
 import { cellCenterFP } from "../path";
+import { inAuraSquare } from "../systems/towers";
 import { bestAttackTower, multiplierAgainstWaves, upcomingWaves, wavesNeedReveal } from "../preview";
 import { nextRng, seedRng } from "../rng";
 import type { WaveDef } from "../balance/waves";
@@ -24,11 +25,13 @@ interface Cell {
 }
 
 const LOOKAHEAD_WAVES = 3;
-/** Attack towers of its own the bot wants before it spends on an aura or on control. */
+/** Attack towers of the team an aura square or a slowing tower should serve before the bot buys one. */
 const SUPPORT_FROM_TOWERS = 4;
 const VARIANT_CELL_CHOICES = 3;
-/** One in this many affordable turns the random bot upgrades instead of building. */
+/** One in this many purchases the random bot plans an upgrade instead of a build. */
 const VARIANT_UPGRADE_ODDS = 4;
+/** The random bot buys support only once it has more than this many attack towers per support tower. */
+const VARIANT_ATTACK_PER_SUPPORT = 2;
 /** The "more of the same" branch: the informed bot never gambles on identity. */
 const SAFE_BRANCH: Branch = "a";
 
@@ -102,6 +105,21 @@ function ownAttackTowers(state: GameState, playerId: number): Tower[] {
   return state.towers.filter((t) => t.owner === playerId && hasAttack(towerDef(t)));
 }
 
+function teamAttackTowers(state: GameState): Tower[] {
+  return state.towers.filter((t) => hasAttack(towerDef(t)));
+}
+
+/** Base damage per second: what makes towers of different kinds comparable per gold. */
+function damagePerSecond(kind: TowerKind): number {
+  const def = TOWERS[kind];
+  return hasAttack(def) ? (def.damage * TICKS_PER_SECOND) / def.cooldown : 0;
+}
+
+/** Whether a damage aura of anyone already boosts this tower: auras of one kind do not stack. */
+function boostedByDamageAura(state: GameState, tower: Tower): boolean {
+  return state.towers.some((a) => towerDef(a).auraStat === "damage" && inAuraSquare(a, towerDef(a).auraRadius, tower));
+}
+
 function reaches(tower: Tower, x: number, y: number): boolean {
   const def = towerDef(tower);
   const dx = cellCenterFP(tower.x) - cellCenterFP(x);
@@ -123,13 +141,13 @@ function wallCell(state: GameState, playerId: number): { x: number; y: number } 
   return best && best.covered > 0 ? best : null;
 }
 
-/** A free cell whose aura square holds at least SUPPORT_FROM_TOWERS of the bot's attack towers, the fullest first. */
-function auraCell(state: GameState, playerId: number, kind: TowerKind): { x: number; y: number } | null {
-  const own = ownAttackTowers(state, playerId);
+/** A free cell whose aura square holds at least SUPPORT_FROM_TOWERS attack towers of the team no damage aura boosts yet, the fullest first. */
+function auraCell(state: GameState, kind: TowerKind): { x: number; y: number } | null {
+  const unboosted = teamAttackTowers(state).filter((t) => !boostedByDamageAura(state, t));
   const radius = TOWERS[kind].auraRadius;
   let best: { x: number; y: number; inside: number } | null = null;
   for (const cell of freeCellsByCoverage(state, kind)) {
-    const inside = own.filter((t) => Math.max(Math.abs(t.x - cell.x), Math.abs(t.y - cell.y)) <= radius).length;
+    const inside = unboosted.filter((t) => inAuraSquare(cell, radius, t)).length;
     if (inside >= SUPPORT_FROM_TOWERS && (best === null || inside > best.inside)) best = { x: cell.x, y: cell.y, inside };
   }
   return best;
@@ -138,7 +156,7 @@ function auraCell(state: GameState, playerId: number, kind: TowerKind): { x: num
 interface Option {
   command: Command;
   cost: number;
-  /** Path covered times the attack multiplier it adds, per gold: comparable between building and upgrading. */
+  /** Path covered times the damage per second it adds against the coming armors, per gold: comparable between building and upgrading. */
   value: number;
 }
 
@@ -146,7 +164,11 @@ function buildOption(state: GameState, playerId: number, kind: TowerKind, waves:
   const cell = freeCellsByCoverage(state, kind)[0];
   if (!cell) return null;
   const cost = TOWERS[kind].cost;
-  return { command: build(state, playerId, kind, cell), cost, value: (cell.coverage * multiplierAgainstWaves(kind, waves)) / cost };
+  return {
+    command: build(state, playerId, kind, cell),
+    cost,
+    value: (cell.coverage * multiplierAgainstWaves(kind, waves) * damagePerSecond(kind)) / cost,
+  };
 }
 
 /** Upgrading adds damagePctPerLevel of the base on the tower's own cell: worth it once the free cells are poor. */
@@ -158,16 +180,23 @@ function upgradeOption(state: GameState, playerId: number, waves: readonly WaveD
     const map = getMap(state.mapId);
     const coverage = coverageByCell(state.mapId, def.range)[tower.y * map.width + tower.x]!;
     const cost = upgradeCost(tower.kind);
-    const value = (((coverage * UPGRADE.damagePctPerLevel) / 100) * multiplierAgainstWaves(tower.kind, waves)) / cost;
+    const added = (damagePerSecond(tower.kind) * UPGRADE.damagePctPerLevel) / 100;
+    const value = (coverage * multiplierAgainstWaves(tower.kind, waves) * added) / cost;
     if (best === null || value > best.value) best = { command: upgrade(state, playerId, tower, SAFE_BRANCH), cost, value };
   }
   return best;
 }
 
+/** One slowing tower in the team for every SUPPORT_FROM_TOWERS attack towers of the team. */
+function teamNeedsControl(state: GameState): boolean {
+  const control = state.towers.filter((t) => hasControl(towerDef(t))).length;
+  return teamAttackTowers(state).length >= SUPPORT_FROM_TOWERS * (control + 1);
+}
+
 /**
- * What the informed bot wants next, in order: a radar when stealth is coming, a wall right before a boss,
- * a damage aura once enough of its towers share a square, a slowing tower once it has a line of attackers,
- * and otherwise the best attack tower for the next waves or an upgrade, whichever covers more path per gold.
+ * What the informed bot wants next, in order: a wall right before a boss, a radar when stealth is coming,
+ * a damage aura where enough unboosted towers of the team share a square, a slowing tower once the team has a line of attackers,
+ * and otherwise the best attack tower for the next waves or an upgrade, whichever adds more damage over the path per gold.
  * It saves for what it wants; without any tower it buys the best attack tower it can pay, since waiting loses waves.
  */
 function informedChoice(state: GameState, playerId: number, gold: number): Option | null {
@@ -184,14 +213,12 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
   if (RADAR_KIND && wavesNeedReveal(waves) && !state.towers.some((t) => hasReveal(towerDef(t)))) {
     return buildOption(state, playerId, RADAR_KIND, waves);
   }
-  if (own.length >= SUPPORT_FROM_TOWERS) {
-    const hasDamageAura = state.towers.some((t) => t.owner === playerId && towerDef(t).auraStat === "damage");
-    if (DAMAGE_AURA_KIND && !hasDamageAura) {
-      const cell = auraCell(state, playerId, DAMAGE_AURA_KIND);
-      if (cell) return { command: build(state, playerId, DAMAGE_AURA_KIND, cell), cost: TOWERS[DAMAGE_AURA_KIND].cost, value: 0 };
-    }
-    const hasControlTower = state.towers.some((t) => t.owner === playerId && hasControl(towerDef(t)));
-    if (SLOW_KIND && !hasControlTower) return buildOption(state, playerId, SLOW_KIND, waves);
+  if (own.length > 0) {
+    const cell = DAMAGE_AURA_KIND ? auraCell(state, DAMAGE_AURA_KIND) : null;
+    if (DAMAGE_AURA_KIND && cell)
+      return { command: build(state, playerId, DAMAGE_AURA_KIND, cell), cost: TOWERS[DAMAGE_AURA_KIND].cost, value: 0 };
+    const slow = SLOW_KIND && teamNeedsControl(state) ? buildOption(state, playerId, SLOW_KIND, waves) : null;
+    if (slow) return slow;
   }
   const kind = bestAttackTower(waves) ?? ATTACK_KINDS[0]!;
   const construct = buildOption(state, playerId, kind, waves);
@@ -210,8 +237,9 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
 /**
  * Reference bot. "trivial" is the informed player: it looks three waves ahead, places towers where they cover
  * the most path, upgrades well-placed towers, adds support once it has a line of attackers and walls before
- * bosses. "variant" is the random player: a random tower kind it saves for, one of the best cells, and now and
- * then an upgrade with a random branch, all driven by its own seeded RNG so many games per seed differ.
+ * bosses. "variant" is the random player: for each purchase it plans either an upgrade with a random branch or a
+ * random tower kind (attack until it has more than two per support tower), saves for it and builds on one of the
+ * best cells, all driven by its own seeded RNG so many games per seed differ.
  * Its first tower is always an attack tower: a mine or an aura alone is not a reasonable opening.
  */
 export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
@@ -220,7 +248,14 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
     rng = nextRng(rng);
     return rng % n;
   };
-  let wanted: TowerKind | null = null;
+  let plan: { build: TowerKind } | { upgrade: number } | null = null;
+  const nextPlan = (ownTowers: Tower[]): { build: TowerKind } | { upgrade: number } => {
+    const upgradable = ownTowers.filter((t) => t.level < UPGRADE.maxLevel && !hasWall(towerDef(t)));
+    if (upgradable.length > 0 && roll(VARIANT_UPGRADE_ODDS) === 0) return { upgrade: upgradable[roll(upgradable.length)]!.id };
+    const attack = ownTowers.filter((t) => hasAttack(towerDef(t))).length;
+    const pool = attack > VARIANT_ATTACK_PER_SUPPORT * (ownTowers.length - attack) ? OFF_PATH_KINDS : ATTACK_KINDS;
+    return { build: pool[roll(pool.length)]! };
+  };
   return {
     decide(state: GameState): Command[] {
       if (state.status !== "playing") return [];
@@ -230,20 +265,24 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
         return choice && choice.cost <= gold ? [choice.command] : [];
       }
       const ownTowers = state.towers.filter((t) => t.owner === playerId);
-      const upgradable = ownTowers.filter((t) => t.level < UPGRADE.maxLevel && !hasWall(towerDef(t)));
-      if (upgradable.length > 0 && roll(VARIANT_UPGRADE_ODDS) === 0) {
-        const tower = upgradable[roll(upgradable.length)]!;
+      plan ??= nextPlan(ownTowers);
+      if ("upgrade" in plan) {
+        const towerId = plan.upgrade;
+        const tower = ownTowers.find((t) => t.id === towerId && t.level < UPGRADE.maxLevel);
+        if (!tower) {
+          plan = null;
+          return [];
+        }
         if (upgradeCost(tower.kind) > gold) return [];
+        plan = null;
         return [upgrade(state, playerId, tower, roll(2) === 0 ? "a" : "b")];
       }
-      const pool = ownTowers.length > 0 ? OFF_PATH_KINDS : ATTACK_KINDS;
-      wanted ??= pool[roll(pool.length)]!;
+      const wanted = plan.build;
       if (TOWERS[wanted].cost > gold) return [];
       const cells = freeCellsByCoverage(state, wanted);
       if (cells.length === 0) return [];
-      const command = build(state, playerId, wanted, cells[roll(Math.min(VARIANT_CELL_CHOICES, cells.length))]!);
-      wanted = null;
-      return [command];
+      plan = null;
+      return [build(state, playerId, wanted, cells[roll(Math.min(VARIANT_CELL_CHOICES, cells.length))]!)];
     },
   };
 }

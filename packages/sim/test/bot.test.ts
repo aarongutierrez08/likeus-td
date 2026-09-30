@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DAMAGE_TABLE,
   ENEMIES,
   FP,
   TOWERS,
@@ -19,6 +20,13 @@ import { scenario, type Scenario } from "./helpers/scenario";
 
 const cheapest = Math.min(...TOWER_KINDS.map((k) => TOWERS[k].cost));
 const richest = Math.max(...TOWER_KINDS.map((k) => TOWERS[k].cost));
+
+const heavyShare = (wave: (typeof WAVES)[number]): number => {
+  const hpOf = (g: (typeof wave.groups)[number]): number => ENEMIES[g.kind].hp * g.count;
+  const total = wave.groups.reduce((sum, g) => sum + hpOf(g), 0);
+  const heavy = wave.groups.filter((g) => ENEMIES[g.kind].armor === "heavy").reduce((sum, g) => sum + hpOf(g), 0);
+  return (100 * heavy) / total;
+};
 
 const builtKind = (commands: Command[]): TowerKind | null => {
   const first = commands[0];
@@ -131,14 +139,14 @@ describe("informed bot spending", () => {
   const longest = Math.max(...TOWER_KINDS.map((k) => TOWERS[k].range));
   const coverageOf = (x: number, y: number): number =>
     pathCells("s").filter((c) => ((c.x - x) * FP) ** 2 + ((c.y - y) * FP) ** 2 <= longest * longest).length;
-  /** Every free cell that covers at least `min` path cells gets a rival's archer, so building elsewhere is a poor deal. */
+  /** Every free cell that covers at least `min` path cells gets a teammate's mine, so building elsewhere is a poor deal. */
   const crowded = (min: number, mine: { x: number; y: number; level: number }): Scenario => {
     const game = scenario({ seed: 1, players: [0, 1], gold: TOWERS.archer.cost });
     const map = getMap("s");
     for (let y = 0; y < map.height; y++)
       for (let x = 0; x < map.width; x++) {
         if (!isBuildable("s", x, y) || (x === mine.x && y === mine.y)) continue;
-        if (coverageOf(x, y) >= min) game.tower("archer", { x, y, owner: 1 });
+        if (coverageOf(x, y) >= min) game.tower("mine", { x, y, owner: 1 });
       }
     game.tower("archer", { x: mine.x, y: mine.y, owner: 0 });
     game.run(0);
@@ -211,6 +219,108 @@ describe("random bot spending", () => {
     }
     expect(upgrades).toBeGreaterThan(0);
     expect(upgrades).toBeLessThan(40);
-    expect(kinds.has("a") || kinds.has("b")).toBe(true);
+    expect(kinds.has("a") && kinds.has("b")).toBe(true);
+  });
+
+  it("decides once per purchase whether to upgrade, so it keeps saving for a planned tower", () => {
+    let kept = 0;
+    for (let seed = 0; seed < 40; seed++) {
+      const saving = scenario({ seed: 1, gold: TOWERS.archer.cost }).tower("archer", { x: 15, y: 3 }).run(0).state();
+      const bot = createBot("variant", seed);
+      const decisions = Array.from({ length: 50 }, () => bot.decide(saving));
+      const firstPurchase = decisions.findIndex((commands) => commands.length > 0);
+      if (firstPurchase === -1) kept++;
+      else expect(firstPurchase).toBe(0);
+    }
+    expect(kept).toBeGreaterThan(0);
+  });
+
+  it("builds attack towers until it has more than two per support tower", () => {
+    let builds = 0;
+    for (let seed = 0; seed < 30; seed++) {
+      const balanced = scenario({ seed: 1, gold: richest }).tower("archer", { x: 15, y: 3 }).tower("frost", { x: 13, y: 3 }).state();
+      const kind = builtKind(createBot("variant", seed).decide(balanced));
+      if (kind === null) continue;
+      builds++;
+      expect(hasAttack(TOWERS[kind])).toBe(true);
+    }
+    expect(builds).toBeGreaterThan(0);
+  });
+
+  it("may build support once it has more than two attack towers per support tower", () => {
+    const later = new Set<TowerKind>();
+    for (let seed = 0; seed < 30; seed++) {
+      const attackHeavy = scenario({ seed: 1, gold: richest })
+        .tower("archer", { x: 15, y: 3 })
+        .tower("archer", { x: 16, y: 3 })
+        .tower("archer", { x: 12, y: 3 })
+        .tower("frost", { x: 13, y: 3 })
+        .state();
+      const kind = builtKind(createBot("variant", seed).decide(attackHeavy));
+      if (kind !== null) later.add(kind);
+    }
+    expect([...later].some((kind) => !hasAttack(TOWERS[kind]))).toBe(true);
+  });
+});
+
+describe("informed bot in a team", () => {
+  it("does not build a damage aura where a teammate's aura already covers its towers", () => {
+    const game = scenario({ seed: 1, players: [0, 1], gold: TOWERS.aura.cost })
+      .tower("archer", { x: 14, y: 3 })
+      .tower("archer", { x: 16, y: 3 })
+      .tower("archer", { x: 14, y: 2 })
+      .tower("archer", { x: 16, y: 2 })
+      .tower("aura", { x: 15, y: 3, owner: 1 })
+      .run(0);
+    expect(builtKind(createBot("trivial").decide(game.state()))).not.toBe("aura");
+  });
+
+  it("builds a damage aura where four attack towers of the team share the square", () => {
+    const game = scenario({ seed: 1, players: [0, 1], gold: TOWERS.aura.cost })
+      .tower("archer", { x: 14, y: 3 })
+      .tower("archer", { x: 16, y: 3 })
+      .tower("archer", { x: 14, y: 2, owner: 1 })
+      .tower("archer", { x: 16, y: 2, owner: 1 })
+      .run(0);
+    expect(builtKind(createBot("trivial").decide(game.state()))).toBe("aura");
+  });
+
+  it("does not add a slowing tower when a teammate's one already serves its four attack towers", () => {
+    const game = scenario({ seed: 1, players: [0, 1], gold: TOWERS.frost.cost })
+      .tower("archer", { x: 14, y: 3 })
+      .tower("archer", { x: 16, y: 3 })
+      .tower("archer", { x: 13, y: 3 })
+      .tower("archer", { x: 12, y: 3 })
+      .tower("aura", { x: 15, y: 3 })
+      .tower("frost", { x: 11, y: 3, owner: 1 })
+      .run(0);
+    expect(builtKind(createBot("trivial").decide(game.state()))).not.toBe("frost");
+  });
+});
+
+describe("informed bot choosing an attack", () => {
+  it("builds the tower that hits heavy armor hardest before a mostly heavy wave instead of upgrading a piercing one", () => {
+    const heavyWave = WAVES.findIndex((w) => heavyShare(w) > 70) + 1;
+    expect(heavyWave).toBeGreaterThan(0);
+    const heavyAnswer = TOWER_KINDS.filter((k) => hasAttack(TOWERS[k])).reduce((best, k) =>
+      DAMAGE_TABLE[TOWERS[k].attackType!].heavy > DAMAGE_TABLE[TOWERS[best].attackType!].heavy ? k : best,
+    );
+    const before = scenario({ seed: 1, waves: true, startWave: heavyWave, gold: richest })
+      .tower("radar", { x: 1, y: 2 })
+      .tower("archer", { x: 15, y: 3 })
+      .state();
+    expect(builtKind(createBot("trivial").decide(before))).toBe(heavyAnswer);
+  });
+
+  it("does not put a wall before a boss while its wall is still cooling down", () => {
+    const bossWave = WAVES.findIndex((w) => w.groups.some((g) => g.kind === "boss")) + 1;
+    const game = scenario({ seed: 1, waves: true, startWave: bossWave, gold: TOWERS.wall.cost })
+      .tower("archer", { x: 15, y: 3 })
+      .tower("archer", { x: 16, y: 3 })
+      .tower("wall", { x: 5, y: 1 })
+      .enemy("normal", { x: 4, y: 1 });
+    while (game.towers().some((t) => t.kind === "wall")) game.run(1);
+    expect(game.state().wave).toBe(bossWave - 1);
+    expect(builtKind(createBot("trivial").decide(game.state()))).not.toBe("wall");
   });
 });

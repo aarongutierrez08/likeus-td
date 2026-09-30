@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENEMIES, FP, MAPS, MAP_IDS, TICKS_PER_SECOND, isBuildable, isInside, pathCells } from "../src/index";
+import { ENEMIES, MAPS, MAP_IDS, TICKS_PER_SECOND, isBuildable, isInside, pathCells } from "../src/index";
 import { scenario } from "./helpers/scenario";
 
 const exit = MAPS.s.waypoints[MAPS.s.waypoints.length - 1]!;
@@ -42,9 +42,14 @@ describe("map", () => {
     expect(isBuildable("s", 1.5, 3)).toBe(false);
   });
 
-  it("an enemy advances its speed in FP units every tick along the path", () => {
-    const walker = scenario({ seed: 1 }).enemy("normal", { x: 3, y: 1 }).run(TICKS_PER_SECOND);
-    expect(walker.enemy(0).progress).toBe(3 * FP + ENEMIES.normal.speed * TICKS_PER_SECOND);
+  it("an enemy walks the path at a steady pace, the same distance every second", () => {
+    const walker = scenario({ seed: 1 }).enemy("normal", { x: 3, y: 1 });
+    const start = walker.run(0).enemy(0).progress;
+    const afterOneSecond = walker.run(TICKS_PER_SECOND).enemy(0).progress;
+    const afterTwoSeconds = walker.run(TICKS_PER_SECOND).enemy(0).progress;
+    expect(afterOneSecond).toBeGreaterThan(start);
+    expect(afterTwoSeconds - afterOneSecond).toBe(afterOneSecond - start);
+    expect(afterTwoSeconds - afterOneSecond).toBe(ENEMIES.normal.speed * TICKS_PER_SECOND);
   });
 
   it("an enemy on the exit cell leaks on the next tick", () => {

@@ -7,13 +7,18 @@ import { attenuatedBounty } from "../economy";
 import type { Enemy, EnemyKind, GameState, Tower } from "../types";
 import { locate, markOn, pickTarget, squaredDistance, type EnemyAt } from "./targeting";
 
+/** Whether a cell lies in the square an aura of this radius covers around its center. */
+export function inAuraSquare(center: { x: number; y: number }, radius: number, cell: { x: number; y: number }): boolean {
+  return Math.max(Math.abs(center.x - cell.x), Math.abs(center.y - cell.y)) <= radius;
+}
+
 /** Strongest aura of this stat reaching the tower; auras of the same stat never stack. Ties go to the lowest id. */
 function strongestAura(state: GameState, tower: Tower, stat: AuraStat): Tower | null {
   let best: Tower | null = null;
   for (const other of state.towers) {
     const def = towerDef(other);
     if (def.auraStat !== stat || other.id === tower.id) continue;
-    if (Math.max(Math.abs(other.x - tower.x), Math.abs(other.y - tower.y)) > def.auraRadius) continue;
+    if (!inAuraSquare(other, def.auraRadius, tower)) continue;
     if (best === null || auraBonusOf(other) > auraBonusOf(best)) best = other;
   }
   return best;
