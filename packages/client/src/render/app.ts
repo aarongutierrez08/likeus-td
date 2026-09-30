@@ -33,6 +33,8 @@ export interface Renderer {
   sync(state: GameState, showRanges: boolean): void;
   setHoverTower(kind: TowerKind | null): void;
   setSelectedCell(cell: Point | null): void;
+  /** Draws the reach of that tower until it is deselected. */
+  setSelectedTowerId(id: number | null): void;
   destroy(): void;
 }
 
@@ -69,6 +71,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
 
   let hoverTower: TowerKind | null = TOWER_KINDS[0]!;
   let lastState: GameState | null = null;
+  let lastShowRanges = false;
   const cellFromEvent = (e: FederatedPointerEvent): Point | null => {
     const local = world.toLocal(e.global);
     const x = Math.floor(local.x / BASE);
@@ -109,6 +112,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   return {
     sync(state, showRanges) {
       lastState = state;
+      lastShowRanges = showRanges;
       const kills = entities.sync(state, showRanges);
       if (kills.length > 0 && opts.onKills) {
         opts.onKills(
@@ -121,6 +125,10 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     },
     setHoverTower(kind) {
       hoverTower = kind;
+    },
+    setSelectedTowerId(id) {
+      entities.selectedTowerId = id;
+      if (lastState) entities.sync(lastState, lastShowRanges);
     },
     setSelectedCell(cell) {
       selection.clear();

@@ -108,7 +108,7 @@ export function Shop(props: { store: GameStore }) {
           </button>
         )}
       </For>
-      <span class="hint">Tocá una celda libre para construir · ~ debug</span>
+      <span class="hint">Elegí una torre y tocá una celda · Esc suelta · ~ debug</span>
     </div>
   );
 }

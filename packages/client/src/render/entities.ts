@@ -77,11 +77,18 @@ export class EntityLayer {
   }
 
   /** Returns the world positions of enemies that were killed since the previous sync. */
+  /** Tower whose reach is drawn while it is selected; the debug flag draws every tower instead. */
+  selectedTowerId: number | null = null;
+
   sync(state: GameState, showRanges: boolean): KillEvent[] {
     this.syncTowers(state);
     const kills = this.syncEnemies(state);
     this.ranges.clear();
     if (showRanges) this.drawRanges(state.towers);
+    else {
+      const selected = state.towers.find((t) => t.id === this.selectedTowerId);
+      if (selected) this.drawRanges([selected]);
+    }
     return kills;
   }
 

@@ -53,8 +53,18 @@ try {
   done("partida en marcha");
 
   await clickCell(15, 3);
+  await page.waitForTimeout(200);
+  if ((await state(page)).towers.length !== 0) throw new Error("se construyó sin elegir torre");
+  await page.locator(".shop button").first().click({ delay: HOLD_MS });
+  await clickCell(15, 3);
   await page.waitForFunction(() => window.__td!.state().towers.length === 1);
-  done("torre construida con el primer botón de la tienda");
+  done("nada sin torre elegida; torre construida tras elegir en la tienda");
+
+  await page.keyboard.press("Escape");
+  await clickCell(14, 3);
+  await page.waitForTimeout(200);
+  if ((await state(page)).towers.length !== 1) throw new Error("Esc no soltó la torre elegida");
+  done("Esc suelta la selección");
 
   await clickCell(15, 3);
   await page.waitForSelector(".tower-panel");

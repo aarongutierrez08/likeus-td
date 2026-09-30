@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { findPlayer, mayManage, type GameState, type TowerKind } from "@td/sim";
 
-export function createGameStore(initial: GameState, preselectedTower: TowerKind, you: number) {
+export function createGameStore(initial: GameState, preselectedTower: TowerKind | null, you: number) {
   const [state, setState] = createSignal<GameState>(initial);
   const gold = (): number => findPlayer(state(), you)?.gold ?? 0;
   const [selectedTower, setSelectedTower] = createSignal<TowerKind | null>(preselectedTower);

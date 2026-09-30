@@ -96,8 +96,10 @@ try {
   };
   const atA = await cellOf(a);
   const atB = await cellOf(b);
+  await a.locator(".shop button").first().click({ delay: 120 });
   await a.mouse.click(atA(15, 3).x, atA(15, 3).y);
   await b.waitForFunction(() => (window.__td?.state().towers.length ?? 0) === 1);
+  await b.locator(".shop button").first().click({ delay: 120 });
   await b.mouse.click(atB(16, 3).x, atB(16, 3).y);
   await a.waitForFunction(() => (window.__td?.state().towers.length ?? 0) === 2);
   done("una torre de cada uno, visibles en ambas pestañas");
@@ -131,7 +133,9 @@ try {
   await a.waitForFunction(() => document.querySelector(".topbar")?.textContent?.includes("2/2"));
   done("B reconectado tras recargar");
 
+  await a.locator("button", { hasText: "1×" }).first().click();
   await a.waitForFunction(() => (window.__td?.state().tick ?? 0) >= 200);
+  await a.waitForTimeout(500);
   const [ta, tb] = await Promise.all([tick(a), tick(b)]);
   if (Math.abs(ta - tb) > 5) throw new Error(`ticks divergen: A ${ta}, B ${tb}`);
   if ((await towers(a)) !== (await towers(b))) throw new Error("las torres difieren entre pestañas");

@@ -4,7 +4,6 @@ import {
   ECONOMY,
   ENEMIES,
   attenuatedBounty,
-  TOWER_KINDS,
   createBot,
   dumpState,
   createInitialState,
@@ -14,7 +13,6 @@ import {
   type Command,
   type EnemyKind,
   type GameState,
-  type TowerKind,
 } from "@td/sim";
 import type { CommandReject, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
@@ -78,7 +76,6 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
 };
 
 const NOTICE_MS = 1500;
-const DEFAULT_TOWER: TowerKind = TOWER_KINDS[0]!;
 
 interface Game {
   store: GameStore;
@@ -136,6 +133,7 @@ function bindRenderer(renderer: Renderer, game: Game): void {
       const id = game.store.selectedTowerId();
       const tower = id === null ? undefined : game.store.state().towers.find((t) => t.id === id);
       renderer.setSelectedCell(tower ? { x: tower.x, y: tower.y } : null);
+      renderer.setSelectedTowerId(tower ? tower.id : null);
     });
     createEffect(() => {
       renderer.sync(game.store.state(), game.store.showRanges());
@@ -166,6 +164,9 @@ function bindKeyboard(getGame: () => Game | null): void {
     if (e.code === "Backquote" || e.key === "~" || e.key === "`") {
       e.preventDefault();
       game.store.setDebugOpen(!game.store.debugOpen());
+    } else if (e.key === "Escape") {
+      game.store.setSelectedTower(null);
+      game.store.setSelectedTowerId(null);
     } else if (e.key === " " && game.store.debugOpen()) {
       e.preventDefault();
       debugActions(game).togglePause();
@@ -236,7 +237,7 @@ async function bootSolo(params: UrlParams): Promise<void> {
     startWave: params.wave,
     ranked: !params.usesDevParams,
   });
-  const store = createGameStore(initial, params.tower ?? DEFAULT_TOWER, 0);
+  const store = createGameStore(initial, params.tower ?? null, 0);
   const runner = new GameRunner(initial, {
     speed: params.speed,
     bot: params.bot ? createBot("trivial") : undefined,
@@ -329,7 +330,7 @@ function bootCoop(params: UrlParams): void {
 
   /** Store and runner exist right away so ticks arriving while Pixi boots are applied, not lost. */
   const startGame = (snapshot: SnapshotMessage): Game => {
-    const store = createGameStore(snapshot.state, DEFAULT_TOWER, snapshot.you);
+    const store = createGameStore(snapshot.state, null, snapshot.you);
     const runner = new GameRunner(snapshot.state, {
       speed: 1,
       remote: true,
