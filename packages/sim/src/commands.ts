@@ -1,4 +1,5 @@
-import { hasWall } from "./balance/define";
+import { ABILITIES, ABILITY_KINDS } from "./balance/abilities";
+import { hasAttack, hasWall } from "./balance/define";
 import { SELL_REFUND_PCT, TOWERS, UPGRADE, towerDef } from "./balance/towers";
 import { isBuildable, isInside, isPathCell } from "./grid";
 import { ECONOMY } from "./balance/economy";
@@ -6,7 +7,10 @@ import { TEAM_OWNER } from "./constants";
 import { WAVES } from "./balance/waves";
 import { isPlayerColor, pickColor } from "./colors";
 import { callQuorum, callWaveBonus, startingGold } from "./economy";
+import { freshAbilities } from "./state";
+import { castAbility } from "./systems/abilities";
 import type {
+  AbilityKind,
   BuildCommand,
   CallWaveCommand,
   Command,
@@ -19,7 +23,9 @@ import type {
   SetColorCommand,
   Tower,
   TowerKind,
+  UpgradeAbilityCommand,
   UpgradeCommand,
+  UseAbilityCommand,
 } from "./types";
 
 export type RejectReason =
@@ -44,7 +50,10 @@ export type RejectReason =
   | "bad_color"
   | "color_taken"
   | "branch_required"
-  | "bad_branch";
+  | "bad_branch"
+  | "unknown_ability"
+  | "ability_cooldown"
+  | "bad_target";
 
 export function upgradeCost(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
@@ -179,6 +188,40 @@ export function validateGift(state: GameState, cmd: GiftCommand): RejectReason |
   return null;
 }
 
+const isAbility = (kind: string): kind is AbilityKind => (ABILITY_KINDS as readonly string[]).includes(kind);
+
+function validateAbilityTarget(state: GameState, cmd: UseAbilityCommand): RejectReason | null {
+  const target = ABILITIES[cmd.ability].target;
+  if (target === "none") return null;
+  if (target === "ownTower") {
+    const tower = state.towers.find((t) => t.id === cmd.towerId);
+    if (!tower) return "no_tower";
+    if (!mayManage(tower, cmd.playerId)) return "not_owner";
+    return hasAttack(towerDef(tower)) ? null : "bad_target";
+  }
+  if (!Number.isInteger(cmd.x) || !Number.isInteger(cmd.y) || !isInside(state.mapId, cmd.x!, cmd.y!)) return "outside";
+  if (target === "path" && !isPathCell(state.mapId, cmd.x!, cmd.y!)) return "not_on_path";
+  return null;
+}
+
+export function validateUseAbility(state: GameState, cmd: UseAbilityCommand): RejectReason | null {
+  const player = findPlayer(state, cmd.playerId);
+  if (!player) return "no_player";
+  if (!isAbility(cmd.ability)) return "unknown_ability";
+  if (state.tick < player.abilities[cmd.ability].readyTick) return "ability_cooldown";
+  return validateAbilityTarget(state, cmd);
+}
+
+export function validateUpgradeAbility(state: GameState, cmd: UpgradeAbilityCommand): RejectReason | null {
+  const player = findPlayer(state, cmd.playerId);
+  if (!player) return "no_player";
+  if (!isAbility(cmd.ability)) return "unknown_ability";
+  const def = ABILITIES[cmd.ability];
+  if (player.abilities[cmd.ability].level >= def.levels.length) return "max_level";
+  if (player.gold < def.upgradeCost) return "no_gold";
+  return null;
+}
+
 export function validateCommand(state: GameState, cmd: Command): RejectReason | null {
   switch (cmd.type) {
     case "build":
@@ -197,6 +240,10 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateLeave(state, cmd);
     case "setColor":
       return validateSetColor(state, cmd);
+    case "useAbility":
+      return validateUseAbility(state, cmd);
+    case "upgradeAbility":
+      return validateUpgradeAbility(state, cmd);
   }
 }
 
@@ -220,6 +267,8 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
         kills: 0,
         hp: TOWERS[cmd.tower].wallHp,
         lastHitTick: -1,
+        overchargeUntil: 0,
+        overchargePct: 0,
       });
       return true;
     case "join":
@@ -229,6 +278,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
           gold: startingGold(state.players.length + 1),
           earned: 0,
           wallReadyTick: 0,
+          abilities: freshAbilities(),
           color: pickColor(state.players, cmd.color),
         });
         state.players.sort((a, b) => a.id - b.id);
@@ -266,6 +316,15 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
     case "setColor":
       findPlayer(state, cmd.playerId)!.color = cmd.color;
       return true;
+    case "useAbility":
+      castAbility(state, cmd);
+      return true;
+    case "upgradeAbility": {
+      const player = findPlayer(state, cmd.playerId)!;
+      player.gold -= ABILITIES[cmd.ability].upgradeCost;
+      player.abilities[cmd.ability].level++;
+      return true;
+    }
     case "leave": {
       const leaving = findPlayer(state, cmd.playerId)!;
       state.players = state.players.filter((p) => p.id !== cmd.playerId);

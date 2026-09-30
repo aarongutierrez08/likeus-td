@@ -1,4 +1,4 @@
-import type { Branch, Command, GameState, RejectReason, TowerKind } from "@td/sim";
+import type { AbilityKind, Branch, Command, GameState, RejectReason, TowerKind } from "@td/sim";
 
 /** Wire protocol between GameRoom and the client. Types and constants only: no Colyseus imports. */
 
@@ -112,7 +112,23 @@ export interface UpgradeRequest {
   branch?: Branch;
 }
 
-export type CommandRequest = BuildRequest | CallWaveRequest | GiftRequest | SellRequest | UpgradeRequest;
+export interface UseAbilityRequest {
+  type: "useAbility";
+  ability: AbilityKind;
+  /** Cell aimed at, for abilities that target a cell or the path. */
+  x?: number;
+  y?: number;
+  /** Tower aimed at, for abilities that target an own tower. */
+  towerId?: number;
+}
+
+export interface UpgradeAbilityRequest {
+  type: "upgradeAbility";
+  ability: AbilityKind;
+}
+
+export type CommandRequest =
+  BuildRequest | CallWaveRequest | GiftRequest | SellRequest | UpgradeRequest | UseAbilityRequest | UpgradeAbilityRequest;
 
 export interface DesyncReport {
   tick: number;

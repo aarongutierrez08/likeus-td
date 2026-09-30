@@ -1,11 +1,13 @@
 import { createSignal } from "solid-js";
-import { findPlayer, mayManage, type GameState, type TowerKind } from "@td/sim";
+import { findPlayer, mayManage, type AbilityKind, type GameState, type TowerKind } from "@td/sim";
 
 export function createGameStore(initial: GameState, preselectedTower: TowerKind | null, you: number) {
   const [state, setState] = createSignal<GameState>(initial);
   const gold = (): number => findPlayer(state(), you)?.gold ?? 0;
   const [selectedTower, setSelectedTower] = createSignal<TowerKind | null>(preselectedTower);
   const [selectedTowerId, setSelectedTowerId] = createSignal<number | null>(null);
+  /** Ability waiting for a tap on the map; choosing it drops the tower chosen in the shop, and the other way round. */
+  const [aimingAbility, setAimingAbility] = createSignal<AbilityKind | null>(null);
   const selectedOwnTower = () => {
     const id = selectedTowerId();
     const tower = id === null ? undefined : state().towers.find((t) => t.id === id);
@@ -25,6 +27,8 @@ export function createGameStore(initial: GameState, preselectedTower: TowerKind 
     selectedTowerId,
     setSelectedTowerId,
     selectedOwnTower,
+    aimingAbility,
+    setAimingAbility,
     paused,
     setPaused,
     showRanges,

@@ -4,16 +4,19 @@ import { ENEMIES } from "../balance/enemies";
 import { towerDef } from "../balance/towers";
 import { FP } from "../constants";
 import { pathIndex } from "../grid";
-import { pathLength } from "../path";
+import { pathLength, positionAt } from "../path";
+import { frostZonePct } from "./abilities";
 import type { Enemy, GameState, Tower } from "../types";
 
-/** Speed this tick: zero while stunned, reduced while slowed. */
+/** Speed this tick: zero while stunned, reduced by the strongest of its own slow and the frost zone it stands in. */
 export function currentSpeed(state: GameState, enemy: Enemy): number {
   if (state.tick < enemy.stunUntil) return 0;
   const base = ENEMIES[enemy.kind].speed;
   const speed = enemy.affix === "fast" ? Math.floor((base * (100 + AFFIXES.fast.speedPct)) / 100) : base;
-  if (state.tick < enemy.slowUntil) return Math.floor((speed * (100 - enemy.slowPct)) / 100);
-  return speed;
+  const own = state.tick < enemy.slowUntil ? enemy.slowPct : 0;
+  const p = state.frostZones.length > 0 ? positionAt(state.mapId, enemy.progress) : null;
+  const pct = Math.max(own, p ? frostZonePct(state, p.x, p.y) : 0);
+  return pct > 0 ? Math.floor((speed * (100 - pct)) / 100) : speed;
 }
 
 interface Block {

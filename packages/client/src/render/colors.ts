@@ -10,4 +10,7 @@ export const COLORS = {
   aura: 0xb07cf0,
   hpBack: 0x2a2f3a,
   hpFront: 0x6cc46c,
+  blast: 0xff7a3d,
+  frost: 0x9fd8ff,
+  overcharge: 0xf4c542,
 } as const;

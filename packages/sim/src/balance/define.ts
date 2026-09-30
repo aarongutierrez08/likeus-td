@@ -299,3 +299,72 @@ export function defineEnemies<K extends string>(specs: Record<K, EnemySpec>): Re
   }
   return out;
 }
+
+export const ABILITY_TARGETS = ["cell", "path", "ownTower", "none"] as const;
+/** What an ability is aimed at: any cell, a path cell, one of the player's own attack towers, or nothing. */
+export type AbilityTarget = (typeof ABILITY_TARGETS)[number];
+
+/** What one level of an ability does. Fields an ability does not use stay at zero. */
+export interface AbilityLevel {
+  /** Ticks before the ability can be used again. */
+  cooldown: number;
+  /** Explosive damage of a blast, before the armor multiplier. */
+  damage: number;
+  /** FP radius of a blast or a slowed stretch. */
+  radius: number;
+  /** Ticks between marking a blast and its landing. */
+  delay: number;
+  /** Ticks a slowed stretch or an overcharge lasts. */
+  duration: number;
+  /** Percent of speed a slowed stretch removes. */
+  slowPct: number;
+  /** Percent of fire rate an overcharge adds. */
+  ratePct: number;
+  /** Team lives a repair restores. */
+  lives: number;
+}
+
+export interface AbilitySpec {
+  label: string;
+  /** One line in the game's own voice. */
+  line: string;
+  target: AbilityTarget;
+  /** Gold per upgrade. */
+  upgradeCost: number;
+  base: Partial<AbilityLevel> & { cooldown: number };
+  /** One patch per level after the first; each one changes the cooldown or the effect, never both. */
+  upgrades: readonly Partial<AbilityLevel>[];
+}
+
+export interface AbilityDef {
+  label: string;
+  line: string;
+  target: AbilityTarget;
+  upgradeCost: number;
+  /** Full definition of each level, first level at index 0. */
+  levels: AbilityLevel[];
+}
+
+const NO_EFFECT: Omit<AbilityLevel, "cooldown"> = { damage: 0, radius: 0, delay: 0, duration: 0, slowPct: 0, ratePct: 0, lives: 0 };
+
+export function defineAbilities<K extends string>(specs: Record<K, AbilitySpec>): Record<K, AbilityDef> {
+  const out = {} as Record<K, AbilityDef>;
+  for (const kind of Object.keys(specs) as K[]) {
+    const spec = specs[kind];
+    const levels: AbilityLevel[] = [{ ...NO_EFFECT, ...spec.base }];
+    for (const patch of spec.upgrades) {
+      const touchesEffect = Object.keys(patch).some((key) => key !== "cooldown");
+      if ((patch.cooldown !== undefined) === touchesEffect)
+        throw new Error(`ability ${kind}: each level changes the cooldown or the effect`);
+      levels.push({ ...levels[levels.length - 1]!, ...patch });
+    }
+    out[kind] = {
+      label: spec.label,
+      line: spec.line,
+      target: spec.target,
+      upgradeCost: spec.upgradeCost,
+      levels,
+    };
+  }
+  return out;
+}

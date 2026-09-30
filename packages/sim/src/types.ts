@@ -4,6 +4,8 @@ import type { MapId } from "./balance/maps";
 
 export type { TowerKind } from "./balance/towers";
 export type { EnemyKind } from "./balance/enemies";
+export type { AbilityKind } from "./balance/abilities";
+import type { AbilityKind } from "./balance/abilities";
 import type { TowerKind } from "./balance/towers";
 import type { EnemyKind } from "./balance/enemies";
 export type GameStatus = "playing" | "won" | "lost";
@@ -26,6 +28,9 @@ export interface Tower {
   hp: number;
   /** Walls only: last tick an enemy hit it; -1 if never. */
   lastHitTick: number;
+  /** Fires `overchargePct` percent faster while tick < overchargeUntil. */
+  overchargeUntil: number;
+  overchargePct: number;
 }
 
 export interface Enemy {
@@ -111,6 +116,25 @@ export interface UpgradeCommand {
   branch?: Branch;
 }
 
+export interface UseAbilityCommand {
+  type: "useAbility";
+  tick: number;
+  playerId: number;
+  ability: AbilityKind;
+  /** Cell aimed at, for abilities that target a cell or the path. */
+  x?: number;
+  y?: number;
+  /** Tower aimed at, for abilities that target an own tower. */
+  towerId?: number;
+}
+
+export interface UpgradeAbilityCommand {
+  type: "upgradeAbility";
+  tick: number;
+  playerId: number;
+  ability: AbilityKind;
+}
+
 /** Issued by the server when a seat expires; never by a client. */
 export interface LeaveCommand {
   type: "leave";
@@ -119,7 +143,46 @@ export interface LeaveCommand {
 }
 
 export type Command =
-  BuildCommand | JoinCommand | CallWaveCommand | GiftCommand | SellCommand | UpgradeCommand | LeaveCommand | SetColorCommand;
+  | BuildCommand
+  | JoinCommand
+  | CallWaveCommand
+  | GiftCommand
+  | SellCommand
+  | UpgradeCommand
+  | LeaveCommand
+  | SetColorCommand
+  | UseAbilityCommand
+  | UpgradeAbilityCommand;
+
+/** A player's own level and cooldown of an ability: every ability is its owner's card, even when its effect helps the team. */
+export interface AbilitySlot {
+  /** 1 at the start; each upgrade adds one, up to the ability's number of levels. */
+  level: number;
+  /** First tick the ability can be used again. */
+  readyTick: number;
+}
+
+/** A bombard marked on the map, landing at `tick`. */
+export interface Blast {
+  id: number;
+  tick: number;
+  /** FP center. */
+  x: number;
+  y: number;
+  radius: number;
+  damage: number;
+}
+
+/** A stretch of path that slows everything in it until `until`. */
+export interface FrostZone {
+  id: number;
+  until: number;
+  /** FP center. */
+  x: number;
+  y: number;
+  radius: number;
+  slowPct: number;
+}
 
 export interface Player {
   id: number;
@@ -130,6 +193,7 @@ export interface Player {
   wallReadyTick: number;
   /** Index into PLAYER_COLORS; unique among the players present. */
   color: number;
+  abilities: Record<AbilityKind, AbilitySlot>;
 }
 
 export interface GameStats {
@@ -137,6 +201,7 @@ export interface GameStats {
   leaks: number;
   goldEarned: number;
   damageByTower: Record<TowerKind, number>;
+  damageByAbility: Record<AbilityKind, number>;
 }
 
 export interface GameState {
@@ -163,5 +228,8 @@ export interface GameState {
   nextId: number;
   towers: Tower[];
   enemies: Enemy[];
+  /** Bombards marked and not landed yet. */
+  blasts: Blast[];
+  frostZones: FrostZone[];
   stats: GameStats;
 }

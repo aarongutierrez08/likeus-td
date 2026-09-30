@@ -1,7 +1,9 @@
 import { Application, Container, Graphics, type FederatedPointerEvent } from "pixi.js";
 import {
+  ABILITIES,
   FP,
   TOWERS,
+  abilityLevel,
   TOWER_KINDS,
   getMap,
   hasAura,
@@ -9,6 +11,7 @@ import {
   isBuildable,
   isPathCell,
   pathCells,
+  type AbilityKind,
   type EnemyKind,
   type GameState,
   type MapId,
@@ -33,6 +36,8 @@ export interface RendererOptions {
 export interface Renderer {
   sync(state: GameState, showRanges: boolean): void;
   setHoverTower(kind: TowerKind | null): void;
+  /** Ability being aimed and its level: the hover shows where it would land and how far it reaches. */
+  setAimAbility(aim: { kind: AbilityKind; level: number } | null): void;
   /** Cell where the reach of the chosen tower is drawn, if any. */
   previewCell(): Point | null;
   setSelectedCell(cell: Point | null): void;
@@ -61,7 +66,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   const cells = pathCells(opts.mapId);
   entities.setExit(cells[cells.length - 1]!);
   drawMap(mapLayer, opts.mapId, BASE);
-  world.addChild(mapLayer, entities.ranges, entities.towers, entities.enemies, selection, hover);
+  world.addChild(mapLayer, entities.effects, entities.ranges, entities.towers, entities.enemies, selection, hover);
   app.stage.addChild(world);
 
   const layout = (): void => {
@@ -76,6 +81,17 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   let lastState: GameState | null = null;
   let lastShowRanges = false;
   let previewCell: Point | null = null;
+  let aim: { kind: AbilityKind; level: number } | null = null;
+  const drawAim = (cell: Point): void => {
+    const target = ABILITIES[aim!.kind].target;
+    const fits = target === "path" ? isPathCell(opts.mapId, cell.x, cell.y) : true;
+    hover.rect(cell.x * BASE, cell.y * BASE, BASE, BASE).stroke({ width: 2, color: fits ? COLORS.hover : COLORS.exit });
+    const radius = abilityLevel(aim!.kind, aim!.level).radius;
+    if (fits && radius > 0)
+      hover
+        .circle((cell.x + 0.5) * BASE, (cell.y + 0.5) * BASE, (radius / FP) * BASE)
+        .stroke({ width: 2, color: COLORS.blast, alpha: 0.8 });
+  };
   const cellFromEvent = (e: FederatedPointerEvent): Point | null => {
     const local = world.toLocal(e.global);
     const x = Math.floor(local.x / BASE);
@@ -86,6 +102,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     hover.clear();
     previewCell = null;
     if (!cell || !lastState) return;
+    if (aim) return drawAim(cell);
     const wanted = hoverTower ? TOWERS[hoverTower] : null;
     const placeable = wanted && hasWall(wanted) ? isPathCell(opts.mapId, cell.x, cell.y) : isBuildable(opts.mapId, cell.x, cell.y);
     const free = placeable && !lastState.towers.some((t) => t.x === cell.x && t.y === cell.y);
@@ -136,6 +153,11 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
       drawHover(kind ? previewCell : null);
     },
     previewCell: () => previewCell,
+    setAimAbility(next) {
+      if (next?.kind === aim?.kind && next?.level === aim?.level) return;
+      aim = next;
+      hover.clear();
+    },
     setSelectedTowerId(id) {
       entities.selectedTowerId = id;
       if (lastState) entities.sync(lastState, lastShowRanges);

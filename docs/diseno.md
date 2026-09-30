@@ -152,7 +152,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 6. ✅ Enemigos con comportamiento: invisible (pide radar), sanador, escudo al primer golpe, se divide al morir, jefe cada 10 con afijo. Calendario a 20.
 7. ✅ Color de jugador, sin diseños propios. Torre: forma por familia, color de dueño en el anillo, tipo por glifo y panel, nivel por marcas.
 8. ✅ Bichos al azar dentro de la oleada: los comunes salen en orden mezclado con la RNG de la sim y los jefes siempre después de todos los comunes; el calendario muestra la composición, no el orden. Si algún día hay comunes con afijo, se decide ahí dónde salen.
-9. ⬜ Habilidades, como primer tipo de carta nuevo.
+9. ✅ Habilidades, como primer tipo de carta nuevo (ADR 010). Las cuatro para todos hasta que llegue el mazo; cada habilidad es carta de su dueño: la mejora, la usa y la espera solo él, aunque su efecto ayude al equipo. Números de relleno hasta el punto 15; el bot todavía no las usa.
 10. ⬜ Mazo por jugador, primero con el set base y sin colección persistente.
 11. ⬜ Doctrinas por jugador.
 12. ⬜ Anfitrión libera la oleada. Chico; pendiente de ADR corto porque reemplaza el quórum del ADR 007.

@@ -52,6 +52,8 @@ describe("mine", () => {
       kills: 0,
       hp: 0,
       lastHitTick: -1,
+      overchargeUntil: 0,
+      overchargePct: 0,
     };
     expect(sellRefund(mine)).toBe(Math.floor((TOWERS.mine.cost * 75) / 100));
     expect(towerIncome({ ...mine, kind: "archer" })).toBe(0);

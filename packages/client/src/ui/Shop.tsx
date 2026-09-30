@@ -99,7 +99,10 @@ export function Shop(props: { store: GameStore }) {
               classList={{ selected: props.store.selectedTower() === kind, poor: poor() }}
               style={{ "--swatch": cssColor(TOWERS[kind].color) }}
               title={poor() ? `${tooltip(kind)} · te falta oro` : tooltip(kind)}
-              onClick={() => props.store.setSelectedTower(props.store.selectedTower() === kind ? null : kind)}
+              onClick={() => {
+                props.store.setAimingAbility(null);
+                props.store.setSelectedTower(props.store.selectedTower() === kind ? null : kind);
+              }}
             >
               <span class="name">{label(kind)}</span>
               <span class="cost">
@@ -110,7 +113,7 @@ export function Shop(props: { store: GameStore }) {
           );
         }}
       </For>
-      <span class="hint">Elegí una torre y tocá una celda · Esc suelta · ~ debug</span>
+      <span class="hint">Elegí una torre y tocá una celda · 1-4 habilidades · Esc suelta · ~ debug</span>
     </div>
   );
 }

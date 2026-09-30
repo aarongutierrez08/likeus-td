@@ -40,7 +40,8 @@ export function effectiveDamage(state: GameState, tower: Tower): number {
 /** Ticks between shots once rate auras apply. */
 export function effectiveCooldown(state: GameState, tower: Tower): number {
   const def = towerDef(tower);
-  return Math.max(1, Math.floor((def.cooldown * 100) / (100 + auraBonusFor(state, tower, "rate"))));
+  const overcharge = state.tick < tower.overchargeUntil ? tower.overchargePct : 0;
+  return Math.max(1, Math.floor((def.cooldown * 100) / (100 + auraBonusFor(state, tower, "rate") + overcharge)));
 }
 
 /** Damage one hit of the tower deals to this enemy: effective damage times the attack-vs-armor multiplier, plus any mark. */

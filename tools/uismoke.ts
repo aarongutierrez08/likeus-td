@@ -109,6 +109,45 @@ try {
   );
   done("los enemigos golpean la tranquera");
 
+  const ability = (name: string) => page.locator(".ability").filter({ hasText: name });
+  await ability("Bombardeo").locator(".use").click({ delay: HOLD_MS });
+  await page.waitForSelector(".ability.aiming");
+  await page.locator(".ability-detail").filter({ hasText: "mejora por" }).waitFor({ timeout: 2000 });
+  await clickCell(12, 5);
+  await page.waitForFunction(() => window.__td!.state().blasts.length === 1);
+  if (await page.locator(".ability.aiming").count()) throw new Error("el apuntado sigue activo tras lanzar");
+  await assertStable(page, ability("Bombardeo").locator(".up"), "el botón de mejorar habilidad");
+  await ability("Bombardeo").locator(".up").click({ delay: HOLD_MS });
+  await page.waitForFunction(() => window.__td!.state().players[0]!.abilities["bombard"]!.level === 2);
+  done("bombardeo apuntado con su detalle a la vista, lanzado y mejorado a nivel 2");
+
+  await page.keyboard.press("2");
+  await page.waitForSelector(".ability.aiming");
+  await clickCell(10, 3);
+  await page.getByText("Eso va sobre el camino").waitFor({ timeout: 2000 });
+  await clickCell(3, 1);
+  await page.waitForFunction(() => window.__td!.state().frostZones.length === 1);
+  done("escarcha con la tecla 2: rechazada fuera del camino, lanzada sobre él");
+
+  await page.locator(".shop button").first().click({ delay: HOLD_MS });
+  await clickCell(12, 3);
+  await page.waitForFunction(() => window.__td!.state().towers.some((t) => t.x === 12 && t.y === 3));
+  await ability("Sobrecarga").locator(".use").click({ delay: HOLD_MS });
+  await clickCell(12, 3);
+  await page.waitForFunction(() => {
+    const st = window.__td!.state();
+    return st.towers.some((t) => t.x === 12 && t.y === 3 && t.overchargeUntil > st.tick);
+  });
+  done("sobrecarga sobre una torre propia");
+
+  const repairBox = (await ability("Reparación").locator(".use").boundingBox())!;
+  await page.mouse.move(0, 0);
+  await page.touchscreen.tap(repairBox.x + repairBox.width / 2, repairBox.y + repairBox.height / 2);
+  await page.waitForFunction(() => window.__td!.state().players[0]!.abilities["repair"]!.readyTick > 0);
+  await page.waitForTimeout(300);
+  await page.locator(".ability-detail").filter({ hasText: "Reparación nivel" }).waitFor({ timeout: 2000 });
+  done("reparación con un toque, sin apuntar, y su detalle queda a la vista");
+
   await page.goto(`${base}?seed=42&wave=4&gold=0&speed=1&bot=0`);
   await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
   await page.waitForFunction(() => (window.__td?.state().tick ?? 0) > 5);

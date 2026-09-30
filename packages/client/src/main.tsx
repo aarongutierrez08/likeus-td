@@ -1,19 +1,25 @@
 import { render } from "solid-js/web";
 import { Show, createEffect, createRoot, createSignal } from "solid-js";
 import {
+  ABILITIES,
+  ABILITY_KINDS,
   ECONOMY,
   ENEMIES,
   attenuatedBounty,
   createBot,
   dumpState,
   createInitialState,
+  findPlayer,
   hashState,
   validateBuild,
   validateCommand,
+  type AbilityKind,
   type Command,
   type EnemyKind,
   type GameState,
   type Point,
+  type UpgradeAbilityCommand,
+  type UseAbilityCommand,
 } from "@td/sim";
 import type { CommandReject, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
@@ -31,6 +37,7 @@ import { EndScreen, type EndActions } from "./ui/EndScreen";
 import { createFloatingLabels } from "./ui/FloatingLabels";
 import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
+import { AbilityBar, pickAbility, type AbilityActions, type AbilityRequest } from "./ui/AbilityBar";
 import { Shop } from "./ui/Shop";
 import { TowerPanel } from "./ui/TowerPanel";
 import "./styles.css";
@@ -65,7 +72,7 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   not_owner: "Esa torre no es tuya",
   wave_in_progress: "Todavía quedan enemigos de esta oleada",
   max_level: "La torre ya está al máximo",
-  not_on_path: "La tranquera va sobre el camino",
+  not_on_path: "Eso va sobre el camino",
   wall_active: "Ya tenés una tranquera en pie",
   wall_cooldown: "Tu tranquera cayó hace poco, esperá",
   wall_under_attack: "No se vende una tranquera mientras la golpean",
@@ -73,6 +80,9 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   color_taken: "Ese color ya está en uso",
   branch_required: "El último nivel elige una rama",
   bad_branch: "Esa rama no existe",
+  unknown_ability: "Habilidad desconocida",
+  ability_cooldown: "Todavía se está recargando",
+  bad_target: "Tiene que ser una torre tuya que ataque",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -84,6 +94,44 @@ interface Game {
   store: GameStore;
   runner: GameRunner;
   labels: ReturnType<typeof createFloatingLabels>;
+  abilities: AbilityActions;
+}
+
+type AbilityCommand = UseAbilityCommand | UpgradeAbilityCommand;
+
+/** Checks against the local sim before delivering, so a refused ability says why at once and keeps the aim. */
+function abilityActions(store: GameStore, runner: GameRunner, notify: (msg: string) => void, deliver: (cmd: AbilityCommand) => void) {
+  const run = (cmd: AbilityCommand): boolean => {
+    const reason = validateCommand(runner.state, cmd);
+    if (reason) {
+      notify(REJECT_MESSAGES[reason]);
+      return false;
+    }
+    deliver(cmd);
+    return true;
+  };
+  const actions: AbilityActions = {
+    cast: (req) => run({ type: "useAbility", tick: runner.state.tick, playerId: store.you, ...req }),
+    upgrade: (ability) => void run({ type: "upgradeAbility", tick: runner.state.tick, playerId: store.you, ability }),
+  };
+  return actions;
+}
+
+/** Where the aimed ability goes when that cell is tapped: the cell itself, or the tower on it. Null when it needs a tower and there is none. */
+function aimedRequest(game: Game, ability: AbilityKind, cell: Point): AbilityRequest | null {
+  if (ABILITIES[ability].target !== "ownTower") return { ability, x: cell.x, y: cell.y };
+  const tower = game.store.state().towers.find((t) => t.x === cell.x && t.y === cell.y);
+  return tower ? { ability, towerId: tower.id } : null;
+}
+
+/** A tap while aiming casts the ability there; it stays aimed if the sim refused it. Returns true when the tap was used. */
+function tapAim(game: Game, cell: Point, notify: (msg: string) => void): boolean {
+  const ability = game.store.aimingAbility();
+  if (!ability) return false;
+  const req = aimedRequest(game, ability, cell);
+  if (!req) notify(REJECT_MESSAGES.bad_target);
+  else if (game.abilities.cast(req)) game.store.setAimingAbility(null);
+  return true;
 }
 
 const mapEl = document.getElementById("map")!;
@@ -106,7 +154,7 @@ function rejectBuild(notify: (msg: string) => void, reason: CommandReject): bool
   return reason === "no_gold";
 }
 
-function makeNotifier(game: Game): (msg: string) => void {
+function makeNotifier(game: { store: GameStore }): (msg: string) => void {
   let timer = 0;
   return (msg) => {
     game.store.setNotice(msg);
@@ -139,6 +187,12 @@ function bindRenderer(renderer: Renderer, game: Game): void {
   if (window.__td) window.__td.preview = () => renderer.previewCell();
   createRoot(() => {
     createEffect(() => renderer.setHoverTower(game.store.selectedTower()));
+    createEffect(() => {
+      const kind = game.store.aimingAbility();
+      const player = findPlayer(game.store.state(), game.store.you);
+      const level = kind && player ? player.abilities[kind].level : 1;
+      renderer.setAimAbility(kind ? { kind, level } : null);
+    });
     createEffect(() => {
       const id = game.store.selectedTowerId();
       const tower = id === null ? undefined : game.store.state().towers.find((t) => t.id === id);
@@ -177,6 +231,9 @@ function bindKeyboard(getGame: () => Game | null): void {
     } else if (e.key === "Escape") {
       game.store.setSelectedTower(null);
       game.store.setSelectedTowerId(null);
+      game.store.setAimingAbility(null);
+    } else if (/^[1-9]$/.test(e.key) && ABILITY_KINDS[Number(e.key) - 1]) {
+      pickAbility(game.store, game.abilities, ABILITY_KINDS[Number(e.key) - 1]!);
     } else if (e.key === " " && game.store.debugOpen()) {
       e.preventDefault();
       debugActions(game).togglePause();
@@ -205,6 +262,7 @@ function GameView(props: {
         actions={props.economy}
         ownerName={(id) => props.net?.roomInfo()?.players.find((p) => p.playerId === id)?.name ?? `Jugador ${id + 1}`}
       />
+      <AbilityBar store={props.game.store} actions={props.game.abilities} />
       <Shop store={props.game.store} />
       <Show when={props.net && props.sendChat}>
         <Chat net={props.net!} send={props.sendChat!} colorOf={(id) => playerCss(props.game.store.state(), id)} />
@@ -253,22 +311,27 @@ async function bootSolo(params: UrlParams): Promise<void> {
     bot: params.bot ? createBot("trivial") : undefined,
     onState: store.setState,
   });
-  const game: Game = { store, runner, labels: createFloatingLabels() };
+  const notify = makeNotifier({ store });
+  /** Paused or at speed 0 the runner does not tick, so a command steps once to show its effect. */
+  const deliverLocal = (cmd: Command): void => {
+    runner.enqueue(cmd);
+    if (runner.paused || runner.speed === 0) runner.stepAndPublish();
+  };
+  const game: Game = { store, runner, labels: createFloatingLabels(), abilities: abilityActions(store, runner, notify, deliverLocal) };
   exposeForTools(game);
-  const notify = makeNotifier(game);
 
   const renderer = await createRenderer(mapEl, {
     mapId: initial.mapId,
     onKills: killLabel(game),
     onCellTap: (cell) => {
+      if (tapAim(game, cell, notify)) return false;
       if (selectTowerAt(game, cell)) return false;
       const tower = store.selectedTower();
       if (!tower) return false;
       const cmd = { type: "build" as const, tick: runner.state.tick, playerId: 0, tower, x: cell.x, y: cell.y };
       const reason = validateBuild(runner.state, cmd);
       if (reason) return rejectBuild(notify, reason);
-      runner.enqueue(cmd);
-      if (runner.paused || runner.speed === 0) runner.stepAndPublish();
+      deliverLocal(cmd);
       return false;
     },
   });
@@ -277,8 +340,7 @@ async function bootSolo(params: UrlParams): Promise<void> {
   const localCommand = (cmd: Command): void => {
     const reason = validateCommand(runner.state, cmd);
     if (reason) return notify(REJECT_MESSAGES[reason]);
-    runner.enqueue(cmd);
-    if (runner.paused || runner.speed === 0) runner.stepAndPublish();
+    deliverLocal(cmd);
   };
   const [speed, setSpeedSignal] = createSignal(params.speed);
   const economy: EconomyActions = {
@@ -348,14 +410,22 @@ function bootCoop(params: UrlParams): void {
       onState: store.setState,
       onDesync: (tick, hash, dump) => connection.send("desync", { tick, hash, dump }),
     });
-    const created: Game = { store, runner, labels: createFloatingLabels() };
-    const notify = makeNotifier(created);
+    const notify = makeNotifier({ store });
+    const deliver = (cmd: AbilityCommand): void =>
+      connection.send(
+        "cmd",
+        cmd.type === "useAbility"
+          ? { type: cmd.type, ability: cmd.ability, x: cmd.x, y: cmd.y, towerId: cmd.towerId }
+          : { type: cmd.type, ability: cmd.ability },
+      );
+    const created: Game = { store, runner, labels: createFloatingLabels(), abilities: abilityActions(store, runner, notify, deliver) };
     exposeForTools(created);
     setGame(created);
     void createRenderer(mapEl, {
       mapId: snapshot.state.mapId,
       onKills: killLabel(created),
       onCellTap: (cell) => {
+        if (net.roomInfo()?.phase === "playing" && tapAim(created, cell, notify)) return false;
         if (selectTowerAt(created, cell)) return false;
         const tower = store.selectedTower();
         if (!tower || net.roomInfo()?.phase !== "playing") return false;

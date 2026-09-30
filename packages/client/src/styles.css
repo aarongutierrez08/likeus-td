@@ -804,3 +804,85 @@ body {
   opacity: 0.25;
   cursor: not-allowed;
 }
+
+.abilities {
+  position: absolute;
+  right: 8px;
+  bottom: calc(var(--shop-h) + 8px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: calc(100vw - 16px);
+}
+
+.ability-detail {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.ability {
+  display: flex;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.ability.aiming {
+  border-color: var(--accent);
+}
+
+.ability button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.ability .use {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: 4px 8px;
+}
+
+.ability .name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ability .level {
+  color: var(--accent);
+}
+
+.ability .when {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ability.cooling .use {
+  opacity: 0.6;
+}
+
+.ability .up {
+  min-width: 44px;
+  padding: 0 8px;
+  border-left: 1px solid var(--line);
+  color: var(--gold);
+  font-size: 12px;
+}
+
+.ability .up.poor {
+  color: var(--lives);
+  opacity: 0.6;
+}

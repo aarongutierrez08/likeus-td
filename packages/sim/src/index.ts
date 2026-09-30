@@ -49,7 +49,13 @@ export {
   type BranchDef,
   type Targeting,
   TARGETINGS,
+  ABILITY_TARGETS,
+  type AbilitySpec,
+  type AbilityDef,
+  type AbilityLevel,
+  type AbilityTarget,
 } from "./balance/define";
+export { ABILITIES, ABILITY_KINDS, abilityLevel } from "./balance/abilities";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef, type EnemySpec } from "./balance/enemies";
 export { AFFIXES, BOSS_AFFIXES, type BossAffix } from "./balance/affixes";
 export { bossAffix, initialShield } from "./affixes";

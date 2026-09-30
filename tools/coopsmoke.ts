@@ -151,6 +151,20 @@ try {
   if ((await towers(b)) !== builtBefore) throw new Error("B construyó sin poder pagarla");
   done("B elige una torre que no puede pagar, la toca en el mapa, ve su alcance y no construye");
 
+  await a.locator(".ability").filter({ hasText: "Bombardeo" }).locator(".use").click({ delay: 120 });
+  await a.mouse.click(atA(12, 5).x, atA(12, 5).y);
+  await b.waitForFunction(() => (window.__td?.state().players.find((p) => p.id === 0)?.abilities["bombard"]?.readyTick ?? 0) > 0, null, {
+    timeout: 10000,
+  });
+  await a.locator(".ability").filter({ hasText: "Reparación" }).locator(".use").click({ delay: 120 });
+  await b.waitForFunction(() => (window.__td?.state().players.find((p) => p.id === 0)?.abilities["repair"]?.readyTick ?? 0) > 0, null, {
+    timeout: 10000,
+  });
+  const livesBefore = await b.evaluate(() => window.__td!.state().lives);
+  await b.locator(".ability").filter({ hasText: "Reparación" }).locator(".use").click({ delay: 120 });
+  await b.waitForFunction((before) => window.__td!.state().lives === before + 1, livesBefore, { timeout: 10000 });
+  done("A bombardea y repara; B lo ve y repara con su propia carta");
+
   await a.locator("button", { hasText: "1×" }).first().click();
   await a.waitForFunction(() => (window.__td?.state().tick ?? 0) >= 200);
   await a.waitForTimeout(500);

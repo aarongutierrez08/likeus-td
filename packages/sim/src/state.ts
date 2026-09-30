@@ -1,12 +1,13 @@
 import { BALANCE_VERSION } from "./constants";
 import { GAME } from "./balance/game";
 import { DEFAULT_MAP, isMapId, type MapId } from "./balance/maps";
+import { ABILITY_KINDS } from "./balance/abilities";
 import { TOWER_KINDS } from "./balance/towers";
 import { WAVES } from "./balance/waves";
 import { startingGold } from "./economy";
 import { pickColor } from "./colors";
 import { seedRng } from "./rng";
-import type { GameState, Player, TowerKind } from "./types";
+import type { AbilityKind, AbilitySlot, GameState, Player, TowerKind } from "./types";
 
 export interface PlayerSetup {
   id: number;
@@ -49,13 +50,25 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     nextId: 1,
     towers: [],
     enemies: [],
+    blasts: [],
+    frostZones: [],
     stats: {
       kills: 0,
       leaks: 0,
       goldEarned: 0,
       damageByTower: Object.fromEntries(TOWER_KINDS.map((kind) => [kind, 0])) as Record<TowerKind, number>,
+      damageByAbility: perAbility(() => 0),
     },
   };
+}
+
+function perAbility<T>(value: () => T): Record<AbilityKind, T> {
+  return Object.fromEntries(ABILITY_KINDS.map((kind) => [kind, value()])) as Record<AbilityKind, T>;
+}
+
+/** Every player carries every ability, ready at level 1, until decks arrive (design step 10). */
+export function freshAbilities(): Record<AbilityKind, AbilitySlot> {
+  return perAbility(() => ({ level: 1, readyTick: 0 }));
 }
 
 function isRanked(opts: InitialStateOptions): boolean {
@@ -68,7 +81,14 @@ function initialPlayers(opts: InitialStateOptions): Player[] {
   const players: Player[] = [];
   for (const p of setups) {
     const color = pickColor(players, p.color);
-    players.push({ id: p.id, gold: p.gold ?? opts.gold ?? startingGold(setups.length), earned: 0, wallReadyTick: 0, color });
+    players.push({
+      id: p.id,
+      gold: p.gold ?? opts.gold ?? startingGold(setups.length),
+      earned: 0,
+      wallReadyTick: 0,
+      color,
+      abilities: freshAbilities(),
+    });
   }
   return players;
 }

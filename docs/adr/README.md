@@ -13,5 +13,6 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 007 | Economía multijugador: oro propio, vidas del equipo, escalado por N |
 | 008 | Contenido como datos: una torre o enemigo es una entrada en `balance/` |
 | 009 | La tabla tipo de ataque × armadura es regla del juego, no balance |
+| 010 | Habilidades: carta como datos, lanzada por comando |
 
 Plantilla: `000-template.md`.

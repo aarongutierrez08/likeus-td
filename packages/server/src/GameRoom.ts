@@ -3,6 +3,7 @@ import {
   BALANCE_VERSION,
   TICKS_PER_SECOND,
   TOWER_KINDS,
+  ABILITY_KINDS,
   canSubmitRecord,
   cloneState,
   createInitialState,
@@ -530,6 +531,20 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
       if (branch !== undefined && branch !== "a" && branch !== "b") return null;
       const towerId = v["towerId"] as number;
       return branch === undefined ? { type: "upgrade", tick, playerId, towerId } : { type: "upgrade", tick, playerId, towerId, branch };
+    }
+    case "useAbility": {
+      const ability = v["ability"];
+      if (!ABILITY_KINDS.includes(ability as never)) return null;
+      const optionalInts = ["x", "y", "towerId"] as const;
+      if (optionalInts.some((k) => v[k] !== undefined && !Number.isInteger(v[k]))) return null;
+      const cmd: Command = { type: "useAbility", tick, playerId, ability: ability as (typeof ABILITY_KINDS)[number] };
+      for (const k of optionalInts) if (v[k] !== undefined) cmd[k] = v[k] as number;
+      return cmd;
+    }
+    case "upgradeAbility": {
+      const ability = v["ability"];
+      if (!ABILITY_KINDS.includes(ability as never)) return null;
+      return { type: "upgradeAbility", tick, playerId, ability: ability as (typeof ABILITY_KINDS)[number] };
     }
     default:
       return null;

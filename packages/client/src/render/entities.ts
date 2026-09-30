@@ -63,6 +63,8 @@ export class EntityLayer {
   readonly towers = new Container();
   readonly enemies = new Container();
   readonly ranges = new Graphics();
+  /** Bombards about to land, frost stretches and overcharged towers: redrawn every sync, they change every tick. */
+  readonly effects = new Graphics();
   private readonly towerSprites = new Map<number, { g: Graphics; level: number; hp: number; color: number }>();
   private readonly enemySprites = new Map<number, EnemySprite>();
 
@@ -82,6 +84,7 @@ export class EntityLayer {
 
   sync(state: GameState, showRanges: boolean): KillEvent[] {
     this.syncTowers(state);
+    this.drawEffects(state);
     const kills = this.syncEnemies(state);
     this.ranges.clear();
     if (showRanges) this.drawRanges(state.towers);
@@ -167,6 +170,24 @@ export class EntityLayer {
     }
     if (hasReveal(def)) g.circle(c, c, s * 1.2).stroke({ width: 2, color: ink });
     if (hasIncome(def)) g.rect(c - s * 0.7, c - s * 0.3, s * 1.4, s * 1.4).fill(ink);
+  }
+
+  private drawEffects(state: GameState): void {
+    const g = this.effects;
+    const cells = (fp: number): number => (fp / FP) * this.base;
+    g.clear();
+    for (const zone of state.frostZones) {
+      g.circle(cells(zone.x), cells(zone.y), cells(zone.radius)).fill({ color: COLORS.frost, alpha: 0.18 });
+      g.circle(cells(zone.x), cells(zone.y), cells(zone.radius)).stroke({ width: 2, color: COLORS.frost, alpha: 0.7 });
+    }
+    for (const blast of state.blasts) {
+      g.circle(cells(blast.x), cells(blast.y), cells(blast.radius)).stroke({ width: 3, color: COLORS.blast });
+      g.circle(cells(blast.x), cells(blast.y), this.base * 0.15).fill(COLORS.blast);
+    }
+    for (const t of state.towers) {
+      if (state.tick >= t.overchargeUntil) continue;
+      g.rect(t.x * this.base + 2, t.y * this.base + 2, this.base - 4, this.base - 4).stroke({ width: 3, color: COLORS.overcharge });
+    }
   }
 
   private syncTowers(state: GameState): void {

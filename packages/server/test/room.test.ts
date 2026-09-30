@@ -233,6 +233,25 @@ describe("game room", () => {
     expect(local.players.every((p) => p.gold > startingGold(2))).toBe(true);
   });
 
+  it("relays abilities with the sender's playerId and rejects malformed ones", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    host.room.send("start", {});
+    await guest.next<SnapshotMessage>("snapshot");
+    guest.room.send("cmd", { type: "useAbility", ability: "bombard", x: 3, y: 3 });
+    const cast = await guest.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "useAbility"));
+    expect(cast.commands).toContainEqual({ type: "useAbility", tick: cast.tick, playerId: 1, ability: "bombard", x: 3, y: 3 });
+    guest.room.send("cmd", { type: "upgradeAbility", ability: "repair" });
+    const upgraded = await guest.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "upgradeAbility"));
+    expect(upgraded.commands).toContainEqual({ type: "upgradeAbility", tick: upgraded.tick, playerId: 1, ability: "repair" });
+    guest.room.send("cmd", { type: "useAbility", ability: "nuke" });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("bad_shape");
+    guest.room.send("cmd", { type: "useAbility", ability: "overcharge", towerId: "x" });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("bad_shape");
+  });
+
   it("limits commands per tick per player", async () => {
     const host = await createRoom({ name: "host" });
     host.room.send("start", {});

@@ -8,6 +8,7 @@ import {
   initialShield,
   pathCells,
   step,
+  type AbilityKind,
   type Bot,
   type BossAffix,
   type Branch,
@@ -16,6 +17,7 @@ import {
   type EnemyKind,
   type GameState,
   type GameStatus,
+  type Player,
   type Tower,
   type TowerKind,
 } from "../../src/index";
@@ -157,6 +159,17 @@ export class Scenario {
     return this;
   }
 
+  /** Queues a real useAbility command; the target is a cell, a tower id, or nothing. */
+  useAbility(ability: AbilityKind, target: Cell | { towerId: number } | null = null, player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "useAbility", tick: 0, playerId: player, ability, ...(target ?? {}) });
+    return this;
+  }
+
+  upgradeAbility(ability: AbilityKind, player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "upgradeAbility", tick: 0, playerId: player, ability });
+    return this;
+  }
+
   leave(playerId: number): this {
     this.queued.push({ type: "leave", tick: 0, playerId });
     return this;
@@ -211,6 +224,12 @@ export class Scenario {
     const found = this.state().players.find((p) => p.id === player);
     if (!found) throw new Error(`player ${player} is not in the game`);
     return found.gold;
+  }
+
+  player(id: number = DEFAULT_PLAYER): Player {
+    const found = this.state().players.find((p) => p.id === id);
+    if (!found) throw new Error(`player ${id} is not in the game`);
+    return found;
   }
 
   playerIds(): number[] {
