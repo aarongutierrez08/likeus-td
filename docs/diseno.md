@@ -151,7 +151,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 5. ✅ Ramas excluyentes en nivel 3: cada torre elige una de dos identidades.
 6. ✅ Enemigos con comportamiento: invisible (pide radar), sanador, escudo al primer golpe, se divide al morir, jefe cada 10 con afijo. Calendario a 20.
 7. ✅ Color de jugador, sin diseños propios. Torre: forma por familia, color de dueño en el anillo, tipo por glifo y panel, nivel por marcas.
-8. ⬜ Bichos al azar dentro de la oleada: mezcla con la RNG de la sim, élites y jefes al final, calendario por composición.
+8. ✅ Bichos al azar dentro de la oleada: los comunes salen en orden mezclado con la RNG de la sim y los jefes siempre después de todos los comunes; el calendario muestra la composición, no el orden. Si algún día hay comunes con afijo, se decide ahí dónde salen.
 9. ⬜ Habilidades, como primer tipo de carta nuevo.
 10. ⬜ Mazo por jugador, primero con el set base y sin colección persistente.
 11. ⬜ Doctrinas por jugador.

@@ -3,7 +3,7 @@ import type { EnemyKind } from "../types";
 export interface SpawnGroup {
   kind: EnemyKind;
   count: number;
-  /** Ticks between consecutive spawns of this group. */
+  /** Ticks each enemy of this group waits after the previous spawn of the wave, whatever its group. */
   spacing: number;
 }
 

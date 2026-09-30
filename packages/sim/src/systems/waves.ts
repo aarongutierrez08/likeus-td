@@ -3,17 +3,31 @@ import { ENEMIES } from "../balance/enemies";
 import { ECONOMY } from "../balance/economy";
 import { GAME } from "../balance/game";
 import { towerDef } from "../balance/towers";
-import { WAVES } from "../balance/waves";
+import { WAVES, type SpawnGroup, type WaveDef } from "../balance/waves";
 import { towerIncome } from "../commands";
 import { interestOn, scaledEnemyHp } from "../economy";
-import { rollJitter } from "../rng";
+import { rollInt, rollJitter } from "../rng";
 import type { GameState } from "../types";
 
 function pct(value: number, percent: number): number {
   return Math.floor((value * percent) / 100);
 }
 
-/** Starts the next wave when its tick arrives, queueing every spawn with RNG jitter. */
+/** Spawn order of a wave: its common enemies shuffled with the sim RNG, then its bosses. */
+function spawnOrder(state: GameState, wave: WaveDef): SpawnGroup[] {
+  const commons: SpawnGroup[] = [];
+  const bosses: SpawnGroup[] = [];
+  for (const group of wave.groups) {
+    for (let i = 0; i < group.count; i++) (group.kind === "boss" ? bosses : commons).push(group);
+  }
+  for (let i = commons.length - 1; i > 0; i--) {
+    const j = rollInt(state, i + 1);
+    [commons[i], commons[j]] = [commons[j]!, commons[i]!];
+  }
+  return [...commons, ...bosses];
+}
+
+/** Starts the next wave when its tick arrives, queueing every spawn in mixed order with RNG jitter. */
 export function scheduleWave(state: GameState): void {
   if (state.wave >= WAVES.length || state.nextWaveTick === null || state.tick < state.nextWaveTick) return;
   const wave = WAVES[state.wave]!;
@@ -21,14 +35,11 @@ export function scheduleWave(state: GameState): void {
   state.waveCalls = [];
   let t = state.tick;
   let first = true;
-  for (const group of wave.groups) {
-    const base = ENEMIES[group.kind];
-    for (let i = 0; i < group.count; i++) {
-      if (!first) t += group.spacing + rollJitter(state, pct(group.spacing, GAME.spacingJitterPct));
-      first = false;
-      const affix = group.kind === "boss" ? bossAffix(state.seed, state.wave) : null;
-      state.spawnQueue.push({ tick: t, kind: group.kind, hp: pct(base.hp, wave.hpPct), wave: state.wave, affix });
-    }
+  for (const { kind, spacing } of spawnOrder(state, wave)) {
+    if (!first) t += spacing + rollJitter(state, pct(spacing, GAME.spacingJitterPct));
+    first = false;
+    const affix = kind === "boss" ? bossAffix(state.seed, state.wave) : null;
+    state.spawnQueue.push({ tick: t, kind, hp: pct(ENEMIES[kind].hp, wave.hpPct), wave: state.wave, affix });
   }
   state.nextWaveTick = null;
 }
