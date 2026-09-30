@@ -97,7 +97,7 @@ export const WAVES: readonly WaveDef[] = [
   {
     hpPct: 400,
     groups: [
-      { kind: "swarm", count: 30, spacing: 4 },
+      { kind: "fast", count: 20, spacing: 6 },
       { kind: "shielded", count: 6, spacing: 18 },
     ],
   },
@@ -120,7 +120,7 @@ export const WAVES: readonly WaveDef[] = [
   {
     hpPct: 500,
     groups: [
-      { kind: "shielded", count: 8, spacing: 15 },
+      { kind: "enchanted", count: 12, spacing: 10 },
       { kind: "healer", count: 4, spacing: 25 },
       { kind: "fast", count: 12, spacing: 6 },
     ],
@@ -128,7 +128,7 @@ export const WAVES: readonly WaveDef[] = [
   {
     hpPct: 550,
     groups: [
-      { kind: "swarm", count: 30, spacing: 4 },
+      { kind: "fast", count: 24, spacing: 6 },
       { kind: "blob", count: 6, spacing: 20 },
       { kind: "shade", count: 10, spacing: 10 },
       { kind: "shielded", count: 6, spacing: 15 },

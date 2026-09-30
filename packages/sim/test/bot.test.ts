@@ -80,15 +80,44 @@ describe("informed bot", () => {
 });
 
 describe("random bot opening", () => {
-  it("always starts with an attack tower and may buy anything afterwards", () => {
-    const later = new Set<TowerKind>();
+  it("builds only attack towers when no stealth wave is coming, with or without towers of its own", () => {
     for (let seed = 0; seed < 30; seed++) {
-      const first = builtKind(createBot("variant", seed).decide(scenario({ seed: 1, gold: richest }).state()))!;
-      expect(hasAttack(TOWERS[first])).toBe(true);
+      const first = builtKind(createBot("variant", seed).decide(scenario({ seed: 1, gold: richest }).state()));
+      expect(first !== null && hasAttack(TOWERS[first])).toBe(true);
       const owning = scenario({ seed: 1, gold: richest }).tower("archer", { x: 4, y: 2 }).state();
-      later.add(builtKind(createBot("variant", seed).decide(owning))!);
+      const later = builtKind(createBot("variant", seed).decide(owning));
+      if (later !== null) expect(hasAttack(TOWERS[later])).toBe(true);
     }
-    expect([...later].some((kind) => !hasAttack(TOWERS[kind]))).toBe(true);
+  });
+
+  it("builds a radar before a stealth wave when no tower of the team reveals", () => {
+    const stealthWave = WAVES.findIndex((w) => w.groups.some((g) => ENEMIES[g.kind].stealth)) + 1;
+    let builds = 0;
+    for (let seed = 0; seed < 20; seed++) {
+      const before = scenario({ seed: 1, waves: true, startWave: stealthWave, gold: richest }).tower("archer", { x: 15, y: 3 }).state();
+      const kind = builtKind(createBot("variant", seed).decide(before));
+      if (kind === null) continue;
+      builds++;
+      expect(kind).toBe("radar");
+    }
+    expect(builds).toBeGreaterThan(0);
+  });
+
+  it("drops a planned radar once a teammate puts one", () => {
+    const stealthWave = WAVES.findIndex((w) => w.groups.some((g) => ENEMIES[g.kind].stealth)) + 1;
+    const withoutRadar = scenario({ seed: 1, players: [0, 1], waves: true, startWave: stealthWave, gold: 0 })
+      .tower("archer", { x: 15, y: 3 })
+      .state();
+    const teammateRevealed = scenario({ seed: 1, players: [0, 1], waves: true, startWave: stealthWave, gold: richest })
+      .tower("archer", { x: 15, y: 3 })
+      .tower("radar", { x: 1, y: 2, owner: 1 })
+      .state();
+    for (let seed = 0; seed < 20; seed++) {
+      const bot = createBot("variant", seed);
+      expect(bot.decide(withoutRadar)).toEqual([]);
+      const later = [bot.decide(teammateRevealed), bot.decide(teammateRevealed)].map(builtKind);
+      expect(later).not.toContain("radar");
+    }
   });
 });
 
@@ -234,33 +263,6 @@ describe("random bot spending", () => {
     }
     expect(kept).toBeGreaterThan(0);
   });
-
-  it("builds attack towers until it has more than two per support tower", () => {
-    let builds = 0;
-    for (let seed = 0; seed < 30; seed++) {
-      const balanced = scenario({ seed: 1, gold: richest }).tower("archer", { x: 15, y: 3 }).tower("frost", { x: 13, y: 3 }).state();
-      const kind = builtKind(createBot("variant", seed).decide(balanced));
-      if (kind === null) continue;
-      builds++;
-      expect(hasAttack(TOWERS[kind])).toBe(true);
-    }
-    expect(builds).toBeGreaterThan(0);
-  });
-
-  it("may build support once it has more than two attack towers per support tower", () => {
-    const later = new Set<TowerKind>();
-    for (let seed = 0; seed < 30; seed++) {
-      const attackHeavy = scenario({ seed: 1, gold: richest })
-        .tower("archer", { x: 15, y: 3 })
-        .tower("archer", { x: 16, y: 3 })
-        .tower("archer", { x: 12, y: 3 })
-        .tower("frost", { x: 13, y: 3 })
-        .state();
-      const kind = builtKind(createBot("variant", seed).decide(attackHeavy));
-      if (kind !== null) later.add(kind);
-    }
-    expect([...later].some((kind) => !hasAttack(TOWERS[kind]))).toBe(true);
-  });
 });
 
 describe("informed bot in a team", () => {
@@ -317,9 +319,10 @@ describe("informed bot choosing an attack", () => {
     const game = scenario({ seed: 1, waves: true, startWave: bossWave, gold: TOWERS.wall.cost })
       .tower("archer", { x: 15, y: 3 })
       .tower("archer", { x: 16, y: 3 })
-      .tower("wall", { x: 5, y: 1 })
-      .enemy("normal", { x: 4, y: 1 });
-    while (game.towers().some((t) => t.kind === "wall")) game.run(1);
+      .tower("wall", { x: 5, y: 1 });
+    for (let i = 0; i < 6; i++) game.enemy("normal", { x: 4, y: 1 });
+    for (let tick = 0; tick < 200 && game.towers().some((t) => t.kind === "wall"); tick++) game.run(1);
+    expect(game.towers().some((t) => t.kind === "wall")).toBe(false);
     expect(game.state().wave).toBe(bossWave - 1);
     expect(builtKind(createBot("trivial").decide(game.state()))).not.toBe("wall");
   });

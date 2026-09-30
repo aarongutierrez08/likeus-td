@@ -25,7 +25,7 @@ export const TOWERS = defineTowers({
     },
   },
   hammer: {
-    cost: 95,
+    cost: 90,
     label: "Mazazo",
     line: "un golpe pesado cada tanto",
     color: 0xc9a27a,

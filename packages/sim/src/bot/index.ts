@@ -30,14 +30,10 @@ const SUPPORT_FROM_TOWERS = 4;
 const VARIANT_CELL_CHOICES = 3;
 /** One in this many purchases the random bot plans an upgrade instead of a build. */
 const VARIANT_UPGRADE_ODDS = 4;
-/** The random bot buys support only once it has more than this many attack towers per support tower. */
-const VARIANT_ATTACK_PER_SUPPORT = 2;
 /** The "more of the same" branch: the informed bot never gambles on identity. */
 const SAFE_BRANCH: Branch = "a";
 
 const ATTACK_KINDS = TOWER_KINDS.filter((kind) => hasAttack(TOWERS[kind]));
-/** What the random bot may buy: anything that goes on a free cell, so no walls. */
-const OFF_PATH_KINDS = TOWER_KINDS.filter((kind) => !hasWall(TOWERS[kind]));
 const RADAR_KIND = TOWER_KINDS.find((kind) => hasReveal(TOWERS[kind]));
 const WALL_KIND = TOWER_KINDS.find((kind) => hasWall(TOWERS[kind]));
 const DAMAGE_AURA_KIND = TOWER_KINDS.find((kind) => TOWERS[kind].auraStat === "damage");
@@ -103,6 +99,11 @@ function upgrade(state: GameState, playerId: number, tower: Tower, branch: Branc
 
 function ownAttackTowers(state: GameState, playerId: number): Tower[] {
   return state.towers.filter((t) => t.owner === playerId && hasAttack(towerDef(t)));
+}
+
+/** Stealth is coming and no tower of the team can reveal it yet. */
+function needsRadar(state: GameState, waves: readonly WaveDef[]): boolean {
+  return wavesNeedReveal(waves) && !state.towers.some((t) => hasReveal(towerDef(t)));
 }
 
 function teamAttackTowers(state: GameState): Tower[] {
@@ -210,7 +211,7 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
     const cell = wallCell(state, playerId);
     if (cell) return { command: build(state, playerId, WALL_KIND, cell), cost: TOWERS[WALL_KIND].cost, value: 0 };
   }
-  if (RADAR_KIND && wavesNeedReveal(waves) && !state.towers.some((t) => hasReveal(towerDef(t)))) {
+  if (RADAR_KIND && needsRadar(state, waves)) {
     return buildOption(state, playerId, RADAR_KIND, waves);
   }
   if (own.length > 0) {
@@ -237,10 +238,10 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
 /**
  * Reference bot. "trivial" is the informed player: it looks three waves ahead, places towers where they cover
  * the most path, upgrades well-placed towers, adds support once it has a line of attackers and walls before
- * bosses. "variant" is the random player: for each purchase it plans either an upgrade with a random branch or a
- * random tower kind (attack until it has more than two per support tower), saves for it and builds on one of the
- * best cells, all driven by its own seeded RNG so many games per seed differ.
- * Its first tower is always an attack tower: a mine or an aura alone is not a reasonable opening.
+ * bosses. "variant" is the clumsy but reasonable player: for each purchase it plans a radar when stealth is coming
+ * and the team has none, otherwise an upgrade with a random branch or a random attack tower, saves for it and builds
+ * on one of the best cells, all driven by its own seeded RNG so many games per seed differ. It never buys economy or
+ * support: without a model of their return it would measure a player who throws gold away, not the game.
  */
 export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
   let rng = seedRng(seed);
@@ -249,12 +250,18 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
     return rng % n;
   };
   let plan: { build: TowerKind } | { upgrade: number } | null = null;
-  const nextPlan = (ownTowers: Tower[]): { build: TowerKind } | { upgrade: number } => {
+  const nextPlan = (state: GameState, ownTowers: Tower[]): { build: TowerKind } | { upgrade: number } => {
+    if (
+      RADAR_KIND &&
+      needsRadar(
+        state,
+        upcomingWaves(state, LOOKAHEAD_WAVES).map((w) => w.def),
+      )
+    )
+      return { build: RADAR_KIND };
     const upgradable = ownTowers.filter((t) => t.level < UPGRADE.maxLevel && !hasWall(towerDef(t)));
     if (upgradable.length > 0 && roll(VARIANT_UPGRADE_ODDS) === 0) return { upgrade: upgradable[roll(upgradable.length)]!.id };
-    const attack = ownTowers.filter((t) => hasAttack(towerDef(t))).length;
-    const pool = attack > VARIANT_ATTACK_PER_SUPPORT * (ownTowers.length - attack) ? OFF_PATH_KINDS : ATTACK_KINDS;
-    return { build: pool[roll(pool.length)]! };
+    return { build: ATTACK_KINDS[roll(ATTACK_KINDS.length)]! };
   };
   return {
     decide(state: GameState): Command[] {
@@ -265,7 +272,7 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
         return choice && choice.cost <= gold ? [choice.command] : [];
       }
       const ownTowers = state.towers.filter((t) => t.owner === playerId);
-      plan ??= nextPlan(ownTowers);
+      plan ??= nextPlan(state, ownTowers);
       if ("upgrade" in plan) {
         const towerId = plan.upgrade;
         const tower = ownTowers.find((t) => t.id === towerId && t.level < UPGRADE.maxLevel);
@@ -278,6 +285,16 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
         return [upgrade(state, playerId, tower, roll(2) === 0 ? "a" : "b")];
       }
       const wanted = plan.build;
+      if (
+        wanted === RADAR_KIND &&
+        !needsRadar(
+          state,
+          upcomingWaves(state, LOOKAHEAD_WAVES).map((w) => w.def),
+        )
+      ) {
+        plan = null;
+        return [];
+      }
       if (TOWERS[wanted].cost > gold) return [];
       const cells = freeCellsByCoverage(state, wanted);
       if (cells.length === 0) return [];
