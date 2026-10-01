@@ -83,5 +83,5 @@ export { isPlayerColor, pickColor } from "./colors";
 export { currentTarget, damageAgainst, effectiveCooldown, effectiveRange, auraRadiusOf } from "./systems/towers";
 export { currentSpeed } from "./systems/move";
 export { upcomingWaves, multiplierAgainstWaves, bestAttackTower, wavesNeedReveal } from "./preview";
-export { ECONOMY } from "./balance/economy";
+export { ECONOMY, MARKET } from "./balance/economy";
 export { attenuatedBounty, scaledEnemyHp, startingGold, interestOn, callWaveBonus } from "./economy";

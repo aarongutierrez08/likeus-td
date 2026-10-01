@@ -2,7 +2,7 @@ import { ABILITIES, ABILITY_KINDS } from "./balance/abilities";
 import { hasAttack, hasWall } from "./balance/define";
 import { SELL_REFUND_PCT, TOWERS, UPGRADE, towerDef } from "./balance/towers";
 import { isBuildable, isInside, isPathCell } from "./grid";
-import { ECONOMY } from "./balance/economy";
+import { ECONOMY, MARKET } from "./balance/economy";
 import { TEAM_OWNER } from "./constants";
 import { WAVES } from "./balance/waves";
 import { isPlayerColor, pickColor } from "./colors";
@@ -106,9 +106,10 @@ export function controlDurationOf(tower: Tower): number {
   return Math.floor((towerDef(tower).controlDuration * controlScale(tower)) / 100);
 }
 
-/** What this player pays for the tower now: the first one of each wave is cheaper with the right doctrine. */
+/** What this player pays for the tower now: base cost plus their market surcharge, and less for the first of each wave with the right doctrine. */
 export function buildCost(state: GameState, player: Player, kind: TowerKind): number {
-  const cost = TOWERS[kind].cost;
+  const base = TOWERS[kind].cost;
+  const cost = base + Math.floor((base * (player.surcharge[kind] ?? 0)) / 100);
   const pct = doctrineEffect(state, player.id, "firstTowerDiscountPct");
   return pct > 0 && player.lastBuildWave !== state.wave ? cost - Math.floor((cost * pct) / 100) : cost;
 }
@@ -295,6 +296,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       const player = findPlayer(state, cmd.playerId)!;
       player.gold -= buildCost(state, player, cmd.tower);
       player.lastBuildWave = state.wave;
+      player.surcharge[cmd.tower] = Math.min(MARKET.maxRaisePct, (player.surcharge[cmd.tower] ?? 0) + MARKET.raisePct);
       const wallHp = Math.floor((TOWERS[cmd.tower].wallHp * (100 + doctrineEffect(state, player.id, "wallHpPct"))) / 100);
       state.towers.push({
         id: state.nextId++,

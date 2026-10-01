@@ -2,6 +2,7 @@ import {
   ENEMIES,
   FP,
   GAME,
+  MARKET,
   TOWERS,
   createBot,
   createInitialState,
@@ -26,6 +27,19 @@ import {
 } from "../../src/index";
 
 const WAVES_OFF = Number.MAX_SAFE_INTEGER;
+
+/** What these purchases cost in a row on a fresh market: each tower of a kind is dearer than the last. */
+function marketCost(kinds: readonly TowerKind[]): number {
+  const bought = new Map<TowerKind, number>();
+  let total = 0;
+  for (const kind of kinds) {
+    const n = bought.get(kind) ?? 0;
+    const base = TOWERS[kind].cost;
+    total += base + Math.floor((base * Math.min(MARKET.raisePct * n, MARKET.maxRaisePct)) / 100);
+    bought.set(kind, n + 1);
+  }
+  return total;
+}
 /** Timeout for tests that play a whole game of twenty waves; the default 5 s is too close under load. */
 export const FULL_GAME_MS = 20000;
 const DEFAULT_PLAYER = 0;
@@ -304,7 +318,7 @@ export class Scenario {
     const players = [...owners]
       .sort((a, b) => a - b)
       .map((id) => {
-        const setupCost = this.pendingTowers.filter((t) => t.owner === id).reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
+        const setupCost = marketCost(this.pendingTowers.filter((t) => t.owner === id).map((t) => t.kind));
         const deck = this.decks[id];
         const base = anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
         const doctrines = this.doctrines[id];

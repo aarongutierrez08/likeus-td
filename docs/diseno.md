@@ -156,7 +156,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 10. ✅ Mazo por jugador, con el set base y sin colección persistente (ADR 011). En solo se arma en una pantalla previa; en co-op, en el lobby antes de marcar listo, con aviso de armaduras sin cubrir. El navegador recuerda el último mazo por modo. El bot informado juega el mazo por defecto y el simtest lo mide; `/balance` suma mazos al azar.
 11. ✅ Doctrinas por jugador (ADR 013). Seis en el set base: Barrio (auras +1), Candado (tranquera +50% de vida), Colchón (interés +2 y tope +5), Rebaja (primera torre de cada oleada 20% menos), Manija (habilidades 15% más rápidas), Dinamita (explosivo +10% contra pesada). "Muros reflejan" se cambió por Candado: con daños de 1 a 8 por tick, el 10% no existe en enteros. El HUD muestra la probabilidad exacta de cada una en la próxima tirada.
 12. ✅ Anfitrión libera la oleada (ADR 014, reemplaza el quórum del 007). Se cede desde el lobby o el HUD; si se va o se desconecta pasa al siguiente asiento. El anfitrión de la sala y el de la partida son el mismo rol.
-13. ⬜ Economía: mercado con precios que suben al comprar y bajan por oleada; rebalance de mina.
+13. ✅ Economía: mercado por jugador con precios que suben al comprar y bajan por oleada (ADR 015); Alcancía rebalanceada para que cada nivel rinda parecido por oro y Caja de ahorro sea una opción real.
 14. ⬜ Casillas de desvío acotadas (no-linealidad).
 15. ⬜ Ronda de `/balance` completa + playtest con amigos. Recién acá se sabe si las cartas funcionan; los números de cartas se balancean acá, no antes.
 16. ⬜ Infinito con puntaje y seed diaria con ranking (requiere generador de oleadas).

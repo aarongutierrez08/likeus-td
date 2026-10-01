@@ -154,8 +154,8 @@ describe("doctrine effects, only on the owner's things", () => {
       .run(1);
     expect(game.gold(0)).toBe(1000 - cut(TOWERS.archer.cost));
     expect(game.gold(1)).toBe(1000 - TOWERS.archer.cost);
-    game.build("archer", { x: 4, y: 3 }).run(1);
-    expect(game.gold(0)).toBe(1000 - cut(TOWERS.archer.cost) - TOWERS.archer.cost);
+    game.build("mage", { x: 4, y: 3 }).run(1);
+    expect(game.gold(0)).toBe(1000 - cut(TOWERS.archer.cost) - TOWERS.mage.cost);
   });
 
   it("abilities come back sooner", () => {

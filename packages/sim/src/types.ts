@@ -234,6 +234,8 @@ export interface Player {
   doctrineOffer: DoctrineKind[];
   /** Whether this offer was already rerolled; one reroll per offer. */
   doctrineRerolled: boolean;
+  /** Market surcharge on each tower kind for this player, in percent of its base cost; absent means none. */
+  surcharge: Partial<Record<TowerKind, number>>;
   /** Last wave in which this player bought a tower, for the first-tower discount; -1 if never. */
   lastBuildWave: number;
 }

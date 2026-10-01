@@ -15,6 +15,7 @@ import {
   hasReveal,
   hasWall,
   findPlayer,
+  buildCost,
   type AttackType,
   type AuraStat,
   type TowerDef,
@@ -96,7 +97,12 @@ export function Shop(props: { store: GameStore }) {
     <div class="shop">
       <For each={kinds()}>
         {(kind) => {
-          const poor = () => gold() < TOWERS[kind].cost;
+          /** The market price for you right now; above the base it is marked so a second copy does not surprise. */
+          const price = () => {
+            const me = findPlayer(props.store.state(), props.store.you);
+            return me ? buildCost(props.store.state(), me, kind) : TOWERS[kind].cost;
+          };
+          const poor = () => gold() < price();
           return (
             <button
               type="button"
@@ -110,7 +116,8 @@ export function Shop(props: { store: GameStore }) {
             >
               <span class="name">{label(kind)}</span>
               <span class="cost">
-                {TOWERS[kind].cost} oro{attackLine(kind)}
+                {price()} oro{price() > TOWERS[kind].cost ? " ↑" : price() < TOWERS[kind].cost ? " ↓" : ""}
+                {attackLine(kind)}
               </span>
               <span class="info">{describe(kind)}</span>
             </button>

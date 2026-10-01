@@ -78,6 +78,8 @@ try {
   await clickCell(15, 3);
   await page.waitForFunction(() => window.__td!.state().towers.length === 1);
   done("nada sin torre elegida; torre construida tras elegir en la tienda");
+  await page.locator(".shop button").first().locator(".cost").filter({ hasText: "↑" }).waitFor({ timeout: 2000 });
+  done("tras comprar, la tienda marca que la próxima de ese tipo sale más cara");
 
   await page.keyboard.press("Escape");
   await clickCell(14, 3);

@@ -82,8 +82,8 @@ export function freshAbilities(): Record<AbilityKind, AbilitySlot> {
 }
 
 /** A player who has not picked or been offered any doctrine yet. */
-export function freshDoctrines(): Pick<Player, "doctrines" | "doctrineOffer" | "doctrineRerolled" | "lastBuildWave"> {
-  return { doctrines: [], doctrineOffer: [], doctrineRerolled: false, lastBuildWave: -1 };
+export function freshDoctrines(): Pick<Player, "doctrines" | "doctrineOffer" | "doctrineRerolled" | "lastBuildWave" | "surcharge"> {
+  return { doctrines: [], doctrineOffer: [], doctrineRerolled: false, lastBuildWave: -1, surcharge: {} };
 }
 
 /** Every card: the deck of a player in a game without decks. */

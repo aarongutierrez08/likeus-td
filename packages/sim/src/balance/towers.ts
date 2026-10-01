@@ -120,7 +120,7 @@ export const TOWERS = defineTowers({
     color: 0xf4c542,
     income: { perWave: 15 },
     branches: {
-      a: { label: "Plazo fijo", line: "más oro por oleada", income: { perWave: 30 } },
+      a: { label: "Plazo fijo", line: "más oro por oleada", income: { perWave: 16 } },
       b: { label: "Caja de ahorro", line: "en vez de oro, sube tu tope de interés", income: { perWave: 20 }, incomeMode: "interestCap" },
     },
   },
@@ -150,8 +150,8 @@ export const UPGRADE = {
   auraBonusPctPerLevel: 10,
   /** Each control level adds this percent of the base effect (slow percent or stun duration). */
   controlPctPerLevel: 25,
-  /** Each mine level adds this percent of the base income. */
-  incomePctPerLevel: 50,
+  /** Each mine level adds this percent of the base income: every step returns about the same per gold, no trap and no spike. */
+  incomePctPerLevel: 100,
   /** Each upgrade costs this percent of the tower's base cost. */
   costPctPerLevel: 100,
 } as const;

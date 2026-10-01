@@ -15,6 +15,7 @@ export function cloneState(state: GameState): GameState {
       abilities: cloneAbilities(p.abilities),
       doctrines: p.doctrines.slice(),
       doctrineOffer: p.doctrineOffer.slice(),
+      surcharge: { ...p.surcharge },
     })),
     spawnQueue: state.spawnQueue.slice(),
     towers: state.towers.map((t) => ({ ...t })),

@@ -2,7 +2,7 @@ import { FP, TICKS_PER_SECOND } from "../constants";
 import { getMap, distanceToPath, isBuildable, pathCells } from "../grid";
 import { hasAttack, hasControl, hasReveal, hasWall, type Branch } from "../balance/define";
 import { TOWER_KINDS, TOWERS, UPGRADE, towerDef } from "../balance/towers";
-import { upgradeCost } from "../commands";
+import { buildCost, upgradeCost } from "../commands";
 import { cellCenterFP } from "../path";
 import { inAuraSquare } from "../systems/towers";
 import { bestAttackTower, multiplierAgainstWaves, upcomingWaves, wavesNeedReveal } from "../preview";
@@ -208,10 +208,16 @@ interface Option {
   value: number;
 }
 
+/** What this player would pay for the tower right now, market and doctrines included. */
+function priceFor(state: GameState, playerId: number, kind: TowerKind): number {
+  const player = state.players.find((p) => p.id === playerId);
+  return player ? buildCost(state, player, kind) : TOWERS[kind].cost;
+}
+
 function buildOption(state: GameState, playerId: number, kind: TowerKind, waves: readonly WaveDef[]): Option | null {
   const cell = freeCellsByCoverage(state, kind)[0];
   if (!cell) return null;
-  const cost = TOWERS[kind].cost;
+  const cost = priceFor(state, playerId, kind);
   return {
     command: build(state, playerId, kind, cell),
     cost,
@@ -257,7 +263,7 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
   const kinds = kindsOf(state, playerId);
   if (kinds.wall && bossAhead && !wallStanding && player && state.tick >= player.wallReadyTick) {
     const cell = wallCell(state, playerId);
-    if (cell) return { command: build(state, playerId, kinds.wall, cell), cost: TOWERS[kinds.wall].cost, value: 0 };
+    if (cell) return { command: build(state, playerId, kinds.wall, cell), cost: priceFor(state, playerId, kinds.wall), value: 0 };
   }
   if (kinds.radar && needsRadar(state, waves)) {
     return buildOption(state, playerId, kinds.radar, waves);
@@ -265,7 +271,7 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
   if (own.length > 0) {
     const cell = kinds.damageAura ? auraCell(state, kinds.damageAura) : null;
     if (kinds.damageAura && cell)
-      return { command: build(state, playerId, kinds.damageAura, cell), cost: TOWERS[kinds.damageAura].cost, value: 0 };
+      return { command: build(state, playerId, kinds.damageAura, cell), cost: priceFor(state, playerId, kinds.damageAura), value: 0 };
     const slow = kinds.slow && teamNeedsControl(state) ? buildOption(state, playerId, kinds.slow, waves) : null;
     if (slow) return slow;
   }
@@ -277,7 +283,7 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
   if (chosen && chosen.cost > gold && own.length === 0) {
     const affordable = bestAttackTower(
       waves,
-      kinds.attack.filter((k) => TOWERS[k].cost <= gold),
+      kinds.attack.filter((k) => priceFor(state, playerId, k) <= gold),
     );
     return affordable ? buildOption(state, playerId, affordable, waves) : null;
   }
@@ -352,7 +358,7 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
         plan = null;
         return [];
       }
-      if (TOWERS[wanted].cost > gold) return [];
+      if (priceFor(state, playerId, wanted) > gold) return [];
       const cells = freeCellsByCoverage(state, wanted);
       if (cells.length === 0) return [];
       plan = null;

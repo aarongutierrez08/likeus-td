@@ -1,13 +1,13 @@
 import { bossAffix, initialShield } from "../affixes";
 import { ENEMIES } from "../balance/enemies";
-import { ECONOMY } from "../balance/economy";
+import { ECONOMY, MARKET } from "../balance/economy";
 import { GAME } from "../balance/game";
-import { towerDef } from "../balance/towers";
+import { TOWER_KINDS, towerDef } from "../balance/towers";
 import { WAVES, type SpawnGroup, type WaveDef } from "../balance/waves";
 import { towerIncome } from "../commands";
 import { interestOn, scaledEnemyHp } from "../economy";
 import { rollInt, rollJitter } from "../rng";
-import type { GameState } from "../types";
+import type { GameState, Player } from "../types";
 import { doctrineEffect, expireOffers, offerDoctrines } from "./doctrines";
 
 function pct(value: number, percent: number): number {
@@ -91,9 +91,19 @@ export function closeWaves(state: GameState): void {
       player.gold += interest;
       player.earned += interest;
     }
+    for (const player of state.players) coolMarket(player);
     state.wavesClosed = wave;
     offerDoctrines(state, wave, WAVES.length);
     if (wave < WAVES.length) state.nextWaveTick = state.tick + 1 + GAME.waveGapTicks;
+  }
+}
+
+/** Each surcharge drops a step at a wave close; a kind at zero leaves the record, so a fresh market is empty. */
+function coolMarket(player: Player): void {
+  for (const kind of TOWER_KINDS) {
+    const left = (player.surcharge[kind] ?? 0) - MARKET.decayPct;
+    if (left > 0) player.surcharge[kind] = left;
+    else delete player.surcharge[kind];
   }
 }
 
