@@ -12,5 +12,7 @@ Lo que quedó abierto mientras se avanza el camino de mecánicas. Se resuelve en
 - `.doctrines-taken` está a una altura fija debajo del calendario; si el calendario crece se superponen.
 - `doctrineEffect`/`doctrinesOf` buscan al jugador en cada golpe y en el doble loop de auras; dos tests de 20 oleadas pasaron de ~4 s a ~5 s. Resolver el jugador una vez por tick si se nota en `/balance`.
 
+- coopsmoke: el paso "B elige una torre que no puede pagar" falló 1 de 3 corridas en el punto 14; con el mercado el precio de Reviente sube mientras B gasta y el margen de oro es chico.
+
 ## Balance
 - Desde las doctrinas (BALANCE_VERSION 27) el informado gana la seed 42 con 15 vidas en vez de 20: las ofertas consumen RNG y corren el jitter de las oleadas.

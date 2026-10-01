@@ -3,6 +3,7 @@ import { ENEMIES } from "../balance/enemies";
 import { towerDef } from "../balance/towers";
 import { cellCenterFP, positionAt } from "../path";
 import type { Enemy, GameState, Tower } from "../types";
+import { routeOf } from "../grid";
 
 export interface EnemyAt {
   enemy: Enemy;
@@ -29,7 +30,7 @@ function withinReveal(state: GameState, x: number, y: number): boolean {
 
 export function locate(state: GameState): EnemyAt[] {
   return state.enemies.map((enemy) => {
-    const p = positionAt(state.mapId, enemy.progress);
+    const p = positionAt(routeOf(state), enemy.progress);
     const targetable = !ENEMIES[enemy.kind].stealth || withinReveal(state, p.x, p.y);
     return { enemy, x: p.x, y: p.y, targetable };
   });
@@ -38,7 +39,7 @@ export function locate(state: GameState): EnemyAt[] {
 /** Whether towers can aim at this enemy right now. */
 export function isRevealed(state: GameState, enemy: Enemy): boolean {
   if (!ENEMIES[enemy.kind].stealth) return true;
-  const p = positionAt(state.mapId, enemy.progress);
+  const p = positionAt(routeOf(state), enemy.progress);
   return withinReveal(state, p.x, p.y);
 }
 
@@ -74,7 +75,7 @@ export function pickTarget(
 /** Whether a marking radar reveals this enemy: only stealth enemies get marked. */
 export function markOn(state: GameState, enemy: Enemy): number {
   if (!ENEMIES[enemy.kind].stealth) return 0;
-  const p = positionAt(state.mapId, enemy.progress);
+  const p = positionAt(routeOf(state), enemy.progress);
   let best = 0;
   for (const tower of state.towers) {
     const def = towerDef(tower);

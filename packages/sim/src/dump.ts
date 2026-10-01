@@ -4,6 +4,7 @@ import { WAVES } from "./balance/waves";
 import { hashState } from "./hash";
 import { positionAt } from "./path";
 import type { GameState } from "./types";
+import { routeOf } from "./grid";
 
 function cells(v: number): string {
   return (v / FP).toFixed(2);
@@ -24,7 +25,7 @@ export function dumpState(state: GameState): string {
   }
   lines.push(`enemies (${state.enemies.length}):`);
   for (const e of state.enemies) {
-    const p = positionAt(state.mapId, e.progress);
+    const p = positionAt(routeOf(state), e.progress);
     lines.push(`  #${e.id} ${e.kind} hp ${e.hp}/${e.maxHp} progress ${cells(e.progress)} at (${cells(p.x)},${cells(p.y)})`);
   }
   const next = state.spawnQueue[0];

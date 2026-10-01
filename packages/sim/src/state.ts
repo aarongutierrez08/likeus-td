@@ -56,6 +56,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     nextWaveTick: GAME.firstWaveTick,
     wavesClosed: startWave - 1,
     host: opts.host ?? defaultHost(opts),
+    detours: [],
     spawnQueue: [],
     nextId: 1,
     towers: [],

@@ -576,6 +576,9 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
       };
     case "callWave":
       return { type: "callWave", tick, playerId };
+    case "openDetour":
+      if (!Number.isInteger(v["detour"])) return null;
+      return { type: "openDetour", tick, playerId, detour: v["detour"] as number };
     case "passHost":
       if (!Number.isInteger(v["to"])) return null;
       return { type: "passHost", tick, playerId, to: v["to"] as number };

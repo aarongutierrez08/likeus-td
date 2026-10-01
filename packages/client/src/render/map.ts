@@ -1,13 +1,20 @@
 import { Graphics } from "pixi.js";
-import { getMap, pathCells, type MapId } from "@td/sim";
+import { MAPS, detourCells, getMap, parseRoute, pathCells, type RouteKey } from "@td/sim";
 import { COLORS } from "./colors";
 
-/** Draws the grid and the path once, in world units (BASE px per cell). */
-export function drawMap(g: Graphics, mapId: MapId, base: number): void {
-  const map = getMap(mapId);
+/** Draws the grid, the path of this route and the detours still closed, in world units (BASE px per cell). */
+export function drawMap(g: Graphics, route: RouteKey, base: number): void {
+  const map = getMap(route);
+  const { mapId, detours } = parseRoute(route);
   g.clear();
   g.rect(0, 0, map.width * base, map.height * base).fill(COLORS.buildable);
-  const cells = pathCells(mapId);
+  for (let i = 0; i < MAPS[mapId].detours.length; i++) {
+    const { via, skipped } = detourCells(mapId, i);
+    const open = detours.includes(i);
+    for (const c of open ? skipped : via)
+      g.rect(c.x * base + 4, c.y * base + 4, base - 8, base - 8).stroke({ width: 2, color: COLORS.detour, alpha: 0.6 });
+  }
+  const cells = pathCells(route);
   for (const c of cells) g.rect(c.x * base, c.y * base, base, base).fill(COLORS.path);
   const spawn = cells[0]!;
   const exit = cells[cells.length - 1]!;

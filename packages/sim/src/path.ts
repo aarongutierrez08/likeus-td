@@ -1,5 +1,6 @@
 import { FP } from "./constants";
-import { MAPS, type MapId, type Point } from "./balance/maps";
+import type { Point } from "./balance/maps";
+import { getMap, type RouteKey } from "./grid";
 
 interface Segment {
   x0: number;
@@ -15,14 +16,14 @@ interface PathInfo {
   length: number;
 }
 
-const cache = new Map<MapId, PathInfo>();
+const cache = new Map<RouteKey, PathInfo>();
 
 function cellCenter(v: number): number {
   return v * FP + FP / 2;
 }
 
-function buildPathInfo(mapId: MapId): PathInfo {
-  const wps = MAPS[mapId].waypoints;
+function buildPathInfo(route: RouteKey): PathInfo {
+  const wps = getMap(route).waypoints;
   const segments: Segment[] = [];
   let start = 0;
   for (let i = 0; i + 1 < wps.length; i++) {
@@ -42,23 +43,23 @@ function buildPathInfo(mapId: MapId): PathInfo {
   return { segments, length: start };
 }
 
-function pathInfo(mapId: MapId): PathInfo {
-  let info = cache.get(mapId);
+function pathInfo(route: RouteKey): PathInfo {
+  let info = cache.get(route);
   if (!info) {
-    info = buildPathInfo(mapId);
-    cache.set(mapId, info);
+    info = buildPathInfo(route);
+    cache.set(route, info);
   }
   return info;
 }
 
 /** Total walking distance from spawn center to exit center, in FP units. */
-export function pathLength(mapId: MapId): number {
-  return pathInfo(mapId).length;
+export function pathLength(route: RouteKey): number {
+  return pathInfo(route).length;
 }
 
 /** Position in FP units for a given progress along the path. Clamped to the path ends. */
-export function positionAt(mapId: MapId, progress: number): Point {
-  const { segments, length } = pathInfo(mapId);
+export function positionAt(route: RouteKey, progress: number): Point {
+  const { segments, length } = pathInfo(route);
   const p = Math.max(0, Math.min(progress, length));
   let seg = segments[segments.length - 1]!;
   for (const s of segments) {

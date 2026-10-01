@@ -14,6 +14,8 @@ import {
   type AbilityKind,
   type EnemyKind,
   type GameState,
+  type RouteKey,
+  routeOf,
   type MapId,
   type Point,
   type TowerKind,
@@ -65,7 +67,8 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   const entities = new EntityLayer(BASE);
   const cells = pathCells(opts.mapId);
   entities.setExit(cells[cells.length - 1]!);
-  drawMap(mapLayer, opts.mapId, BASE);
+  let drawnRoute: RouteKey = opts.mapId;
+  drawMap(mapLayer, drawnRoute, BASE);
   world.addChild(mapLayer, entities.effects, entities.ranges, entities.towers, entities.enemies, selection, hover);
   app.stage.addChild(world);
 
@@ -84,7 +87,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   let aim: { kind: AbilityKind; level: number } | null = null;
   const drawAim = (cell: Point): void => {
     const target = ABILITIES[aim!.kind].target;
-    const fits = target === "path" ? isPathCell(opts.mapId, cell.x, cell.y) : true;
+    const fits = target === "path" ? isPathCell(drawnRoute, cell.x, cell.y) : true;
     hover.rect(cell.x * BASE, cell.y * BASE, BASE, BASE).stroke({ width: 2, color: fits ? COLORS.hover : COLORS.exit });
     const radius = abilityLevel(aim!.kind, aim!.level).radius;
     if (fits && radius > 0)
@@ -104,7 +107,7 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
     if (!cell || !lastState) return;
     if (aim) return drawAim(cell);
     const wanted = hoverTower ? TOWERS[hoverTower] : null;
-    const placeable = wanted && hasWall(wanted) ? isPathCell(opts.mapId, cell.x, cell.y) : isBuildable(opts.mapId, cell.x, cell.y);
+    const placeable = wanted && hasWall(wanted) ? isPathCell(drawnRoute, cell.x, cell.y) : isBuildable(drawnRoute, cell.x, cell.y);
     const free = placeable && !lastState.towers.some((t) => t.x === cell.x && t.y === cell.y);
     hover.rect(cell.x * BASE, cell.y * BASE, BASE, BASE).stroke({ width: 2, color: free ? COLORS.hover : COLORS.exit });
     if (!free || !hoverTower) return;
@@ -136,6 +139,11 @@ export async function createRenderer(container: HTMLElement, opts: RendererOptio
   return {
     sync(state, showRanges) {
       lastState = state;
+      const route = routeOf(state);
+      if (route !== drawnRoute) {
+        drawnRoute = route;
+        drawMap(mapLayer, route, BASE);
+      }
       lastShowRanges = showRanges;
       if (previewCell) drawHover(previewCell);
       const kills = entities.sync(state, showRanges);

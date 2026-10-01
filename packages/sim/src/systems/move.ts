@@ -3,7 +3,7 @@ import { hasWall } from "../balance/define";
 import { ENEMIES } from "../balance/enemies";
 import { towerDef } from "../balance/towers";
 import { FP } from "../constants";
-import { pathIndex } from "../grid";
+import { pathIndex, routeOf } from "../grid";
 import { pathLength, positionAt } from "../path";
 import { frostZonePct } from "./abilities";
 import type { Enemy, GameState, Tower } from "../types";
@@ -14,7 +14,7 @@ export function currentSpeed(state: GameState, enemy: Enemy): number {
   const base = ENEMIES[enemy.kind].speed;
   const speed = enemy.affix === "fast" ? Math.floor((base * (100 + AFFIXES.fast.speedPct)) / 100) : base;
   const own = state.tick < enemy.slowUntil ? enemy.slowPct : 0;
-  const p = state.frostZones.length > 0 ? positionAt(state.mapId, enemy.progress) : null;
+  const p = state.frostZones.length > 0 ? positionAt(routeOf(state), enemy.progress) : null;
   const pct = Math.max(own, p ? frostZonePct(state, p.x, p.y) : 0);
   return pct > 0 ? Math.floor((speed * (100 - pct)) / 100) : speed;
 }
@@ -30,7 +30,7 @@ function blocks(state: GameState): Block[] {
   const out: Block[] = [];
   for (const wall of state.towers) {
     if (!hasWall(towerDef(wall))) continue;
-    out.push({ wall, at: Math.max(0, pathIndex(state.mapId, wall.x, wall.y) * FP - FP / 2) });
+    out.push({ wall, at: Math.max(0, pathIndex(routeOf(state), wall.x, wall.y) * FP - FP / 2) });
   }
   return out.sort((a, b) => a.at - b.at || a.wall.id - b.wall.id);
 }
@@ -42,7 +42,7 @@ function blockAhead(walls: readonly Block[], enemy: Enemy): Block | null {
 
 /** Enemies walk, stop in front of a wall and hit it. Walls that fall put their owner on cooldown. */
 export function moveEnemies(state: GameState): void {
-  const end = pathLength(state.mapId);
+  const end = pathLength(routeOf(state));
   const walls = blocks(state);
   const survivors: Enemy[] = [];
   for (const enemy of state.enemies) {

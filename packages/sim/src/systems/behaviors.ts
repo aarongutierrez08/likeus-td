@@ -3,6 +3,7 @@ import { ENEMIES } from "../balance/enemies";
 import { positionAt } from "../path";
 import type { Enemy, GameState } from "../types";
 import { squaredDistance } from "./targeting";
+import { routeOf } from "../grid";
 
 function heal(enemy: Enemy, amount: number): void {
   enemy.hp = Math.min(enemy.maxHp, enemy.hp + amount);
@@ -18,10 +19,10 @@ export function enemiesAct(state: GameState): void {
   for (const enemy of living) {
     const def = ENEMIES[enemy.kind];
     if (def.healAmount > 0 && every(state, def.healEvery)) {
-      const p = positionAt(state.mapId, enemy.progress);
+      const p = positionAt(routeOf(state), enemy.progress);
       for (const other of living) {
         if (other.id === enemy.id) continue;
-        const q = positionAt(state.mapId, other.progress);
+        const q = positionAt(routeOf(state), other.progress);
         if (squaredDistance(p.x, p.y, q.x, q.y) <= def.healRange * def.healRange) heal(other, def.healAmount);
       }
     }

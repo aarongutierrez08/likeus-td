@@ -19,5 +19,6 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 013 | Doctrinas como datos, ofrecidas por la sim |
 | 014 | El anfitrión libera la oleada (reemplaza el quórum del 007) |
 | 015 | Mercado por jugador |
+| 016 | Desvíos acotados: el camino depende de la ruta |
 
 Plantilla: `000-template.md`.

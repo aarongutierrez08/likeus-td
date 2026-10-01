@@ -1,5 +1,5 @@
 import { FP, TICKS_PER_SECOND } from "../constants";
-import { getMap, distanceToPath, isBuildable, pathCells } from "../grid";
+import { getMap, distanceToPath, isBuildable, pathCells, routeOf, type RouteKey } from "../grid";
 import { hasAttack, hasControl, hasReveal, hasWall, type Branch } from "../balance/define";
 import { TOWER_KINDS, TOWERS, UPGRADE, towerDef } from "../balance/towers";
 import { buildCost, upgradeCost } from "../commands";
@@ -88,13 +88,13 @@ export function randomDeck(seed: number, towers: number): Deck {
 
 const coverageCache = new Map<string, number[]>();
 
-/** Path cells within `range` of every cell of the map, indexed by y * width + x. Static per map and range. */
-function coverageByCell(mapId: GameState["mapId"], range: number): number[] {
-  const key = `${mapId}:${range}`;
+/** Path cells within `range` of every cell of the map, indexed by y * width + x. Static per route and range. */
+function coverageByCell(route: RouteKey, range: number): number[] {
+  const key = `${route}:${range}`;
   const cached = coverageCache.get(key);
   if (cached) return cached;
-  const map = getMap(mapId);
-  const path = pathCells(mapId);
+  const map = getMap(route);
+  const path = pathCells(route);
   const coverage: number[] = [];
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
@@ -112,21 +112,21 @@ function coverageByCell(mapId: GameState["mapId"], range: number): number[] {
 }
 
 function occupiedCells(state: GameState): Set<number> {
-  const map = getMap(state.mapId);
+  const map = getMap(routeOf(state));
   return new Set(state.towers.map((t) => t.y * map.width + t.x));
 }
 
 /** Free cells, the ones a tower of this kind covers more path from first; ties go to the closest to the path. */
 function freeCellsByCoverage(state: GameState, kind: TowerKind): Cell[] {
-  const map = getMap(state.mapId);
+  const map = getMap(routeOf(state));
   const occupied = occupiedCells(state);
   const def = TOWERS[kind];
-  const coverage = coverageByCell(state.mapId, Math.max(def.range, def.controlRange, def.revealRange));
+  const coverage = coverageByCell(routeOf(state), Math.max(def.range, def.controlRange, def.revealRange));
   const cells: Cell[] = [];
   for (let y = 0; y < map.height; y++) {
     for (let x = 0; x < map.width; x++) {
-      if (!isBuildable(state.mapId, x, y) || occupied.has(y * map.width + x)) continue;
-      cells.push({ x, y, coverage: coverage[y * map.width + x]!, dist: distanceToPath(state.mapId, x, y) });
+      if (!isBuildable(routeOf(state), x, y) || occupied.has(y * map.width + x)) continue;
+      cells.push({ x, y, coverage: coverage[y * map.width + x]!, dist: distanceToPath(routeOf(state), x, y) });
     }
   }
   cells.sort((a, b) => b.coverage - a.coverage || a.dist - b.dist || a.y - b.y || a.x - b.x);
@@ -179,9 +179,9 @@ function reaches(tower: Tower, x: number, y: number): boolean {
 function wallCell(state: GameState, playerId: number): { x: number; y: number } | null {
   const own = ownAttackTowers(state, playerId);
   const occupied = occupiedCells(state);
-  const map = getMap(state.mapId);
+  const map = getMap(routeOf(state));
   let best: { x: number; y: number; covered: number } | null = null;
-  for (const c of pathCells(state.mapId)) {
+  for (const c of pathCells(routeOf(state))) {
     if (occupied.has(c.y * map.width + c.x)) continue;
     const covered = own.filter((t) => reaches(t, c.x, c.y)).length;
     if (best === null || covered > best.covered) best = { x: c.x, y: c.y, covered };
@@ -231,8 +231,8 @@ function upgradeOption(state: GameState, playerId: number, waves: readonly WaveD
   for (const tower of ownAttackTowers(state, playerId)) {
     if (tower.level >= UPGRADE.maxLevel) continue;
     const def = towerDef(tower);
-    const map = getMap(state.mapId);
-    const coverage = coverageByCell(state.mapId, def.range)[tower.y * map.width + tower.x]!;
+    const map = getMap(routeOf(state));
+    const coverage = coverageByCell(routeOf(state), def.range)[tower.y * map.width + tower.x]!;
     const cost = upgradeCost(tower.kind);
     const added = (damagePerSecond(tower.kind) * UPGRADE.damagePctPerLevel) / 100;
     const value = (coverage * multiplierAgainstWaves(tower.kind, waves) * added) / cost;

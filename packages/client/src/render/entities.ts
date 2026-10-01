@@ -8,6 +8,7 @@ import {
   currentSpeed,
   isRevealed,
   auraRadiusOf,
+  routeOf,
   hasAttack,
   hasAura,
   hasControl,
@@ -222,7 +223,7 @@ export class EntityLayer {
         this.enemySprites.set(e.id, sprite);
         this.enemies.addChild(sprite.root);
       }
-      const p = positionAt(state.mapId, e.progress);
+      const p = positionAt(routeOf(state), e.progress);
       sprite.root.position.set((p.x / FP) * this.base, (p.y / FP) * this.base);
       sprite.body.alpha = statusAlpha(state, e);
       sprite.lastHitBy = e.lastHitBy;

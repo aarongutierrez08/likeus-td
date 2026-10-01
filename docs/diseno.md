@@ -157,7 +157,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 11. ✅ Doctrinas por jugador (ADR 013). Seis en el set base: Barrio (auras +1), Candado (tranquera +50% de vida), Colchón (interés +2 y tope +5), Rebaja (primera torre de cada oleada 20% menos), Manija (habilidades 15% más rápidas), Dinamita (explosivo +10% contra pesada). "Muros reflejan" se cambió por Candado: con daños de 1 a 8 por tick, el 10% no existe en enteros. El HUD muestra la probabilidad exacta de cada una en la próxima tirada.
 12. ✅ Anfitrión libera la oleada (ADR 014, reemplaza el quórum del 007). Se cede desde el lobby o el HUD; si se va o se desconecta pasa al siguiente asiento. El anfitrión de la sala y el de la partida son el mismo rol.
 13. ✅ Economía: mercado por jugador con precios que suben al comprar y bajan por oleada (ADR 015); Alcancía rebalanceada para que cada nivel rinda parecido por oro y Caja de ahorro sea una opción real.
-14. ⬜ Casillas de desvío acotadas (no-linealidad).
+14. ✅ Casillas de desvío acotadas (ADR 016). Uno o dos rodeos por mapa; los abre el anfitrión entre oleadas, por oro, con sus celdas libres; son permanentes y el tramo que saltean deja de construirse.
 15. ⬜ Ronda de `/balance` completa + playtest con amigos. Recién acá se sabe si las cartas funcionan; los números de cartas se balancean acá, no antes.
 16. ⬜ Infinito con puntaje y seed diaria con ranking (requiere generador de oleadas).
 17. ⬜ Cuentas: invitado + vincular, historial, XP. Pendiente de ADR: el servicio que junte autenticación (Discord + Google), base de datos y archivos, para no operar tres sistemas; el server verifica tokens y escribe, el cliente lee, la sim intacta.

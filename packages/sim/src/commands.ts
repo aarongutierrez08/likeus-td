@@ -1,7 +1,8 @@
 import { ABILITIES, ABILITY_KINDS } from "./balance/abilities";
 import { hasAttack, hasWall } from "./balance/define";
 import { SELL_REFUND_PCT, TOWERS, UPGRADE, towerDef } from "./balance/towers";
-import { isBuildable, isInside, isPathCell } from "./grid";
+import { detourCells, isBuildable, isInside, isPathCell, routeOf } from "./grid";
+import { DETOUR, MAPS } from "./balance/maps";
 import { ECONOMY, MARKET } from "./balance/economy";
 import { TEAM_OWNER } from "./constants";
 import { WAVES } from "./balance/waves";
@@ -21,6 +22,7 @@ import type {
   GiftCommand,
   JoinCommand,
   LeaveCommand,
+  OpenDetourCommand,
   Player,
   SellCommand,
   SetColorCommand,
@@ -61,7 +63,10 @@ export type RejectReason =
   | "bad_deck"
   | "no_offer"
   | "bad_doctrine"
-  | "already_rerolled";
+  | "already_rerolled"
+  | "bad_detour"
+  | "already_open"
+  | "detour_blocked";
 
 export function upgradeCost(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
@@ -129,12 +134,12 @@ export function validateBuild(state: GameState, cmd: BuildCommand): RejectReason
   const player = findPlayer(state, cmd.playerId);
   if (!player) return "no_player";
   if (!player.deck.towers.includes(cmd.tower)) return "not_in_deck";
-  if (!isInside(state.mapId, cmd.x, cmd.y)) return "outside";
+  if (!isInside(routeOf(state), cmd.x, cmd.y)) return "outside";
   if (hasWall(def)) {
-    if (!isPathCell(state.mapId, cmd.x, cmd.y)) return "not_on_path";
+    if (!isPathCell(routeOf(state), cmd.x, cmd.y)) return "not_on_path";
     if (state.towers.some((t) => t.owner === cmd.playerId && hasWall(towerDef(t)))) return "wall_active";
     if (state.tick < player.wallReadyTick) return "wall_cooldown";
-  } else if (!isBuildable(state.mapId, cmd.x, cmd.y)) {
+  } else if (!isBuildable(routeOf(state), cmd.x, cmd.y)) {
     return "on_path";
   }
   if (state.towers.some((t) => t.x === cmd.x && t.y === cmd.y)) return "occupied";
@@ -221,8 +226,8 @@ function validateAbilityTarget(state: GameState, cmd: UseAbilityCommand): Reject
     if (!mayManage(tower, cmd.playerId)) return "not_owner";
     return hasAttack(towerDef(tower)) ? null : "bad_target";
   }
-  if (!Number.isInteger(cmd.x) || !Number.isInteger(cmd.y) || !isInside(state.mapId, cmd.x!, cmd.y!)) return "outside";
-  if (target === "path" && !isPathCell(state.mapId, cmd.x!, cmd.y!)) return "not_on_path";
+  if (!Number.isInteger(cmd.x) || !Number.isInteger(cmd.y) || !isInside(routeOf(state), cmd.x!, cmd.y!)) return "outside";
+  if (target === "path" && !isPathCell(routeOf(state), cmd.x!, cmd.y!)) return "not_on_path";
   return null;
 }
 
@@ -246,6 +251,23 @@ export function validateUpgradeAbility(state: GameState, cmd: UpgradeAbilityComm
   return null;
 }
 
+/**
+ * Only the host, only while no wave is on the map (the path changes under nobody's feet), once per detour, for gold,
+ * and only with the detour's cells free of towers and the stretch it skips free of walls.
+ */
+export function validateOpenDetour(state: GameState, cmd: OpenDetourCommand): RejectReason | null {
+  const player = findPlayer(state, cmd.playerId);
+  if (!player) return "no_player";
+  if (cmd.playerId !== state.host) return "not_host";
+  if (!Number.isInteger(cmd.detour) || !MAPS[state.mapId].detours[cmd.detour]) return "bad_detour";
+  if (state.detours.includes(cmd.detour)) return "already_open";
+  if (state.enemies.length > 0 || state.spawnQueue.length > 0 || state.wavesClosed < state.wave) return "wave_in_progress";
+  if (player.gold < DETOUR.cost) return "no_gold";
+  const { via, skipped } = detourCells(state.mapId, cmd.detour);
+  const on = (cells: { x: number; y: number }[], t: Tower) => cells.some((c) => c.x === t.x && c.y === t.y);
+  return state.towers.some((t) => on(via, t) || on(skipped, t)) ? "detour_blocked" : null;
+}
+
 export function validateCommand(state: GameState, cmd: Command): RejectReason | null {
   switch (cmd.type) {
     case "build":
@@ -266,6 +288,8 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateSetColor(state, cmd);
     case "useAbility":
       return validateUseAbility(state, cmd);
+    case "openDetour":
+      return validateOpenDetour(state, cmd);
     case "passHost":
       if (!findPlayer(state, cmd.playerId)) return "no_player";
       if (cmd.playerId !== state.host) return "not_host";
@@ -345,6 +369,10 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
     }
     case "passHost":
       state.host = cmd.to;
+      return true;
+    case "openDetour":
+      findPlayer(state, cmd.playerId)!.gold -= DETOUR.cost;
+      state.detours = [...state.detours, cmd.detour].sort((a, b) => a - b);
       return true;
     case "gift":
       findPlayer(state, cmd.playerId)!.gold -= cmd.amount;

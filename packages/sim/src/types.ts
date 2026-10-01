@@ -100,6 +100,14 @@ export interface CallWaveCommand {
   playerId: number;
 }
 
+/** The host opens one of the map's detours, between waves (ADR 016). */
+export interface OpenDetourCommand {
+  type: "openDetour";
+  tick: number;
+  playerId: number;
+  detour: number;
+}
+
 /** The host hands the role on. The server also issues it for a host who dropped. */
 export interface PassHostCommand {
   type: "passHost";
@@ -184,7 +192,8 @@ export type Command =
   | UpgradeAbilityCommand
   | ChooseDoctrineCommand
   | RerollDoctrinesCommand
-  | PassHostCommand;
+  | PassHostCommand
+  | OpenDetourCommand;
 
 /** A player's own level and cooldown of an ability: every ability is its owner's card, even when its effect helps the team. */
 export interface AbilitySlot {
@@ -268,6 +277,8 @@ export interface GameState {
   nextWaveTick: number | null;
   /** Waves whose last enemy already died or leaked; interest was paid for them. */
   wavesClosed: number;
+  /** Detours of the map opened so far, ascending; permanent for the game (ADR 016). */
+  detours: number[];
   /** The player who calls waves early (ADR 014). Passes to the next seat when they leave. */
   host: number;
   spawnQueue: SpawnEntry[];

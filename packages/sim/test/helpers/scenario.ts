@@ -171,6 +171,11 @@ export class Scenario {
     return this;
   }
 
+  openDetour(detour: number, player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "openDetour", tick: 0, playerId: player, detour });
+    return this;
+  }
+
   passHost(from: number, to: number): this {
     this.queued.push({ type: "passHost", tick: 0, playerId: from, to });
     return this;

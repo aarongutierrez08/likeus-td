@@ -19,6 +19,7 @@ export function cloneState(state: GameState): GameState {
     })),
     spawnQueue: state.spawnQueue.slice(),
     towers: state.towers.map((t) => ({ ...t })),
+    detours: state.detours.slice(),
     enemies: state.enemies.map((e) => ({ ...e })),
     blasts: state.blasts.map((b) => ({ ...b })),
     frostZones: state.frostZones.map((z) => ({ ...z })),

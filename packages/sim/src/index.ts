@@ -25,9 +25,23 @@ export { deckProblem } from "./deck";
 export { canSubmitRecord } from "./records";
 export { dumpState } from "./dump";
 export { createBot, randomDeck, type Bot, type BotMode } from "./bot/index";
-export { getMap, isInside, isPathCell, isBuildable, pathCells, distanceToPath, pathIndex } from "./grid";
+export {
+  getMap,
+  isInside,
+  isPathCell,
+  isBuildable,
+  isSkippedCell,
+  pathCells,
+  distanceToPath,
+  pathIndex,
+  routeOf,
+  routeKey,
+  parseRoute,
+  detourCells,
+  type RouteKey,
+} from "./grid";
 export { pathLength, positionAt, cellCenterFP } from "./path";
-export { MAPS, MAP_IDS, DEFAULT_MAP, isMapId, type MapId, type MapDef, type Point } from "./balance/maps";
+export { MAPS, MAP_IDS, DEFAULT_MAP, DETOUR, isMapId, type MapId, type MapDef, type DetourDef, type Point } from "./balance/maps";
 export { TOWERS, TOWER_KINDS, SELL_REFUND_PCT, UPGRADE, towerDef, type TowerDef, type Branch } from "./balance/towers";
 export {
   hasAttack,

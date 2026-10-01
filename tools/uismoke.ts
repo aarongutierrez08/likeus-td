@@ -192,6 +192,13 @@ try {
   if (kept?.x !== 15 || kept.y !== 3) throw new Error(`tras el toque sin oro el alcance quedó en ${JSON.stringify(kept)}`);
   done("sin oro se elige la torre y se ve su alcance con mouse y con toque, pero no se construye");
 
+  await page.goto(`${base}?seed=42&gold=900&speed=1&bot=0`);
+  await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await page.getByRole("button", { name: /^Abrir rodeo de arriba/ }).click({ delay: HOLD_MS });
+  await page.waitForFunction(() => window.__td!.state().detours.length === 1);
+  if (await page.getByRole("button", { name: /^Abrir rodeo de arriba/ }).count()) throw new Error("el desvío abierto sigue ofreciéndose");
+  done("el anfitrión abre un desvío antes de la primera oleada");
+
   await page.goto(`${base}?seed=42&wave=5&gold=900&speed=4&bot=0`);
   await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
   await page.waitForSelector(".doctrine-offer", { timeout: 90000 });

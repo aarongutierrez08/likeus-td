@@ -95,6 +95,9 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   no_offer: "No hay doctrinas para elegir ahora",
   bad_doctrine: "Esa doctrina no está en la oferta",
   already_rerolled: "Ya cambiaste la oferta una vez",
+  bad_detour: "Ese desvío no existe en este mapa",
+  already_open: "Ese desvío ya está abierto",
+  detour_blocked: "Hay torres en el desvío o en el tramo que saltea",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -412,6 +415,7 @@ async function startSolo(params: UrlParams, deck: Deck): Promise<void> {
       setSpeedSignal(s);
     },
     callWave: () => localCommand({ type: "callWave", tick: 0, playerId: 0 }),
+    openDetour: (detour) => localCommand({ type: "openDetour", tick: 0, playerId: 0, detour }),
     gift: (to, amount) => localCommand({ type: "gift", tick: 0, playerId: 0, to, amount }),
     sell: (towerId) => {
       store.setSelectedTowerId(null);
@@ -625,6 +629,7 @@ function bootCoop(params: UrlParams): void {
                 report: (message) => sendReport("manual", message),
                 callWave: () => connection.send("cmd", { type: "callWave" }),
                 passHost: (to) => connection.send("cmd", { type: "passHost", to }),
+                openDetour: (detour) => connection.send("cmd", { type: "openDetour", detour }),
                 gift: (to, amount) => connection.send("cmd", { type: "gift", to, amount }),
                 sell: (towerId) => {
                   g().store.setSelectedTowerId(null);

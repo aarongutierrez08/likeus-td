@@ -138,6 +138,11 @@ export interface ChooseDoctrineRequest {
   doctrine: DoctrineKind;
 }
 
+export interface OpenDetourRequest {
+  type: "openDetour";
+  detour: number;
+}
+
 export interface PassHostRequest {
   type: "passHost";
   to: number;
@@ -149,6 +154,7 @@ export interface RerollDoctrinesRequest {
 
 export type CommandRequest =
   | PassHostRequest
+  | OpenDetourRequest
   | ChooseDoctrineRequest
   | RerollDoctrinesRequest
   | BuildRequest

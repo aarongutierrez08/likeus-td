@@ -1,5 +1,9 @@
 import { For, Show, createSignal, untrack } from "solid-js";
 import {
+  validateCommand,
+  type RejectReason,
+  MAPS,
+  DETOUR,
   AFFIXES,
   ARMOR_LABELS,
   ECONOMY,
@@ -20,6 +24,8 @@ export interface EconomyActions {
   /** Coop only: sends a bug report with the game attached. */
   report?: (message: string) => void;
   callWave: () => void;
+  /** The host opens a detour of the map between waves. */
+  openDetour?: (detour: number) => void;
   /** Coop only: the host hands the role on. */
   passHost?: (to: number) => void;
   gift: (to: number, amount: number) => void;
@@ -30,6 +36,8 @@ export interface EconomyActions {
   speed?: () => number;
 }
 
+const DETOUR_SHOWN: (RejectReason | null)[] = [null, "no_gold", "detour_blocked"];
+
 export function Hud(props: { store: GameStore; net?: NetStore; economy?: EconomyActions }) {
   const s = () => props.store.state();
   const room = () => props.net?.roomInfo() ?? null;
@@ -39,6 +47,8 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
     return s().status === "playing" && s().wave < WAVES.length && left !== null && left > 0 && s().wavesClosed === s().wave;
   };
   const isHost = () => s().host === props.store.you;
+  /** The sim's own answer to opening this detour now; the button shows when the only obstacle is gold or a tower in the way. */
+  const detourReject = (detour: number) => validateCommand(s(), { type: "openDetour", tick: s().tick, playerId: props.store.you, detour });
   const nameOf = (id: number): string => room()?.players.find((p) => p.playerId === id)?.name ?? `Jugador ${id + 1}`;
   const bonus = () => callWaveBonus(countdownTicks() ?? 0);
   const countdownSeconds = () => Math.ceil((countdownTicks() ?? 0) / TICKS_PER_SECOND);
@@ -66,6 +76,23 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
           <button type="button" class="inline" onClick={() => props.economy!.callWave()}>
             Llamar oleada +{bonus()}
           </button>
+        </Show>
+        <Show when={props.economy?.openDetour && isHost()}>
+          <For each={MAPS[s().mapId].detours}>
+            {(detour, i) => (
+              <Show when={DETOUR_SHOWN.includes(detourReject(i()))}>
+                <button
+                  type="button"
+                  class="inline detour"
+                  disabled={detourReject(i()) !== null}
+                  title="Alarga el camino para siempre; sus celdas tienen que estar libres"
+                  onClick={() => props.economy!.openDetour!(i())}
+                >
+                  Abrir {detour.label} ({DETOUR.cost})
+                </button>
+              </Show>
+            )}
+          </For>
         </Show>
         <Show when={room() && !isHost()}>
           <span class="muted">Anfitrión: {nameOf(s().host)}</span>

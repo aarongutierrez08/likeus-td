@@ -319,6 +319,8 @@ describe("game room", () => {
     expect(started.state.host).toBe(0);
     guest.room.send("cmd", { type: "callWave" });
     expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("not_host");
+    guest.room.send("cmd", { type: "openDetour", detour: 0 });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("not_host");
     host.room.send("cmd", { type: "passHost", to: 1 });
     expect(await guest.next<number>("host")).toBe(1);
     await guest.room.leave(false);

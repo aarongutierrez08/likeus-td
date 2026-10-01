@@ -13,4 +13,5 @@ export const COLORS = {
   blast: 0xff7a3d,
   frost: 0x9fd8ff,
   overcharge: 0xf4c542,
+  detour: 0x8b93a7,
 } as const;

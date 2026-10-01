@@ -16,6 +16,7 @@ interface TdDebugState {
   lives: number;
   wave: number;
   host: number;
+  detours: number[];
 }
 
 interface Window {
