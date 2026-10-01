@@ -51,6 +51,7 @@ describe("mine", () => {
       damageDealt: 0,
       kills: 0,
       hp: 0,
+      maxHp: 0,
       lastHitTick: -1,
       overchargeUntil: 0,
       overchargePct: 0,

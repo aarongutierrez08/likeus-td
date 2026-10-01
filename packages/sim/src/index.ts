@@ -17,6 +17,7 @@ export {
   underAttack,
   validateBuild,
   validateCommand,
+  buildCost,
   type RejectReason,
 } from "./commands";
 export { hashState } from "./hash";
@@ -58,10 +59,12 @@ export {
 } from "./balance/define";
 export { ABILITIES, ABILITY_KINDS, abilityLevel } from "./balance/abilities";
 export { DECK, DEFAULT_DECKS } from "./balance/deck";
+export { DOCTRINE, DOCTRINES, DOCTRINE_KINDS } from "./balance/doctrines";
 export { ENEMIES, ENEMY_KINDS, type EnemyDef, type EnemySpec } from "./balance/enemies";
 export { AFFIXES, BOSS_AFFIXES, type BossAffix } from "./balance/affixes";
 export { bossAffix, initialShield } from "./affixes";
 export { isRevealed } from "./systems/targeting";
+export { doctrineOdds } from "./systems/doctrines";
 export {
   ATTACK_TYPES,
   ARMORS,
@@ -77,7 +80,7 @@ export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
 export { GAME } from "./balance/game";
 export { PLAYER_COLORS } from "./balance/players";
 export { isPlayerColor, pickColor } from "./colors";
-export { currentTarget, damageAgainst, effectiveCooldown, effectiveRange } from "./systems/towers";
+export { currentTarget, damageAgainst, effectiveCooldown, effectiveRange, auraRadiusOf } from "./systems/towers";
 export { currentSpeed } from "./systems/move";
 export { upcomingWaves, multiplierAgainstWaves, bestAttackTower, wavesNeedReveal } from "./preview";
 export { ECONOMY } from "./balance/economy";

@@ -20,10 +20,12 @@ import {
   type EnemyKind,
   type GameState,
   type Point,
+  type ChooseDoctrineCommand,
+  type RerollDoctrinesCommand,
   type UpgradeAbilityCommand,
   type UseAbilityCommand,
 } from "@td/sim";
-import type { CommandReject, SnapshotMessage } from "@td/server/protocol";
+import type { CommandReject, CommandRequest, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
 import { createGameStore, type GameStore } from "./game/store";
 import { Connection, type RoomHandlers } from "./net/connection";
@@ -40,6 +42,7 @@ import { createFloatingLabels } from "./ui/FloatingLabels";
 import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { DeckScreen } from "./ui/DeckScreen";
+import { DoctrinePanel, type DoctrineActions } from "./ui/DoctrinePanel";
 import { readDeck, writeDeck } from "./game/deck";
 import { AbilityBar, pickAbility, type AbilityActions, type AbilityRequest } from "./ui/AbilityBar";
 import { Shop } from "./ui/Shop";
@@ -89,6 +92,9 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   bad_target: "Tiene que ser una torre tuya que ataque",
   not_in_deck: "Esa carta no está en tu mazo",
   bad_deck: "Ese mazo no vale",
+  no_offer: "No hay doctrinas para elegir ahora",
+  bad_doctrine: "Esa doctrina no está en la oferta",
+  already_rerolled: "Ya cambiaste la oferta una vez",
   rate_limited: "Demasiado rápido, esperá un momento",
   not_playing: "La partida todavía no empezó",
   bad_shape: "Comando inválido",
@@ -101,13 +107,14 @@ interface Game {
   runner: GameRunner;
   labels: ReturnType<typeof createFloatingLabels>;
   abilities: AbilityActions;
+  doctrines: DoctrineActions;
 }
 
-type AbilityCommand = UseAbilityCommand | UpgradeAbilityCommand;
+type CardCommand = UseAbilityCommand | UpgradeAbilityCommand | ChooseDoctrineCommand | RerollDoctrinesCommand;
 
-/** Checks against the local sim before delivering, so a refused ability says why at once and keeps the aim. */
-function abilityActions(store: GameStore, runner: GameRunner, notify: (msg: string) => void, deliver: (cmd: AbilityCommand) => void) {
-  const run = (cmd: AbilityCommand): boolean => {
+/** Checks against the local sim before delivering, so a refused card says why at once and an ability keeps its aim. */
+function cardActions(store: GameStore, runner: GameRunner, notify: (msg: string) => void, deliver: (cmd: CardCommand) => void) {
+  const run = (cmd: CardCommand): boolean => {
     const reason = validateCommand(runner.state, cmd);
     if (reason) {
       notify(REJECT_MESSAGES[reason]);
@@ -116,11 +123,30 @@ function abilityActions(store: GameStore, runner: GameRunner, notify: (msg: stri
     deliver(cmd);
     return true;
   };
-  const actions: AbilityActions = {
-    cast: (req) => run({ type: "useAbility", tick: runner.state.tick, playerId: store.you, ...req }),
-    upgrade: (ability) => void run({ type: "upgradeAbility", tick: runner.state.tick, playerId: store.you, ability }),
+  const head = () => ({ tick: runner.state.tick, playerId: store.you });
+  const abilities: AbilityActions = {
+    cast: (req) => run({ type: "useAbility", ...head(), ...req }),
+    upgrade: (ability) => void run({ type: "upgradeAbility", ...head(), ability }),
   };
-  return actions;
+  const doctrines: DoctrineActions = {
+    choose: (doctrine) => void run({ type: "chooseDoctrine", ...head(), doctrine }),
+    reroll: () => void run({ type: "rerollDoctrines", ...head() }),
+  };
+  return { abilities, doctrines };
+}
+
+/** The request the server expects for a card command: the same payload without tick and player, which the server sets. */
+function cardRequest(cmd: CardCommand): CommandRequest {
+  switch (cmd.type) {
+    case "useAbility":
+      return { type: cmd.type, ability: cmd.ability, x: cmd.x, y: cmd.y, towerId: cmd.towerId };
+    case "upgradeAbility":
+      return { type: cmd.type, ability: cmd.ability };
+    case "chooseDoctrine":
+      return { type: cmd.type, doctrine: cmd.doctrine };
+    case "rerollDoctrines":
+      return { type: cmd.type };
+  }
 }
 
 /** Where the aimed ability goes when that cell is tapped: the cell itself, or the tower on it. Null when it needs a tower and there is none. */
@@ -274,6 +300,7 @@ function GameView(props: {
         ownerName={(id) => props.net?.roomInfo()?.players.find((p) => p.playerId === id)?.name ?? `Jugador ${id + 1}`}
       />
       <AbilityBar store={props.game.store} actions={props.game.abilities} />
+      <DoctrinePanel store={props.game.store} actions={props.game.doctrines} />
       <Shop store={props.game.store} />
       <Show when={props.net && props.sendChat}>
         <Chat net={props.net!} send={props.sendChat!} colorOf={(id) => playerCss(props.game.store.state(), id)} />
@@ -337,7 +364,7 @@ async function startSolo(params: UrlParams, deck: Deck): Promise<void> {
     startWave: params.wave,
     ranked: !params.usesDevParams,
     deckTowers: DECK.soloTowers,
-    players: [{ id: 0, deck }],
+    players: [{ id: 0, deck, doctrines: params.doctrines }],
   });
   const preselected = params.tower && deck.towers.includes(params.tower) ? params.tower : null;
   const store = createGameStore(initial, preselected, 0);
@@ -352,7 +379,7 @@ async function startSolo(params: UrlParams, deck: Deck): Promise<void> {
     runner.enqueue(cmd);
     if (runner.paused || runner.speed === 0) runner.stepAndPublish();
   };
-  const game: Game = { store, runner, labels: createFloatingLabels(), abilities: abilityActions(store, runner, notify, deliverLocal) };
+  const game: Game = { store, runner, labels: createFloatingLabels(), ...cardActions(store, runner, notify, deliverLocal) };
   exposeForTools(game);
 
   const renderer = await createRenderer(mapEl, {
@@ -446,14 +473,8 @@ function bootCoop(params: UrlParams): void {
       onDesync: (tick, hash, dump) => connection.send("desync", { tick, hash, dump }),
     });
     const notify = makeNotifier({ store });
-    const deliver = (cmd: AbilityCommand): void =>
-      connection.send(
-        "cmd",
-        cmd.type === "useAbility"
-          ? { type: cmd.type, ability: cmd.ability, x: cmd.x, y: cmd.y, towerId: cmd.towerId }
-          : { type: cmd.type, ability: cmd.ability },
-      );
-    const created: Game = { store, runner, labels: createFloatingLabels(), abilities: abilityActions(store, runner, notify, deliver) };
+    const deliver = (cmd: CardCommand): void => connection.send("cmd", cardRequest(cmd));
+    const created: Game = { store, runner, labels: createFloatingLabels(), ...cardActions(store, runner, notify, deliver) };
     exposeForTools(created);
     setGame(created);
     void createRenderer(mapEl, {

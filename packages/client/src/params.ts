@@ -1,4 +1,4 @@
-import { TOWER_KINDS, type Deck, type TowerKind } from "@td/sim";
+import { DOCTRINE_KINDS, TOWER_KINDS, type Deck, type DoctrineKind, type TowerKind } from "@td/sim";
 import { parseDeckParam } from "./game/deck";
 
 export type GameMode = "solo" | "coop";
@@ -21,11 +21,13 @@ export interface UrlParams {
   tower: TowerKind | undefined;
   /** Solo deck that skips the deck screen: "archer,mage,...;bombard,repair". Null when absent. */
   deck: Deck | null;
+  /** Doctrines the solo player starts with: "wideAuras,firstCheap". Unknown names are dropped. */
+  doctrines: DoctrineKind[];
   /** True when any dev parameter was used: the game is not eligible for records. */
   usesDevParams: boolean;
 }
 
-const DEV_PARAMS = ["gold", "wave", "tick", "tower", "bot", "dump", "deck"] as const;
+const DEV_PARAMS = ["gold", "wave", "tick", "tower", "bot", "dump", "deck", "doctrines"] as const;
 
 function intParam(params: URLSearchParams, name: string): number | undefined {
   const raw = params.get(name);
@@ -64,7 +66,7 @@ function nameParam(params: URLSearchParams): string | undefined {
 
 /**
  * Public: ?mode=solo|coop&room=&name=&seed=&map=&speed=. Dev only, solo mode, non-production builds:
- * &gold=&wave=&tick=&dump=1&bot=1&tower=archer|cannon|aura&deck=archer,mage,...;bombard,repair
+ * &gold=&wave=&tick=&dump=1&bot=1&tower=archer|cannon|aura&deck=archer,mage,...;bombard,repair&doctrines=wideAuras,...
  */
 export function parseUrlParams(search: string, dev: boolean = import.meta.env.DEV): UrlParams {
   const params = new URLSearchParams(search);
@@ -85,6 +87,7 @@ export function parseUrlParams(search: string, dev: boolean = import.meta.env.DE
     bot: devParams.get("bot") === "1",
     tower: towerParam(devParams),
     deck: parseDeckParam(devParams.get("deck")),
+    doctrines: DOCTRINE_KINDS.filter((kind) => (devParams.get("doctrines") ?? "").split(",").includes(kind)),
     usesDevParams,
   };
 }

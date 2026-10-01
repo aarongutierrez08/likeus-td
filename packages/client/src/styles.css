@@ -962,3 +962,88 @@ body {
   flex-direction: column;
   gap: 12px;
 }
+
+.doctrine-offer {
+  position: absolute;
+  top: calc(var(--topbar-h) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: min(560px, calc(100vw - 16px));
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.doctrine-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.doctrine-card,
+.doctrine-offer .reroll {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #1f232d;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doctrine-card:hover {
+  border-color: var(--accent);
+}
+
+.doctrine-card .name {
+  font-weight: 600;
+}
+
+.doctrine-card .note,
+.doctrine-offer .muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.doctrine-offer .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.doctrine-offer .reroll:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.doctrines-taken {
+  position: absolute;
+  right: 8px;
+  top: calc(var(--topbar-h) + 84px);
+  margin: 0;
+  padding: 4px 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  /* The top bar wraps on phones; the offer sits above the ability bar so the wave and speed buttons stay reachable. */
+  .doctrine-offer {
+    top: auto;
+    bottom: calc(var(--shop-h) + 64px);
+  }
+}

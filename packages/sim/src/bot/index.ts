@@ -291,6 +291,7 @@ function informedChoice(state: GameState, playerId: number, gold: number): Optio
  * and the team has none, otherwise an upgrade with a random branch or a random attack tower, saves for it and builds
  * on one of the best cells, all driven by its own seeded RNG so many games per seed differ. It never buys economy or
  * support: without a model of their return it would measure a player who throws gold away, not the game.
+ * Offered doctrines come first: the informed bot takes the one that fits what it built, the random one any.
  */
 export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
   let rng = seedRng(seed);
@@ -316,6 +317,11 @@ export function createBot(mode: BotMode, seed = 0, playerId = 0): Bot {
   return {
     decide(state: GameState): Command[] {
       if (state.status !== "playing") return [];
+      const offer = state.players.find((p) => p.id === playerId)?.doctrineOffer ?? [];
+      if (offer.length > 0) {
+        const doctrine = mode === "trivial" ? offer[0]! : offer[roll(offer.length)]!;
+        return [{ type: "chooseDoctrine", tick: state.tick, playerId, doctrine }];
+      }
       const gold = state.players.find((p) => p.id === playerId)?.gold ?? 0;
       if (mode === "trivial") {
         const choice = informedChoice(state, playerId, gold);

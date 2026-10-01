@@ -98,7 +98,7 @@ Mejoras por oro, niveles 1-3. Costo de mejora en `balance/`. Enfriamientos en ti
 - Cada 5 oleadas (al cierre de la 5, 10, 15…) cada jugador ve **3 doctrinas** y elige 1. Tiene hasta el inicio de la siguiente oleada; si no elige, no recibe nada (no se elige por él).
 - Las 3 salen de un pool **dirigido**: al menos una es relevante para lo que el jugador construyó (si tiene auras, aparece una de auras). Las probabilidades se muestran.
 - **Un reroll** por elección, cuesta oro (precio en `balance/`).
-- Efecto solo sobre lo propio. Ejemplos del set base: auras +1 de radio; muros reflejan 10%; interés +2 puntos (el tope sube 5); primera torre de cada oleada 20% más barata; habilidades enfrían 15% más rápido; explosivo +10% contra pesada (modifica la tabla solo para ese jugador, hasta +10%).
+- Efecto solo sobre lo propio. Ejemplos del set base: auras +1 de radio; tranqueras nuevas +50% de vida; interés +2 puntos (el tope sube 5); primera torre de cada oleada 20% más barata; habilidades enfrían 15% más rápido; explosivo +10% contra pesada (modifica la tabla solo para ese jugador, hasta +10%).
 - Todo sale de la RNG de la sim: mismo seed y mismos comandos, mismas ofertas.
 - Al final de la partida se muestran las doctrinas de cada uno: es parte del "compartí el desastre".
 
@@ -154,7 +154,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 8. ✅ Bichos al azar dentro de la oleada: los comunes salen en orden mezclado con la RNG de la sim y los jefes siempre después de todos los comunes; el calendario muestra la composición, no el orden. Si algún día hay comunes con afijo, se decide ahí dónde salen.
 9. ✅ Habilidades, como primer tipo de carta nuevo (ADR 010). Cada habilidad es carta de su dueño: la mejora, la usa y la espera solo él, aunque su efecto ayude al equipo. Números de relleno hasta el punto 15; el bot todavía no las usa.
 10. ✅ Mazo por jugador, con el set base y sin colección persistente (ADR 011). En solo se arma en una pantalla previa; en co-op, en el lobby antes de marcar listo, con aviso de armaduras sin cubrir. El navegador recuerda el último mazo por modo. El bot informado juega el mazo por defecto y el simtest lo mide; `/balance` suma mazos al azar.
-11. ⬜ Doctrinas por jugador.
+11. ✅ Doctrinas por jugador (ADR 013). Seis en el set base: Barrio (auras +1), Candado (tranquera +50% de vida), Colchón (interés +2 y tope +5), Rebaja (primera torre de cada oleada 20% menos), Manija (habilidades 15% más rápidas), Dinamita (explosivo +10% contra pesada). "Muros reflejan" se cambió por Candado: con daños de 1 a 8 por tick, el 10% no existe en enteros. El HUD muestra la probabilidad exacta de cada una en la próxima tirada.
 12. ⬜ Anfitrión libera la oleada. Chico; pendiente de ADR corto porque reemplaza el quórum del ADR 007.
 13. ⬜ Economía: mercado con precios que suben al comprar y bajan por oleada; rebalance de mina.
 14. ⬜ Casillas de desvío acotadas (no-linealidad).

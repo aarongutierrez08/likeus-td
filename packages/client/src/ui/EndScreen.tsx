@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import { playerCss } from "./colors";
-import { TICKS_PER_SECOND, WAVES, type GameState } from "@td/sim";
+import { DOCTRINES, TICKS_PER_SECOND, WAVES, type GameState } from "@td/sim";
 
 export interface EndActions {
   /** New game on the same map with a fresh seed (solo) or back to the lobby (coop creator). */
@@ -28,6 +28,7 @@ export function EndScreen(props: { state: GameState; you: number; names?: Map<nu
       earned: p.earned,
       towers: props.state.towers.filter((t) => t.owner === p.id).length,
       kills: props.state.towers.filter((t) => t.owner === p.id).reduce((n, t) => n + t.kills, 0),
+      doctrines: p.doctrines.map((kind) => DOCTRINES[kind].label).join(", ") || "—",
     }));
   return (
     <div class="overlay end">
@@ -45,6 +46,7 @@ export function EndScreen(props: { state: GameState; you: number; names?: Map<nu
               <th>Sin gastar</th>
               <th>Torres</th>
               <th>Muertes</th>
+              <th>Doctrinas</th>
             </tr>
           </thead>
           <tbody>
@@ -56,6 +58,7 @@ export function EndScreen(props: { state: GameState; you: number; names?: Map<nu
                   <td>{r.gold}</td>
                   <td>{r.towers}</td>
                   <td>{r.kills}</td>
+                  <td>{r.doctrines}</td>
                 </tr>
               )}
             </For>

@@ -4,6 +4,7 @@ import {
   TICKS_PER_SECOND,
   TOWER_KINDS,
   ABILITY_KINDS,
+  DOCTRINE_KINDS,
   canSubmitRecord,
   cloneState,
   createInitialState,
@@ -569,6 +570,13 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
       for (const k of optionalInts) if (v[k] !== undefined) cmd[k] = v[k] as number;
       return cmd;
     }
+    case "chooseDoctrine": {
+      const doctrine = v["doctrine"];
+      if (!DOCTRINE_KINDS.includes(doctrine as never)) return null;
+      return { type: "chooseDoctrine", tick, playerId, doctrine: doctrine as (typeof DOCTRINE_KINDS)[number] };
+    }
+    case "rerollDoctrines":
+      return { type: "rerollDoctrines", tick, playerId };
     case "upgradeAbility": {
       const ability = v["ability"];
       if (!ABILITY_KINDS.includes(ability as never)) return null;

@@ -5,6 +5,7 @@ import { towerDef } from "../balance/towers";
 import { auraBonusOf, towerDamage } from "../commands";
 import { attenuatedBounty } from "../economy";
 import type { Enemy, EnemyKind, GameState, Tower } from "../types";
+import { doctrineEffect, doctrinesOf } from "./doctrines";
 import { locate, markOn, pickTarget, squaredDistance, type EnemyAt } from "./targeting";
 
 /** Whether a cell lies in the square an aura of this radius covers around its center. */
@@ -18,7 +19,7 @@ function strongestAura(state: GameState, tower: Tower, stat: AuraStat): Tower | 
   for (const other of state.towers) {
     const def = towerDef(other);
     if (def.auraStat !== stat || other.id === tower.id) continue;
-    if (!inAuraSquare(other, def.auraRadius, tower)) continue;
+    if (!inAuraSquare(other, auraRadiusOf(state, other), tower)) continue;
     if (best === null || auraBonusOf(other) > auraBonusOf(best)) best = other;
   }
   return best;
@@ -27,6 +28,12 @@ function strongestAura(state: GameState, tower: Tower, stat: AuraStat): Tower | 
 function auraBonusFor(state: GameState, tower: Tower, stat: AuraStat): number {
   const aura = strongestAura(state, tower, stat);
   return aura === null ? 0 : auraBonusOf(aura);
+}
+
+/** The square an aura covers: its own radius plus the owner's doctrines; 0 for towers without an aura. */
+export function auraRadiusOf(state: GameState, tower: Tower): number {
+  const radius = towerDef(tower).auraRadius;
+  return radius === 0 ? 0 : radius + doctrineEffect(state, tower.owner, "auraRadius");
 }
 
 export function isAuraBoosted(state: GameState, tower: Tower): boolean {
@@ -48,7 +55,12 @@ export function effectiveCooldown(state: GameState, tower: Tower): number {
 export function damageAgainst(state: GameState, tower: Tower, enemy: Enemy): number {
   const attack = towerDef(tower).attackType;
   if (attack === null) return 0;
-  const base = Math.floor((effectiveDamage(state, tower) * damageMultiplier(attack, ENEMIES[enemy.kind].armor)) / 100);
+  const armor = ENEMIES[enemy.kind].armor;
+  const bonus = doctrinesOf(state, tower.owner).reduce(
+    (sum, d) => sum + (d.armorBonus && d.armorBonus.attack === attack && d.armorBonus.armor === armor ? d.armorBonus.pct : 0),
+    0,
+  );
+  const base = Math.floor((effectiveDamage(state, tower) * (damageMultiplier(attack, armor) + bonus)) / 100);
   return Math.floor((base * (100 + markOn(state, enemy))) / 100);
 }
 

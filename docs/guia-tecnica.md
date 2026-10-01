@@ -51,6 +51,7 @@ Cada una tiene su ADR de una página en `docs/adr/`. Resumen en lenguaje llano:
 9. **La tabla tipo de ataque × armadura es regla, no balance** (ADR 009). Cada tipo hace 150% contra una armadura y 50% contra otra, y toda fila y columna promedian 100%. Vive en `balance/` como cualquier dato, pero no se toca para balancear: cambiarla exige un ADR nuevo, porque el jugador tiene que poder aprenderla una vez y confiar en ella toda la partida.
 10. **Habilidades como datos, lanzadas por comando** (ADR 010). Una habilidad es una entrada en `balance/abilities.ts` con su blanco, sus niveles y su costo de mejora; cada nivel cambia el enfriamiento o el efecto, nunca los dos. Se tira con un comando que la sim valida como cualquier otro.
 11. **Mazo por jugador, validado por la sim** (ADR 011). Cada jugador entra con su mazo (5 torres y 2 habilidades en co-op, 8 y 2 en solo) y la sim rechaza comprar o usar lo que no está en él. El mazo es parte del estado, así que los replays lo reproducen solos.
+12. **Doctrinas como datos, ofrecidas por la sim** (ADR 013). Al cerrar las oleadas 5, 10 y 15 cada jugador elige 1 de 3 modificadores que tocan solo lo suyo. La oferta sale de la RNG de la sim, vence al empezar la oleada siguiente y se puede cambiar una vez pagando.
 
 ## Cómo se juega, en dos párrafos
 

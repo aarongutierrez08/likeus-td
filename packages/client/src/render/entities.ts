@@ -7,6 +7,7 @@ import {
   towerDef,
   currentSpeed,
   isRevealed,
+  auraRadiusOf,
   hasAttack,
   hasAura,
   hasControl,
@@ -87,10 +88,10 @@ export class EntityLayer {
     this.drawEffects(state);
     const kills = this.syncEnemies(state);
     this.ranges.clear();
-    if (showRanges) this.drawRanges(state.towers);
+    if (showRanges) this.drawRanges(state, state.towers);
     else {
       const selected = state.towers.find((t) => t.id === this.selectedTowerId);
-      if (selected) this.drawRanges([selected]);
+      if (selected) this.drawRanges(state, [selected]);
     }
     return kills;
   }
@@ -116,11 +117,11 @@ export class EntityLayer {
     this.drawGlyph(g, def, c);
     const pip = b * 0.08;
     for (let i = 1; i < t.level; i++) g.rect(c - r + pip * (2 * i - 1), c + r - pip * 2.2, pip, pip).fill(COLORS.background);
-    if (hasWall(def) && t.hp < def.wallHp) {
+    if (hasWall(def) && t.hp < t.maxHp) {
       const w = r * 2;
       const h = Math.max(2, b * 0.08);
       g.rect(c - r, c - r - h - 2, w, h).fill(COLORS.hpBack);
-      g.rect(c - r, c - r - h - 2, (w * t.hp) / def.wallHp, h).fill(COLORS.hpFront);
+      g.rect(c - r, c - r - h - 2, (w * t.hp) / t.maxHp, h).fill(COLORS.hpFront);
     }
   }
 
@@ -280,7 +281,7 @@ export class EntityLayer {
     g.rect(-w / 2, y, w * ratio, h).fill(COLORS.hpFront);
   }
 
-  private drawRanges(towers: readonly Tower[]): void {
+  private drawRanges(state: GameState, towers: readonly Tower[]): void {
     for (const t of towers) {
       const def = towerDef(t);
       const cx = (t.x + 0.5) * this.base;
@@ -289,8 +290,9 @@ export class EntityLayer {
       if (reach > 0) {
         this.ranges.circle(cx, cy, (reach / FP) * this.base).stroke({ width: 1, color: COLORS.range, alpha: 0.6 });
       }
-      if (def.auraRadius > 0) {
-        const side = (def.auraRadius * 2 + 1) * this.base;
+      const auraRadius = auraRadiusOf(state, t);
+      if (auraRadius > 0) {
+        const side = (auraRadius * 2 + 1) * this.base;
         this.ranges.rect(cx - side / 2, cy - side / 2, side, side).stroke({ width: 1, color: COLORS.aura, alpha: 0.7 });
       }
     }

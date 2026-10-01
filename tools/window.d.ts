@@ -4,7 +4,13 @@ interface TdDebugState {
   status: string;
   towers: { id: number; kind: string; level: number; branch: string | null; x: number; y: number; hp: number; overchargeUntil: number }[];
   enemies: unknown[];
-  players: { id: number; gold: number; abilities: Record<string, { level: number; readyTick: number }> }[];
+  players: {
+    id: number;
+    gold: number;
+    abilities: Record<string, { level: number; readyTick: number }>;
+    doctrines: string[];
+    doctrineRerolled: boolean;
+  }[];
   blasts: unknown[];
   frostZones: unknown[];
   lives: number;

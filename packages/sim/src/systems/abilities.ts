@@ -3,6 +3,7 @@ import { damageMultiplier } from "../balance/damage";
 import { ENEMIES } from "../balance/enemies";
 import { cellCenterFP } from "../path";
 import type { Enemy, GameState, UseAbilityCommand } from "../types";
+import { doctrineEffect } from "./doctrines";
 import { locate, markOn, squaredDistance } from "./targeting";
 
 /** Applies a validated useAbility: puts it on cooldown and leaves its effect in the state. */
@@ -10,7 +11,8 @@ export function castAbility(state: GameState, cmd: UseAbilityCommand): void {
   const player = state.players.find((p) => p.id === cmd.playerId)!;
   const slot = player.abilities[cmd.ability];
   const level = abilityLevel(cmd.ability, slot.level);
-  slot.readyTick = state.tick + level.cooldown;
+  const quicker = doctrineEffect(state, player.id, "abilityCooldownPct");
+  slot.readyTick = state.tick + level.cooldown - Math.floor((level.cooldown * quicker) / 100);
   switch (cmd.ability) {
     case "bombard":
       state.blasts.push({

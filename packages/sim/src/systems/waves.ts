@@ -8,6 +8,7 @@ import { towerIncome } from "../commands";
 import { interestOn, scaledEnemyHp } from "../economy";
 import { rollInt, rollJitter } from "../rng";
 import type { GameState } from "../types";
+import { doctrineEffect, expireOffers, offerDoctrines } from "./doctrines";
 
 function pct(value: number, percent: number): number {
   return Math.floor((value * percent) / 100);
@@ -33,6 +34,7 @@ export function scheduleWave(state: GameState): void {
   const wave = WAVES[state.wave]!;
   state.wave++;
   state.waveCalls = [];
+  expireOffers(state);
   let t = state.tick;
   let first = true;
   for (const { kind, spacing } of spawnOrder(state, wave)) {
@@ -85,11 +87,13 @@ export function closeWaves(state: GameState): void {
       owner.earned += income;
     }
     for (const player of state.players) {
-      const interest = interestOn(player.gold, ECONOMY.interestCapGold + (capBonus.get(player.id) ?? 0));
+      const cap = ECONOMY.interestCapGold + (capBonus.get(player.id) ?? 0) + doctrineEffect(state, player.id, "interestCapGold");
+      const interest = interestOn(player.gold, cap, ECONOMY.interestPct + doctrineEffect(state, player.id, "interestPct"));
       player.gold += interest;
       player.earned += interest;
     }
     state.wavesClosed = wave;
+    offerDoctrines(state, wave, WAVES.length);
     if (wave < WAVES.length) state.nextWaveTick = state.tick + 1 + GAME.waveGapTicks;
   }
 }

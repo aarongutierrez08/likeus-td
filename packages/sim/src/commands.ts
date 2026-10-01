@@ -8,8 +8,10 @@ import { WAVES } from "./balance/waves";
 import { isPlayerColor, pickColor } from "./colors";
 import { callQuorum, callWaveBonus, startingGold } from "./economy";
 import { deckProblem } from "./deck";
-import { freshAbilities, fullDeck } from "./state";
+import { freshAbilities, freshDoctrines, fullDeck } from "./state";
 import { castAbility } from "./systems/abilities";
+import { doctrineEffect, drawOffer } from "./systems/doctrines";
+import { DOCTRINE } from "./balance/doctrines";
 import type {
   AbilityKind,
   BuildCommand,
@@ -56,7 +58,10 @@ export type RejectReason =
   | "ability_cooldown"
   | "bad_target"
   | "not_in_deck"
-  | "bad_deck";
+  | "bad_deck"
+  | "no_offer"
+  | "bad_doctrine"
+  | "already_rerolled";
 
 export function upgradeCost(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
@@ -101,6 +106,13 @@ export function controlDurationOf(tower: Tower): number {
   return Math.floor((towerDef(tower).controlDuration * controlScale(tower)) / 100);
 }
 
+/** What this player pays for the tower now: the first one of each wave is cheaper with the right doctrine. */
+export function buildCost(state: GameState, player: Player, kind: TowerKind): number {
+  const cost = TOWERS[kind].cost;
+  const pct = doctrineEffect(state, player.id, "firstTowerDiscountPct");
+  return pct > 0 && player.lastBuildWave !== state.wave ? cost - Math.floor((cost * pct) / 100) : cost;
+}
+
 export function findPlayer(state: GameState, playerId: number): Player | undefined {
   return state.players.find((p) => p.id === playerId);
 }
@@ -120,7 +132,7 @@ export function validateBuild(state: GameState, cmd: BuildCommand): RejectReason
     return "on_path";
   }
   if (state.towers.some((t) => t.x === cmd.x && t.y === cmd.y)) return "occupied";
-  if (player.gold < def.cost) return "no_gold";
+  if (player.gold < buildCost(state, player, cmd.tower)) return "no_gold";
   return null;
 }
 
@@ -249,6 +261,19 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateSetColor(state, cmd);
     case "useAbility":
       return validateUseAbility(state, cmd);
+    case "chooseDoctrine": {
+      const player = findPlayer(state, cmd.playerId);
+      if (!player) return "no_player";
+      if (player.doctrineOffer.length === 0) return "no_offer";
+      return player.doctrineOffer.includes(cmd.doctrine) ? null : "bad_doctrine";
+    }
+    case "rerollDoctrines": {
+      const player = findPlayer(state, cmd.playerId);
+      if (!player) return "no_player";
+      if (player.doctrineOffer.length === 0) return "no_offer";
+      if (player.doctrineRerolled) return "already_rerolled";
+      return player.gold < DOCTRINE.rerollCost ? "no_gold" : null;
+    }
     case "upgradeAbility":
       return validateUpgradeAbility(state, cmd);
   }
@@ -258,8 +283,11 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
 export function applyCommand(state: GameState, cmd: Command): boolean {
   if (validateCommand(state, cmd) !== null) return false;
   switch (cmd.type) {
-    case "build":
-      findPlayer(state, cmd.playerId)!.gold -= TOWERS[cmd.tower].cost;
+    case "build": {
+      const player = findPlayer(state, cmd.playerId)!;
+      player.gold -= buildCost(state, player, cmd.tower);
+      player.lastBuildWave = state.wave;
+      const wallHp = Math.floor((TOWERS[cmd.tower].wallHp * (100 + doctrineEffect(state, player.id, "wallHpPct"))) / 100);
       state.towers.push({
         id: state.nextId++,
         owner: cmd.playerId,
@@ -272,12 +300,14 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
         builtTick: state.tick,
         damageDealt: 0,
         kills: 0,
-        hp: TOWERS[cmd.tower].wallHp,
+        hp: wallHp,
+        maxHp: wallHp,
         lastHitTick: -1,
         overchargeUntil: 0,
         overchargePct: 0,
       });
       return true;
+    }
     case "join":
       if (!findPlayer(state, cmd.playerId)) {
         state.players.push({
@@ -286,6 +316,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
           earned: 0,
           wallReadyTick: 0,
           abilities: freshAbilities(),
+          ...freshDoctrines(),
           deck: state.deckTowers === 0 ? fullDeck() : { towers: [...cmd.deck!.towers], abilities: [...cmd.deck!.abilities] },
           color: pickColor(state.players, cmd.color),
         });
@@ -327,6 +358,19 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
     case "useAbility":
       castAbility(state, cmd);
       return true;
+    case "chooseDoctrine": {
+      const player = findPlayer(state, cmd.playerId)!;
+      player.doctrines.push(cmd.doctrine);
+      player.doctrineOffer = [];
+      return true;
+    }
+    case "rerollDoctrines": {
+      const player = findPlayer(state, cmd.playerId)!;
+      player.gold -= DOCTRINE.rerollCost;
+      player.doctrineRerolled = true;
+      player.doctrineOffer = drawOffer(state, player, player.doctrineOffer);
+      return true;
+    }
     case "upgradeAbility": {
       const player = findPlayer(state, cmd.playerId)!;
       player.gold -= ABILITIES[cmd.ability].upgradeCost;

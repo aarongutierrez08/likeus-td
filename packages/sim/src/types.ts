@@ -6,6 +6,8 @@ export type { TowerKind } from "./balance/towers";
 export type { EnemyKind } from "./balance/enemies";
 export type { AbilityKind } from "./balance/abilities";
 export type { Deck } from "./balance/deck";
+export type { DoctrineKind } from "./balance/doctrines";
+import type { DoctrineKind } from "./balance/doctrines";
 import type { Deck } from "./balance/deck";
 import type { AbilityKind } from "./balance/abilities";
 import type { TowerKind } from "./balance/towers";
@@ -28,6 +30,8 @@ export interface Tower {
   kills: number;
   /** Walls only: hit points left. 0 for every other tower. */
   hp: number;
+  /** Walls only: hit points when built, the top of its bar. 0 for every other tower. */
+  maxHp: number;
   /** Walls only: last tick an enemy hit it; -1 if never. */
   lastHitTick: number;
   /** Fires `overchargePct` percent faster while tick < overchargeUntil. */
@@ -132,6 +136,19 @@ export interface UseAbilityCommand {
   towerId?: number;
 }
 
+export interface ChooseDoctrineCommand {
+  type: "chooseDoctrine";
+  tick: number;
+  playerId: number;
+  doctrine: DoctrineKind;
+}
+
+export interface RerollDoctrinesCommand {
+  type: "rerollDoctrines";
+  tick: number;
+  playerId: number;
+}
+
 export interface UpgradeAbilityCommand {
   type: "upgradeAbility";
   tick: number;
@@ -156,7 +173,9 @@ export type Command =
   | LeaveCommand
   | SetColorCommand
   | UseAbilityCommand
-  | UpgradeAbilityCommand;
+  | UpgradeAbilityCommand
+  | ChooseDoctrineCommand
+  | RerollDoctrinesCommand;
 
 /** A player's own level and cooldown of an ability: every ability is its owner's card, even when its effect helps the team. */
 export interface AbilitySlot {
@@ -200,6 +219,14 @@ export interface Player {
   abilities: Record<AbilityKind, AbilitySlot>;
   /** Cards this player may buy and use. Every card when the game plays without decks. */
   deck: Deck;
+  /** Doctrines picked so far, in order; they touch only this player's towers, gold and abilities. */
+  doctrines: DoctrineKind[];
+  /** Doctrines on offer right now; empty when there is no offer. It expires when the next wave starts. */
+  doctrineOffer: DoctrineKind[];
+  /** Whether this offer was already rerolled; one reroll per offer. */
+  doctrineRerolled: boolean;
+  /** Last wave in which this player bought a tower, for the first-tower discount; -1 if never. */
+  lastBuildWave: number;
 }
 
 export interface GameStats {

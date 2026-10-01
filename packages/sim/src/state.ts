@@ -8,7 +8,7 @@ import { startingGold } from "./economy";
 import { pickColor } from "./colors";
 import { seedRng } from "./rng";
 import { deckProblem } from "./deck";
-import type { AbilityKind, AbilitySlot, Deck, GameState, Player, TowerKind } from "./types";
+import type { AbilityKind, AbilitySlot, Deck, DoctrineKind, GameState, Player, TowerKind } from "./types";
 
 export interface PlayerSetup {
   id: number;
@@ -17,6 +17,8 @@ export interface PlayerSetup {
   deck?: Deck;
   /** Preferred color; the first free one when absent or taken. */
   color?: number;
+  /** Doctrines this player starts with, for tests and dev URLs; any makes the game unranked. */
+  doctrines?: DoctrineKind[];
 }
 
 export interface InitialStateOptions {
@@ -77,6 +79,11 @@ export function freshAbilities(): Record<AbilityKind, AbilitySlot> {
   return perAbility(() => ({ level: 1, readyTick: 0 }));
 }
 
+/** A player who has not picked or been offered any doctrine yet. */
+export function freshDoctrines(): Pick<Player, "doctrines" | "doctrineOffer" | "doctrineRerolled" | "lastBuildWave"> {
+  return { doctrines: [], doctrineOffer: [], doctrineRerolled: false, lastBuildWave: -1 };
+}
+
 /** Every card: the deck of a player in a game without decks. */
 export function fullDeck(): Deck {
   return { towers: [...TOWER_KINDS], abilities: [...ABILITY_KINDS] };
@@ -89,7 +96,7 @@ function initialDeck(setup: PlayerSetup, towers: number): Deck {
 }
 
 function isRanked(opts: InitialStateOptions): boolean {
-  const perPlayerOverride = opts.players?.some((p) => p.gold !== undefined) ?? false;
+  const perPlayerOverride = opts.players?.some((p) => p.gold !== undefined || (p.doctrines?.length ?? 0) > 0) ?? false;
   return (opts.ranked ?? true) && opts.gold === undefined && !perPlayerOverride && opts.startWave === undefined;
 }
 
@@ -106,6 +113,8 @@ function initialPlayers(opts: InitialStateOptions): Player[] {
       color,
       abilities: freshAbilities(),
       deck: initialDeck(p, opts.deckTowers ?? 0),
+      ...freshDoctrines(),
+      doctrines: [...(p.doctrines ?? [])],
     });
   }
   return players;

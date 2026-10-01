@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GAME, canSubmitRecord } from "../src/index";
-import { scenario } from "./helpers/scenario";
+import { FULL_GAME_MS, scenario } from "./helpers/scenario";
 
 describe("records eligibility", () => {
   it("a game started with only a seed is ranked", () => {
@@ -27,13 +27,17 @@ describe("records eligibility", () => {
     ).toBe(true);
   });
 
-  it("only a ranked game that was won can submit a record", () => {
-    const inProgress = scenario({ seed: 1, waves: true }).run(10);
-    expect(canSubmitRecord(inProgress.state())).toBe(false);
-    const devWin = scenario({ seed: 11, gold: 5000, waves: true, bot: true }).runUntil(() => false, 30000);
-    expect(devWin.status()).toBe("won");
-    expect(canSubmitRecord(devWin.state())).toBe(false);
-    const rankedWin = { ...devWin.state(), ranked: true };
-    expect(canSubmitRecord(rankedWin)).toBe(true);
-  });
+  it(
+    "only a ranked game that was won can submit a record",
+    () => {
+      const inProgress = scenario({ seed: 1, waves: true }).run(10);
+      expect(canSubmitRecord(inProgress.state())).toBe(false);
+      const devWin = scenario({ seed: 11, gold: 5000, waves: true, bot: true }).runUntil(() => false, 30000);
+      expect(devWin.status()).toBe("won");
+      expect(canSubmitRecord(devWin.state())).toBe(false);
+      const rankedWin = { ...devWin.state(), ranked: true };
+      expect(canSubmitRecord(rankedWin)).toBe(true);
+    },
+    FULL_GAME_MS,
+  );
 });

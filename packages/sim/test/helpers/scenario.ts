@@ -15,6 +15,7 @@ import {
   type Branch,
   type Command,
   type Deck,
+  type DoctrineKind,
   type Enemy,
   type EnemyKind,
   type GameState,
@@ -25,6 +26,8 @@ import {
 } from "../../src/index";
 
 const WAVES_OFF = Number.MAX_SAFE_INTEGER;
+/** Timeout for tests that play a whole game of twenty waves; the default 5 s is too close under load. */
+export const FULL_GAME_MS = 20000;
 const DEFAULT_PLAYER = 0;
 
 export interface ScenarioOptions {
@@ -45,6 +48,8 @@ export interface ScenarioOptions {
   /** Towers each deck holds; with it, every player needs an entry in `decks`. */
   deckTowers?: number;
   decks?: Record<number, Deck>;
+  /** Doctrines each player starts with, as if picked earlier. */
+  doctrines?: Record<number, DoctrineKind[]>;
 }
 
 export interface Cell {
@@ -97,6 +102,7 @@ export class Scenario {
   private readonly mapId: string | undefined;
   private readonly deckTowers: number | undefined;
   private readonly decks: Record<number, Deck>;
+  private readonly doctrines: Record<number, DoctrineKind[]>;
 
   constructor(opts: ScenarioOptions) {
     this.current = createInitialState({ seed: opts.seed });
@@ -107,6 +113,7 @@ export class Scenario {
     this.mapId = opts.map;
     this.deckTowers = opts.deckTowers;
     this.decks = opts.decks ?? {};
+    this.doctrines = opts.doctrines ?? {};
     this.wavesOn = opts.waves ?? false;
     this.bot = opts.bot ? createBot(opts.bot === true ? "trivial" : opts.bot) : undefined;
   }
@@ -176,6 +183,16 @@ export class Scenario {
 
   upgradeAbility(ability: AbilityKind, player: number = DEFAULT_PLAYER): this {
     this.queued.push({ type: "upgradeAbility", tick: 0, playerId: player, ability });
+    return this;
+  }
+
+  chooseDoctrine(doctrine: DoctrineKind, player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "chooseDoctrine", tick: 0, playerId: player, doctrine });
+    return this;
+  }
+
+  rerollDoctrines(player: number = DEFAULT_PLAYER): this {
+    this.queued.push({ type: "rerollDoctrines", tick: 0, playerId: player });
     return this;
   }
 
@@ -281,7 +298,8 @@ export class Scenario {
         const setupCost = this.pendingTowers.filter((t) => t.owner === id).reduce((sum, t) => sum + TOWERS[t.kind].cost, 0);
         const deck = this.decks[id];
         const base = anySetup ? { id, gold: (this.goldAfterSetup ?? GAME.startGold) + setupCost } : { id };
-        return deck ? { ...base, deck } : base;
+        const doctrines = this.doctrines[id];
+        return { ...base, ...(deck ? { deck } : {}), ...(doctrines ? { doctrines } : {}) };
       });
     this.current = createInitialState({
       seed: this.current.seed,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GAME, TICKS_PER_SECOND, WAVES } from "../src/index";
-import { scenario } from "./helpers/scenario";
+import { FULL_GAME_MS, scenario } from "./helpers/scenario";
 
 const enemiesIn = (wave: number): number => WAVES[wave - 1]!.groups.reduce((n, g) => n + g.count, 0);
 
@@ -116,13 +116,17 @@ describe("waves", () => {
     expect(called.gold(0)).toBe(goldAtClose + Math.floor(GAME.waveGapTicks / TICKS_PER_SECOND));
   });
 
-  it("clearing the last wave wins the game and freezes it", () => {
-    const game = scenario({ seed: 11, gold: 5000, waves: true, bot: true }).runUntil(() => false, 30000);
-    expect(game.status()).toBe("won");
-    expect(game.state().wave).toBe(WAVES.length);
-    expect(game.enemies()).toHaveLength(0);
-    const frozen = game.state();
-    game.run(1);
-    expect(game.state()).toBe(frozen);
-  });
+  it(
+    "clearing the last wave wins the game and freezes it",
+    () => {
+      const game = scenario({ seed: 11, gold: 5000, waves: true, bot: true }).runUntil(() => false, 30000);
+      expect(game.status()).toBe("won");
+      expect(game.state().wave).toBe(WAVES.length);
+      expect(game.enemies()).toHaveLength(0);
+      const frozen = game.state();
+      game.run(1);
+      expect(game.state()).toBe(frozen);
+    },
+    FULL_GAME_MS,
+  );
 });

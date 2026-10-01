@@ -10,7 +10,12 @@ import type { AbilityKind, AbilitySlot, Command, GameState } from "./types";
 export function cloneState(state: GameState): GameState {
   return {
     ...state,
-    players: state.players.map((p) => ({ ...p, abilities: cloneAbilities(p.abilities) })),
+    players: state.players.map((p) => ({
+      ...p,
+      abilities: cloneAbilities(p.abilities),
+      doctrines: p.doctrines.slice(),
+      doctrineOffer: p.doctrineOffer.slice(),
+    })),
     spawnQueue: state.spawnQueue.slice(),
     waveCalls: state.waveCalls.slice(),
     towers: state.towers.map((t) => ({ ...t })),

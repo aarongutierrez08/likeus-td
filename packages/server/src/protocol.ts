@@ -1,4 +1,4 @@
-import type { AbilityKind, Branch, Command, Deck, GameState, RejectReason, TowerKind } from "@td/sim";
+import type { AbilityKind, Branch, Command, Deck, DoctrineKind, GameState, RejectReason, TowerKind } from "@td/sim";
 
 /** Wire protocol between GameRoom and the client. Types and constants only: no Colyseus imports. */
 
@@ -133,8 +133,25 @@ export interface UpgradeAbilityRequest {
   ability: AbilityKind;
 }
 
+export interface ChooseDoctrineRequest {
+  type: "chooseDoctrine";
+  doctrine: DoctrineKind;
+}
+
+export interface RerollDoctrinesRequest {
+  type: "rerollDoctrines";
+}
+
 export type CommandRequest =
-  BuildRequest | CallWaveRequest | GiftRequest | SellRequest | UpgradeRequest | UseAbilityRequest | UpgradeAbilityRequest;
+  | ChooseDoctrineRequest
+  | RerollDoctrinesRequest
+  | BuildRequest
+  | CallWaveRequest
+  | GiftRequest
+  | SellRequest
+  | UpgradeRequest
+  | UseAbilityRequest
+  | UpgradeAbilityRequest;
 
 export interface DesyncReport {
   tick: number;

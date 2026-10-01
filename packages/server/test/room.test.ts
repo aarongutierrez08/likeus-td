@@ -246,6 +246,10 @@ describe("game room", () => {
     guest.room.send("cmd", { type: "upgradeAbility", ability: "repair" });
     const upgraded = await guest.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "upgradeAbility"));
     expect(upgraded.commands).toContainEqual({ type: "upgradeAbility", tick: upgraded.tick, playerId: 1, ability: "repair" });
+    guest.room.send("cmd", { type: "chooseDoctrine", doctrine: "savings" });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("no_offer");
+    guest.room.send("cmd", { type: "chooseDoctrine", doctrine: "magic" });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("bad_shape");
     guest.room.send("cmd", { type: "useAbility", ability: "nuke" });
     expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("bad_shape");
     guest.room.send("cmd", { type: "useAbility", ability: "overcharge", towerId: "x" });

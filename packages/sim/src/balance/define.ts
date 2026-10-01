@@ -368,3 +368,60 @@ export function defineAbilities<K extends string>(specs: Record<K, AbilitySpec>)
   }
   return out;
 }
+
+export const DOCTRINE_FITS = ["aura", "wall", "income", "explosive"] as const;
+/** What a player must have built for a doctrine to count as relevant to them: the directed slot of an offer. */
+export type DoctrineFit = (typeof DOCTRINE_FITS)[number];
+
+export interface DoctrineSpec {
+  label: string;
+  line: string;
+  fits?: DoctrineFit;
+  /** Extra Chebyshev radius of the owner's auras. */
+  auraRadius?: number;
+  /** Extra hit points of the owner's walls, in percent. */
+  wallHpPct?: number;
+  /** Extra interest points and interest cap gold for the owner. */
+  interestPct?: number;
+  interestCapGold?: number;
+  /** Price cut of the owner's first tower in each wave, in percent. */
+  firstTowerDiscountPct?: number;
+  /** How much shorter the owner's ability cooldowns get, in percent. */
+  abilityCooldownPct?: number;
+  /** Extra percent on the damage table, only for the owner's towers. */
+  armorBonus?: { attack: AttackType; armor: Armor; pct: number };
+}
+
+/** Normalized: every effect present, zero or null when the doctrine has no such effect. */
+export interface DoctrineDef {
+  label: string;
+  line: string;
+  fits: DoctrineFit | null;
+  auraRadius: number;
+  wallHpPct: number;
+  interestPct: number;
+  interestCapGold: number;
+  firstTowerDiscountPct: number;
+  abilityCooldownPct: number;
+  armorBonus: { attack: AttackType; armor: Armor; pct: number } | null;
+}
+
+export function defineDoctrines<K extends string>(specs: Record<K, DoctrineSpec>): Record<K, DoctrineDef> {
+  const out = {} as Record<K, DoctrineDef>;
+  for (const kind of Object.keys(specs) as K[]) {
+    const s = specs[kind];
+    out[kind] = {
+      label: s.label,
+      line: s.line,
+      fits: s.fits ?? null,
+      auraRadius: s.auraRadius ?? 0,
+      wallHpPct: s.wallHpPct ?? 0,
+      interestPct: s.interestPct ?? 0,
+      interestCapGold: s.interestCapGold ?? 0,
+      firstTowerDiscountPct: s.firstTowerDiscountPct ?? 0,
+      abilityCooldownPct: s.abilityCooldownPct ?? 0,
+      armorBonus: s.armorBonus ?? null,
+    };
+  }
+  return out;
+}

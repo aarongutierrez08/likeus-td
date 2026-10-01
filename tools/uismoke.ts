@@ -189,6 +189,19 @@ try {
   const kept = await page.evaluate(() => window.__td?.preview?.() ?? null);
   if (kept?.x !== 15 || kept.y !== 3) throw new Error(`tras el toque sin oro el alcance quedó en ${JSON.stringify(kept)}`);
   done("sin oro se elige la torre y se ve su alcance con mouse y con toque, pero no se construye");
+
+  await page.goto(`${base}?seed=42&wave=5&gold=900&speed=4&bot=0`);
+  await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await page.waitForSelector(".doctrine-offer", { timeout: 90000 });
+  await page.locator("button", { hasText: "1×" }).first().click();
+  await assertStable(page, page.locator(".doctrine-offer .reroll"), "el botón de cambiar doctrinas");
+  await page.locator(".doctrine-offer .reroll").click({ delay: HOLD_MS });
+  await page.waitForFunction(() => window.__td!.state().players[0]!.doctrineRerolled);
+  await page.locator(".doctrine-card").first().click({ delay: HOLD_MS });
+  await page.waitForFunction(() => window.__td!.state().players[0]!.doctrines.length === 1);
+  await page.waitForSelector(".doctrine-offer", { state: "detached" });
+  await page.waitForSelector(".doctrines-taken");
+  done("doctrina al cerrar la oleada 5: cambiada una vez, elegida y a la vista");
 } catch (err) {
   failed = true;
   console.error(`FALLÓ tras ${steps.length} pasos: ${err instanceof Error ? err.message : String(err)}`);
