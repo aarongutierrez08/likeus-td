@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bestAttackTower,
+  type Armor,
   DAMAGE_TABLE,
   ENEMIES,
   FP,
@@ -14,6 +14,8 @@ import {
   isPathCell,
   pathCells,
   type Command,
+  type SpawnGroup,
+  type WaveDef,
   type GameState,
   type TowerKind,
 } from "../src/index";
@@ -295,12 +297,19 @@ describe("informed bot in a team", () => {
 });
 
 describe("informed bot choosing an attack", () => {
-  it("builds the tower that hits heavy armor hardest before mostly heavy waves instead of upgrading a piercing one", () => {
-    const heavyAnswer = TOWER_KINDS.filter((k) => hasAttack(TOWERS[k])).reduce((best, k) =>
-      DAMAGE_TABLE[TOWERS[k].attackType!].heavy > DAMAGE_TABLE[TOWERS[best].attackType!].heavy ? k : best,
-    );
-    const heavyWave = WAVES.findIndex((_, i) => bestAttackTower(WAVES.slice(i, i + 3)) === heavyAnswer) + 1;
-    expect(heavyWave).toBeGreaterThan(0);
+  it("before the heaviest stretch of the calendar it builds the attack tower its armors favor instead of upgrading the one it has", () => {
+    const hpOf = (g: SpawnGroup, w: WaveDef): number => Math.floor((ENEMIES[g.kind].hp * w.hpPct) / 100) * g.count;
+    const shareOf = (start: number, armor: Armor): number => {
+      const window = WAVES.slice(start, start + 3);
+      const all = window.flatMap((w) => w.groups.map((g) => ({ armor: ENEMIES[g.kind].armor, hp: hpOf(g, w) })));
+      return all.filter((g) => g.armor === armor).reduce((n, g) => n + g.hp, 0) / all.reduce((n, g) => n + g.hp, 0);
+    };
+    const heavyWave = WAVES.reduce((best, _, i) => (shareOf(i, "heavy") > shareOf(best, "heavy") ? i : best), 0) + 1;
+    const fit = (kind: TowerKind): number =>
+      WAVES.slice(heavyWave - 1, heavyWave + 2)
+        .flatMap((w) => w.groups)
+        .reduce((n, g) => n + ENEMIES[g.kind].hp * g.count * DAMAGE_TABLE[TOWERS[kind].attackType!][ENEMIES[g.kind].armor], 0);
+    const heavyAnswer = TOWER_KINDS.filter((k) => hasAttack(TOWERS[k])).reduce((best, k) => (fit(k) > fit(best) ? k : best));
     const before = scenario({ seed: 1, waves: true, startWave: heavyWave, gold: richest })
       .tower("radar", { x: 1, y: 2 })
       .tower("archer", { x: 15, y: 3 })

@@ -12,8 +12,8 @@ Foto al cierre de la ronda del punto 15 (bots), 2026-09-30, `BALANCE_VERSION` 35
 |---|---|---|---|---|---|
 | Informado, victorias v33 → v35 | 100 → 100 | 100 → 100 | 100 → 100 | 100 → 100 | 70-95% |
 | Al azar, victorias v33 → v34 (v35) | 29 → 42 | 23 → 31 | 50 → 57 (58) | 0 → 2 (63) | 30-60% |
-| Reviente, % del daño informado v33 → v34 | 55 → 43 | 33 → 29 | 42 → 36 | 57 → 52 | ≤ 40% |
-| Reviente, enemigos por disparo (informado) | 1,62 → 1,69 | 1,84 → 1,78 | 1,84 → 1,78 | 1,94 → 1,89 | |
+| Reviente, % del daño informado v33 → v35 | 55 → 43 | 33 → 29 | 42 → 36 | 57 → 52 | ≤ 40% |
+| Reviente, enemigos por disparo (informado) v33 → v35 | 1,62 → 1,69 | 1,84 → 1,78 | 1,84 → 1,78 | 1,94 → 1,87 | |
 
 - v34: Mazazo 90 → 80 (37,5 por cada 100 de oro, +12,5%); oleadas 12, 14 y 20 recompuestas (menos vida sin armadura amontonada, más encantada y ligera); radio de Reviente 700 → 600.
 - v35: `synergyPerPlayerPct` 5 → 3. Con 4, el azar quedaba en 61% (N4) y 21% (N8); con 3, en 58% y 63%: un solo umbral apenas pasado.
