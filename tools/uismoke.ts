@@ -203,10 +203,9 @@ try {
   if (await page.getByRole("button", { name: /^Abrir rodeo de arriba/ }).count()) throw new Error("el desvío abierto sigue ofreciéndose");
   done("el anfitrión abre un desvío antes de la primera oleada");
 
-  await page.goto(`${base}?seed=42&wave=5&gold=900&speed=4&bot=0`);
+  await page.goto(`${base}?seed=42&wave=5&gold=900&speed=1&bot=0`);
   await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
-  await page.waitForSelector(".doctrine-offer", { timeout: 90000 });
-  await page.locator("button", { hasText: "1×" }).first().click();
+  await page.waitForSelector(".doctrine-offer", { timeout: 150000 });
   await assertStable(page, page.locator(".doctrine-offer .reroll"), "el botón de cambiar doctrinas");
   await page.locator(".doctrine-offer .reroll").click({ delay: HOLD_MS });
   await page.waitForFunction(() => window.__td!.state().players[0]!.doctrineRerolled);
