@@ -38,6 +38,8 @@ En orden. Volver a medir entre pasos.
 
 ## Para revisar
 
+- Ñoquitos: corregido en `BALANCE_VERSION` 31; ahora escalan con la oleada y los jugadores como cualquier enemigo. Remedir la oleada 14 y la 17 en el punto 15.
+
 - Curandero: la curación es un monto fijo, así que con 8 jugadores pesa unas 6 veces menos que en solo.
 - Oro inicial en co-op: 243 por jugador no alcanza para una torre de cada tipo de ataque; por equipo sí.
 - La Alcancía no escala con N: con 8 jugadores pesa unas 1,8 veces más en la economía de un jugador (estimado por fórmula).

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AFFIXES, ENEMIES, FP, GAME, TOWERS, WAVES, bossAffix, damageMultiplier } from "../src/index";
+import { AFFIXES, ENEMIES, FP, GAME, TOWERS, WAVES, bossAffix, damageMultiplier, scaledEnemyHp } from "../src/index";
 import { scenario } from "./helpers/scenario";
 
 const hp = 1000;
@@ -64,6 +64,16 @@ describe("shielded enemies", () => {
 });
 
 describe("splitting enemies", () => {
+  it("the pieces of a wave enemy scale with its wave and the players, like any enemy of that wave", () => {
+    const wave = WAVES.findIndex((w) => w.groups.some((g) => g.kind === "blob")) + 1;
+    const game = scenario({ seed: 3, waves: true, startWave: wave, gold: 0, players: [0, 1] });
+    for (let x = 0; x < 12; x++) game.tower("cannon", { x, y: 0 }).tower("cannon", { x, y: 2 });
+    game.runUntil((st) => st.enemies.some((e) => e.kind === "blobling"), 20000);
+    const piece = game.enemies().find((e) => e.kind === "blobling")!;
+    const hpPct = WAVES[wave - 1]!.hpPct;
+    expect(piece.maxHp).toBe(scaledEnemyHp(Math.floor((ENEMIES.blobling.hp * hpPct) / 100), 2));
+  });
+
   it("leave three smaller enemies of the same wave where they died", () => {
     const game = scenario({ seed: 1, waves: true, startWave: 1, gold: 0 }).run(GAME.firstWaveTick + 1);
     const state = game.state();

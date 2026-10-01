@@ -3,7 +3,8 @@ import { AURA_STATS, hasAttack, type AuraStat } from "../balance/define";
 import { ENEMIES } from "../balance/enemies";
 import { towerDef } from "../balance/towers";
 import { auraBonusOf, towerDamage } from "../commands";
-import { attenuatedBounty } from "../economy";
+import { attenuatedBounty, scaledEnemyHp } from "../economy";
+import { WAVES } from "../balance/waves";
 import type { Enemy, EnemyKind, GameState, Tower } from "../types";
 import { doctrineEffect, doctrinesOf } from "./doctrines";
 import { locate, markOn, pickTarget, squaredDistance, type EnemyAt } from "./targeting";
@@ -142,12 +143,13 @@ function spawnSplits(state: GameState, parent: Enemy, alive: Enemy[]): void {
   if (def.splitKind === null) return;
   const kind = def.splitKind as EnemyKind;
   const child = ENEMIES[kind];
+  const hp = waveHpOf(state, kind, parent.wave);
   for (let i = 0; i < def.splitCount; i++) {
     alive.push({
       id: state.nextId++,
       kind,
-      hp: child.hp,
-      maxHp: child.hp,
+      hp,
+      maxHp: hp,
       progress: Math.max(0, parent.progress - i * SPLIT_SPACING),
       lastHitBy: 0,
       wave: parent.wave,
@@ -161,6 +163,13 @@ function spawnSplits(state: GameState, parent: Enemy, alive: Enemy[]): void {
 }
 
 const SPLIT_SPACING = 250;
+
+/** Hit points of an enemy of this kind in that wave, scaled like the wave's own spawns; base hp outside waves. */
+function waveHpOf(state: GameState, kind: EnemyKind, wave: number): number {
+  const def = WAVES[wave - 1];
+  if (!def) return ENEMIES[kind].hp;
+  return scaledEnemyHp(Math.floor((ENEMIES[kind].hp * def.hpPct) / 100), state.players.length);
+}
 
 export function collectDead(state: GameState): void {
   const alive: Enemy[] = [];
