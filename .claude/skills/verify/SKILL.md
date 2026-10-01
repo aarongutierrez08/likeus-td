@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Verificación completa del proyecto antes de dar por terminado cualquier cambio. Usar siempre al final de una tarea, antes de pedir aprobación para commitear, o cuando el usuario pida "verificá", "chequeá", "está listo?". Corre typecheck, tests, simtest, screenshot y smokes, delega la revisión final al agente revisor, y resume en pocas líneas.
+description: Verificación completa del proyecto antes de dar por terminado cualquier cambio. Usar siempre al final de una tarea, antes de commitear, o cuando el usuario pida "verificá", "chequeá", "está listo?". Corre typecheck, tests, simtest, screenshot y smokes, delega la revisión final al agente revisor, y resume en pocas líneas.
 ---
 
 # /verify
@@ -15,7 +15,7 @@ Ejecutar en orden. Si un paso falla, detenerse, arreglar y volver a empezar desd
 5. Si se tocó `packages/server`: `pnpm test --filter server` (tests de sala: crear, unir, comando inválido rechazado, reconexión).
 6. Si se tocó `packages/server` o `packages/client/src/net`: `pnpm coopsmoke` (dos pestañas reales contra el server; debe terminar en `coopsmoke: OK` sin desyncs).
 
-7. Delegar al agente **revisor** con el diff de la tarea (`git diff` desde el último commit). Corregir los hallazgos de gravedad 1 a 4 y volver al paso 1; los de 5 y 6, corregir o justificar en el reporte. Un `/verify` no está completo sin este paso.
+7. Delegar al agente **revisor** con el diff de la tarea (`git diff` desde el último commit). Corregir los hallazgos de gravedad 1 a 3 y volver al paso 1; los de 4 a 6, corregir si es rápido o anotar como pendiente en el commit. Máximo 2 pasadas por etapa; la segunda, solo sobre lo que cambió. Un `/verify` no está completo sin este paso.
 
 Reporte final, máximo 7 líneas:
 - check / test / simtest / shot / smokes / revisor: OK o qué falló y qué se corrigió.
@@ -23,4 +23,4 @@ Reporte final, máximo 7 líneas:
 - Qué queda pendiente o dudoso.
 - **Dónde, cómo y qué probar** (obligatorio, nunca omitir): una URL de `localhost:5173` con parámetros (`seed`, `wave`, `gold`, `speed`, `tower`…) que deje al usuario parado justo donde está el cambio, sin jugar oleadas previas; los pasos exactos a hacer ahí; y qué tiene que ver para dar el cambio por bueno. Sin `speed=0` salvo que el cambio sea sobre la pausa: en pausa no se ven los errores de interacción. Escribir la URL también en `.claude/last-test-url` (un archivo, una línea) para que el hook de notificación la muestre.
 
-No commitear. Pedir aprobación.
+Con todo en verde, commitear (nunca push) y seguir con lo siguiente.

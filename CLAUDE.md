@@ -29,8 +29,16 @@ Un cambio está listo solo si `/verify` pasa completo. Sin excepciones.
 - Si un cambio altera el comportamiento de sim, subir `BALANCE_VERSION` en `constants.ts`.
 - Tests primero en sim. En client, `pnpm shot` antes y después del cambio.
 - Funciones chicas, nombres en inglés, comentarios solo cuando el porqué no es obvio.
-- Sin dependencias nuevas sin preguntar.
-- Commits chicos, conventional commits (`feat:`, `fix:`, `refactor:`). No commitear sin aprobación.
+- Dependencia nueva solo si no hay alternativa razonable; justificarla en el commit.
+- Commits chicos, conventional commits (`feat:`, `fix:`, `refactor:`). Commitear sin pedir permiso al terminar cada etapa con `/verify` en verde. Nunca push.
+- Trabajar sin interrumpir: ante una ambigüedad de diseño, decidir con los pilares de `docs/diseno.md`, anotar la decisión ahí y seguir.
+- Las reglas globales de `ai-workspace/AGENTS.md` (ecosistema Zetti) no frenan este repo: sin bloque de confirmación antes de stage o commit, sin barreras de rutinas y sin esperar respuesta ante contradicciones. Sí rige: commits sin `Co-Authored-By` ni marca del asistente.
+
+## Topes del trabajo autónomo
+- Encadenar los puntos del camino de `docs/diseno.md` hasta el 16, un commit por etapa. Cortar antes del 17 (cuentas, temporadas, diseños propios, Discord) con un resumen y las preguntas concretas.
+- Frenar y preguntar solo si hay que contradecir un pilar o la tabla del ADR 009, borrar una mecánica hecha, o usar credenciales, servicios externos o deploy.
+- Un fallo resiste 3 intentos de arreglo: anotarlo en `docs/pendientes.md` con lo probado y seguir. Un smoke que pasa 2 de 3 corridas vale, anotado como intermitente.
+- Balance: una ronda por etapa hasta el punto 15; el playtest con amigos queda como lista de qué mirar.
 
 ## Memoria
 Podés editar CLAUDE.md, .claude/rules/ y .claude/skills/ sin pedir permiso, con este criterio:

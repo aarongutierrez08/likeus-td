@@ -27,7 +27,7 @@ Leer también `docs/diseno.md`. Todo número vive en `balance/`; la lógica no c
 7. **Vida por oleada.** Solo para la curva global, nunca para arreglar una torre.
 
 ## Protocolo
-Datos primero, números después. Antes de proponer un cambio: daño por oro de cada torre, distribución de armaduras por oleada, tabla de resultados por N. Después la propuesta, con el objetivo que persigue y el umbral que corrige. Nunca aplicar sin aprobación del usuario.
+Datos primero, números después. Antes de proponer un cambio: daño por oro de cada torre, distribución de armaduras por oleada, tabla de resultados por N. Después la propuesta, con el objetivo que persigue y el umbral que corrige. Aplicarla, medir de nuevo y dejar el antes y después en `docs/balance.md`.
 
 Toda mecánica que multiplica (auras, doctrinas, interés) lleva tope o rendimientos decrecientes desde el primer día.
 El daño en área no lleva tope de enemigos: golpea a todos los que están en el radio. Su tope es el radio; un rayo o cadena sí puede limitar objetivos.
