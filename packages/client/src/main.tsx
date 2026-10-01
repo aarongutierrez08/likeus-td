@@ -72,7 +72,7 @@ const REJECT_MESSAGES: Record<CommandReject, string> = {
   unknown_tower: "Torre desconocida",
   no_player: "Todavía no estás en la partida",
   wave_not_pending: "No hay oleada pendiente",
-  already_called: "Ya pediste esta oleada",
+  not_host: "Solo el anfitrión llama la oleada",
   gift_too_early: `Los regalos se habilitan en la oleada ${ECONOMY.giftFromWave}`,
   bad_amount: "Cantidad inválida",
   no_tower: "Esa torre ya no existe",
@@ -534,6 +534,7 @@ function bootCoop(params: UrlParams): void {
       if (current) makeNotifier(current)(REJECT_MESSAGES[msg.reason]);
     },
     speed: (speed) => net.setRoomInfo((info) => (info ? { ...info, speed } : info)),
+    host: (creator) => net.setRoomInfo((info) => (info ? { ...info, creator } : info)),
     dropped: () => net.setDropped(true),
     reconnected: () => net.setDropped(false),
     reported: (msg) => {
@@ -588,6 +589,7 @@ function bootCoop(params: UrlParams): void {
       writePreferredColor(color);
       connection.send("setColor", { color });
     },
+    passHost: (to) => connection.send("passHost", { to }),
     setDeck: (deck) => {
       writeDeck("coop", deck);
       connection.send("setDeck", { deck });
@@ -622,6 +624,7 @@ function bootCoop(params: UrlParams): void {
               economy={{
                 report: (message) => sendReport("manual", message),
                 callWave: () => connection.send("cmd", { type: "callWave" }),
+                passHost: (to) => connection.send("cmd", { type: "passHost", to }),
                 gift: (to, amount) => connection.send("cmd", { type: "gift", to, amount }),
                 sell: (towerId) => {
                   g().store.setSelectedTowerId(null);

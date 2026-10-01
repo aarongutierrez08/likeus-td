@@ -217,7 +217,7 @@ describe("game room", () => {
     expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2, color: 2, deck: DEFAULT_DECKS.coop });
   });
 
-  it("relays a wave call: the wave starts and everyone gets the bonus", async () => {
+  it("relays the host's wave call: the wave starts and everyone gets the bonus", async () => {
     const host = await createRoom({ name: "host" });
     await host.next<SnapshotMessage>("snapshot");
     const guest = await joinRoom(host.room.roomId, "guest");
@@ -226,9 +226,9 @@ describe("game room", () => {
     const started = await guest.next<SnapshotMessage>("snapshot");
     let local = started.state;
     guest.tap<TickMessage>("tick", (t) => (local = step(local, t.commands)));
-    guest.room.send("cmd", { type: "callWave" });
+    host.room.send("cmd", { type: "callWave" });
     const called = await guest.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "callWave"));
-    expect(called.commands).toContainEqual({ type: "callWave", tick: called.tick, playerId: 1 });
+    expect(called.commands).toContainEqual({ type: "callWave", tick: called.tick, playerId: 0 });
     expect(local.wave).toBe(1);
     expect(local.players.every((p) => p.gold > startingGold(2))).toBe(true);
   });
@@ -305,6 +305,57 @@ describe("game room", () => {
       .next<PlayerInfo[]>("players", (list) => list.find((p) => p.playerId === 1)?.deck.towers.includes("cannon") === true, 500)
       .catch(() => null);
     expect(swapped).toBeNull();
+  });
+
+  it("only the host calls waves; the role can be handed on and passes to the next seat when the host drops", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    guest.room.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.every((p) => p.playerId === 0 || p.ready));
+    host.room.send("start", {});
+    const started = await guest.next<SnapshotMessage>("snapshot");
+    expect(started.state.host).toBe(0);
+    guest.room.send("cmd", { type: "callWave" });
+    expect((await guest.next<RejectedMessage>("rejected")).reason).toBe("not_host");
+    host.room.send("cmd", { type: "passHost", to: 1 });
+    expect(await guest.next<number>("host")).toBe(1);
+    await guest.room.leave(false);
+    expect(await host.next<number>("host", (id) => id === 0)).toBe(0);
+  });
+
+  it("in the lobby the host hands the role on, a host who drops hands it to the next seat, and the game starts with that host", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    const guest = await joinRoom(host.room.roomId, "guest");
+    await guest.next<SnapshotMessage>("snapshot");
+    host.room.send("passHost", { to: 1 });
+    expect(await guest.next<number>("host")).toBe(1);
+    guest.room.send("passHost", { to: 0 });
+    expect(await guest.next<number>("host", (id) => id === 0)).toBe(0);
+    await host.room.leave(false);
+    expect(await guest.next<number>("host", (id) => id === 1)).toBe(1);
+    guest.room.send("start", {});
+    const started = await guest.next<SnapshotMessage>("snapshot");
+    expect(started.state.host).toBe(1);
+  });
+
+  it("a host handed to a seat that already dropped moves on to the next connected seat", async () => {
+    const host = await createRoom({ name: "host" });
+    await host.next<SnapshotMessage>("snapshot");
+    const dropper = await joinRoom(host.room.roomId, "dropper");
+    await dropper.next<SnapshotMessage>("snapshot");
+    const third = await joinRoom(host.room.roomId, "third");
+    await third.next<SnapshotMessage>("snapshot");
+    for (const guest of [dropper, third]) guest.room.send("ready", { ready: true });
+    await host.next<PlayerInfo[]>("players", (list) => list.every((p) => p.playerId === 0 || p.ready));
+    host.room.send("start", {});
+    await third.next<SnapshotMessage>("snapshot");
+    await dropper.room.leave(false);
+    await host.next<PlayerInfo[]>("players", (list) => list.some((p) => p.playerId === 1 && !p.connected));
+    host.room.send("cmd", { type: "passHost", to: 1 });
+    expect(await third.next<number>("host", (id) => id === 2, 4000)).toBe(2);
   });
 
   it("limits commands per tick per player", async () => {

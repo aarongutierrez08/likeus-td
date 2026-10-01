@@ -32,6 +32,8 @@ export interface InitialStateOptions {
   startWave?: number;
   /** Set false to opt out of records; any gold or startWave override forces false. */
   ranked?: boolean;
+  /** Player who calls waves early; default the lowest id. */
+  host?: number;
   /** Towers each player's deck holds (DECK.soloTowers or DECK.coopTowers). Absent: no decks, every card for everyone. */
   deckTowers?: number;
 }
@@ -53,7 +55,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     wave: startWave - 1,
     nextWaveTick: GAME.firstWaveTick,
     wavesClosed: startWave - 1,
-    waveCalls: [],
+    host: opts.host ?? defaultHost(opts),
     spawnQueue: [],
     nextId: 1,
     towers: [],
@@ -93,6 +95,12 @@ function initialDeck(setup: PlayerSetup, towers: number): Deck {
   if (towers === 0) return fullDeck();
   if (deckProblem(setup.deck, towers) !== null) throw new Error(`player ${setup.id} has no valid deck of ${towers} towers`);
   return { towers: [...setup.deck!.towers], abilities: [...setup.deck!.abilities] };
+}
+
+/** The lowest seat, or 0 for a lobby sim with nobody in it yet. */
+function defaultHost(opts: InitialStateOptions): number {
+  const ids = (opts.players ?? [{ id: 0 }]).map((p) => p.id);
+  return ids.length === 0 ? 0 : Math.min(...ids);
 }
 
 function isRanked(opts: InitialStateOptions): boolean {

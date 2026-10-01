@@ -100,6 +100,14 @@ export interface CallWaveCommand {
   playerId: number;
 }
 
+/** The host hands the role on. The server also issues it for a host who dropped. */
+export interface PassHostCommand {
+  type: "passHost";
+  tick: number;
+  playerId: number;
+  to: number;
+}
+
 export interface GiftCommand {
   type: "gift";
   tick: number;
@@ -175,7 +183,8 @@ export type Command =
   | UseAbilityCommand
   | UpgradeAbilityCommand
   | ChooseDoctrineCommand
-  | RerollDoctrinesCommand;
+  | RerollDoctrinesCommand
+  | PassHostCommand;
 
 /** A player's own level and cooldown of an ability: every ability is its owner's card, even when its effect helps the team. */
 export interface AbilitySlot {
@@ -257,8 +266,8 @@ export interface GameState {
   nextWaveTick: number | null;
   /** Waves whose last enemy already died or leaked; interest was paid for them. */
   wavesClosed: number;
-  /** Players who asked to call the next wave since the current one started. */
-  waveCalls: number[];
+  /** The player who calls waves early (ADR 014). Passes to the next seat when they leave. */
+  host: number;
   spawnQueue: SpawnEntry[];
   nextId: number;
   towers: Tower[];

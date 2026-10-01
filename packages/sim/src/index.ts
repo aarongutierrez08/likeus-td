@@ -84,4 +84,4 @@ export { currentTarget, damageAgainst, effectiveCooldown, effectiveRange, auraRa
 export { currentSpeed } from "./systems/move";
 export { upcomingWaves, multiplierAgainstWaves, bestAttackTower, wavesNeedReveal } from "./preview";
 export { ECONOMY } from "./balance/economy";
-export { attenuatedBounty, scaledEnemyHp, startingGold, interestOn, callWaveBonus, callQuorum } from "./economy";
+export { attenuatedBounty, scaledEnemyHp, startingGold, interestOn, callWaveBonus } from "./economy";

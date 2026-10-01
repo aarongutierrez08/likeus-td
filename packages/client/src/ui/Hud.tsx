@@ -20,6 +20,8 @@ export interface EconomyActions {
   /** Coop only: sends a bug report with the game attached. */
   report?: (message: string) => void;
   callWave: () => void;
+  /** Coop only: the host hands the role on. */
+  passHost?: (to: number) => void;
   gift: (to: number, amount: number) => void;
   sell: (towerId: number) => void;
   upgrade: (towerId: number, branch?: Branch) => void;
@@ -36,7 +38,8 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
     const left = countdownTicks();
     return s().status === "playing" && s().wave < WAVES.length && left !== null && left > 0 && s().wavesClosed === s().wave;
   };
-  const alreadyCalled = () => s().waveCalls.includes(props.store.you);
+  const isHost = () => s().host === props.store.you;
+  const nameOf = (id: number): string => room()?.players.find((p) => p.playerId === id)?.name ?? `Jugador ${id + 1}`;
   const bonus = () => callWaveBonus(countdownTicks() ?? 0);
   const countdownSeconds = () => Math.ceil((countdownTicks() ?? 0) / TICKS_PER_SECOND);
   const others = () => s().players.filter((p) => p.id !== props.store.you);
@@ -59,10 +62,16 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
             {s().wave === 0 ? "Primera" : "Próxima"} oleada en {countdownSeconds()} s
           </span>
         </Show>
-        <Show when={props.economy && wavePending()}>
-          <button type="button" class="inline" disabled={alreadyCalled()} onClick={() => props.economy!.callWave()}>
-            {alreadyCalled() ? "Oleada pedida" : `Llamar oleada +${bonus()}`}
+        <Show when={props.economy && wavePending() && isHost()}>
+          <button type="button" class="inline" onClick={() => props.economy!.callWave()}>
+            Llamar oleada +{bonus()}
           </button>
+        </Show>
+        <Show when={room() && !isHost()}>
+          <span class="muted">Anfitrión: {nameOf(s().host)}</span>
+        </Show>
+        <Show when={props.economy?.passHost && isHost() && others().length > 0}>
+          <HostControl others={others().map((p) => p.id)} nameOf={nameOf} pass={props.economy!.passHost!} />
         </Show>
         <Show when={props.economy && canGift()}>
           <GiftControl
@@ -153,6 +162,27 @@ function WavePreview(props: { store: GameStore }) {
         </For>
       </div>
     </Show>
+  );
+}
+
+/** The host picks who takes the role; the select keeps its value across ticks. */
+function HostControl(props: { others: number[]; nameOf: (id: number) => string; pass: (to: number) => void }) {
+  const [to, setTo] = createSignal(untrack(() => props.others[0] ?? 0));
+  return (
+    <form
+      class="gift"
+      onSubmit={(e) => {
+        e.preventDefault();
+        props.pass(to());
+      }}
+    >
+      <select value={to()} onChange={(e) => setTo(Number(e.currentTarget.value))}>
+        <For each={props.others}>{(id) => <option value={id}>{props.nameOf(id)}</option>}</For>
+      </select>
+      <button type="submit" class="inline">
+        Ceder anfitrión
+      </button>
+    </form>
   );
 }
 

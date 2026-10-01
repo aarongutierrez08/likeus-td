@@ -23,6 +23,8 @@ export interface RoomHandlers {
   rejected: (msg: RejectedMessage) => void;
   reported: (msg: ReportedMessage) => void;
   speed: (speed: Speed) => void;
+  /** The host role moved: handed on, or the host dropped or left. */
+  host: (playerId: number) => void;
   /** The socket dropped; the SDK is retrying on its own. */
   dropped: () => void;
   reconnected: () => void;
@@ -134,6 +136,7 @@ export class Connection {
     room.onMessage<RejectedMessage>("rejected", handlers.rejected);
     room.onMessage<ReportedMessage>("reported", handlers.reported);
     room.onMessage<Speed>("speed", handlers.speed);
+    room.onMessage<number>("host", handlers.host);
     room.reconnection.maxRetries = MAX_RECONNECT_RETRIES;
     room.onDrop(() => handlers.dropped());
     room.onReconnect(() => handlers.reconnected());

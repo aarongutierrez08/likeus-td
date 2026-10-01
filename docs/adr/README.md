@@ -17,5 +17,6 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 011 | Mazo por jugador, validado por la sim |
 | 012 | Una kill por habilidad es una kill normal (reemplaza la regla de kills del 010) |
 | 013 | Doctrinas como datos, ofrecidas por la sim |
+| 014 | El anfitrión libera la oleada (reemplaza el quórum del 007) |
 
 Plantilla: `000-template.md`.

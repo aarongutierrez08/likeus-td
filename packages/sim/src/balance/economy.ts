@@ -10,9 +10,6 @@ export const ECONOMY = {
   interestCapGold: 20,
   /** Gold every player earns per second saved by calling the next wave early. */
   callWaveBonusPerSecond: 1,
-  /** From this many players on, two different players must call the same wave. */
-  callQuorumFromPlayers: 4,
-  callQuorum: 2,
   /** First wave (1-based) in which gifts are allowed. */
   giftFromWave: 3,
 } as const;

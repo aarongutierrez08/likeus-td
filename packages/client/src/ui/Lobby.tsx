@@ -14,6 +14,7 @@ export interface LobbyActions {
   kick(playerId: number): void;
   leave(): Promise<void>;
   setReady(ready: boolean): void;
+  passHost(to: number): void;
   setColor(color: number): void;
   setDeck(deck: Deck): void;
 }
@@ -145,6 +146,9 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
                 {p.playerId !== props.info.creator && p.connected ? (p.ready ? " · listo" : " · no listo") : ""}
               </span>
               <Show when={isCreator() && p.playerId !== props.info.you}>
+                <button type="button" class="small" disabled={!p.connected} onClick={() => props.actions.passHost(p.playerId)}>
+                  Hacer anfitrión
+                </button>
                 <button type="button" class="small" onClick={() => props.actions.kick(p.playerId)}>
                   Expulsar
                 </button>

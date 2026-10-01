@@ -33,7 +33,6 @@ export function scheduleWave(state: GameState): void {
   if (state.wave >= WAVES.length || state.nextWaveTick === null || state.tick < state.nextWaveTick) return;
   const wave = WAVES[state.wave]!;
   state.wave++;
-  state.waveCalls = [];
   expireOffers(state);
   let t = state.tick;
   let first = true;

@@ -15,7 +15,7 @@ interface TdDebugState {
   frostZones: unknown[];
   lives: number;
   wave: number;
-  waveCalls: number[];
+  host: number;
 }
 
 interface Window {

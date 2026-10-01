@@ -138,11 +138,17 @@ export interface ChooseDoctrineRequest {
   doctrine: DoctrineKind;
 }
 
+export interface PassHostRequest {
+  type: "passHost";
+  to: number;
+}
+
 export interface RerollDoctrinesRequest {
   type: "rerollDoctrines";
 }
 
 export type CommandRequest =
+  | PassHostRequest
   | ChooseDoctrineRequest
   | RerollDoctrinesRequest
   | BuildRequest
@@ -236,6 +242,8 @@ export interface ClientMessages {
   ready: { ready: boolean };
   /** Lobby and end screen only: pick a free color. */
   setColor: { color: number };
+  /** Lobby and end screen only: the host hands the role on; during a game it is the `passHost` command. */
+  passHost: { to: number };
   /** Lobby and end screen only: an invalid deck is rejected with bad_deck. */
   setDeck: { deck: Deck };
 }

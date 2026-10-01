@@ -73,27 +73,59 @@ describe("multiplayer economy", () => {
     expect(capped.gold(0)).toBe(500 + ECONOMY.interestCapGold);
   });
 
-  it("any player can call the next wave early and everyone earns one gold per second saved", () => {
-    const game = scenario({ seed: 1, players: [0, 1], waves: true, gold: 0 })
-      .callWave(1)
-      .run(1);
+  it("only the host calls the next wave early, and everyone earns one gold per second saved", () => {
+    const game = scenario({ seed: 1, players: [0, 1], waves: true, gold: 0 }).run(0);
+    expect(game.state().host).toBe(0);
+    const byGuest: Command = { type: "callWave", tick: 0, playerId: 1 };
+    expect(validateCommand(game.state(), byGuest)).toBe("not_host");
+    game.callWave(0).run(1);
     const saved = Math.floor(GAME.firstWaveTick / TICKS_PER_SECOND);
     expect(game.state().wave).toBe(1);
     expect(game.gold(0)).toBe(saved);
     expect(game.gold(1)).toBe(saved);
   });
 
-  it("with four or more players two different players must call the same wave", () => {
-    const game = scenario({ seed: 1, players: ids(4), waves: true, gold: 0 })
-      .callWave(2)
-      .run(1);
-    expect(game.state().wave).toBe(0);
-    expect(game.gold(2)).toBe(0);
-    const repeat: Command = { type: "callWave", tick: game.state().tick, playerId: 2 };
-    expect(validateCommand(game.state(), repeat)).toBe("already_called");
-    game.callWave(3).run(1);
+  it("the host can hand the role to another player; nobody else can", () => {
+    const game = scenario({ seed: 1, players: ids(3), waves: true, gold: 0 }).run(0);
+    expect(validateCommand(game.state(), { type: "passHost", tick: 0, playerId: 1, to: 2 })).toBe("not_host");
+    expect(validateCommand(game.state(), { type: "passHost", tick: 0, playerId: 0, to: 9 })).toBe("no_player");
+    game.passHost(0, 2).run(1);
+    expect(game.state().host).toBe(2);
+    game.callWave(2).run(1);
     expect(game.state().wave).toBe(1);
-    for (const id of ids(4)) expect(game.gold(id)).toBe(Math.floor((GAME.firstWaveTick - 1) / TICKS_PER_SECOND));
+  });
+
+  it("when the host leaves, the role goes to the next seat, wrapping around to the lowest", () => {
+    const game = scenario({ seed: 1, players: ids(3) })
+      .passHost(0, 2)
+      .run(1)
+      .leave(2)
+      .run(1);
+    expect(game.state().host).toBe(0);
+    game.leave(0).run(1);
+    expect(game.state().host).toBe(1);
+  });
+
+  it("a game can start with any player as host, the lowest seat by default", () => {
+    expect(
+      scenario({ seed: 1, players: [0, 1], host: 1 })
+        .run(0)
+        .state().host,
+    ).toBe(1);
+    expect(
+      scenario({ seed: 1, players: [3, 5] })
+        .run(0)
+        .state().host,
+    ).toBe(3);
+  });
+
+  it("whoever joins a game left without players becomes its host", () => {
+    const game = scenario({ seed: 1, players: [0] })
+      .leave(0)
+      .run(1)
+      .join(4)
+      .run(1);
+    expect(game.state().host).toBe(4);
   });
 
   it("the next wave can be called only once the current one is over", () => {

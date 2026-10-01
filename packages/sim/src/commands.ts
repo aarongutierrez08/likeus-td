@@ -6,7 +6,7 @@ import { ECONOMY } from "./balance/economy";
 import { TEAM_OWNER } from "./constants";
 import { WAVES } from "./balance/waves";
 import { isPlayerColor, pickColor } from "./colors";
-import { callQuorum, callWaveBonus, startingGold } from "./economy";
+import { callWaveBonus, startingGold } from "./economy";
 import { deckProblem } from "./deck";
 import { freshAbilities, freshDoctrines, fullDeck } from "./state";
 import { castAbility } from "./systems/abilities";
@@ -39,7 +39,7 @@ export type RejectReason =
   | "unknown_tower"
   | "no_player"
   | "wave_not_pending"
-  | "already_called"
+  | "not_host"
   | "gift_too_early"
   | "bad_amount"
   | "no_tower"
@@ -113,6 +113,11 @@ export function buildCost(state: GameState, player: Player, kind: TowerKind): nu
   return pct > 0 && player.lastBuildWave !== state.wave ? cost - Math.floor((cost * pct) / 100) : cost;
 }
 
+/** The seat after `id` among the players present, wrapping around to the lowest; `id` itself when nobody is left. */
+export function nextSeat(state: GameState, id: number): number {
+  return (state.players.find((p) => p.id > id) ?? state.players[0])?.id ?? id;
+}
+
 export function findPlayer(state: GameState, playerId: number): Player | undefined {
   return state.players.find((p) => p.id === playerId);
 }
@@ -152,8 +157,7 @@ export function validateCallWave(state: GameState, cmd: CallWaveCommand): Reject
   if (state.wave >= WAVES.length) return "wave_not_pending";
   if (state.wavesClosed < state.wave) return "wave_in_progress";
   if (state.nextWaveTick === null || state.nextWaveTick <= state.tick) return "wave_not_pending";
-  if (state.waveCalls.includes(cmd.playerId)) return "already_called";
-  return null;
+  return cmd.playerId === state.host ? null : "not_host";
 }
 
 export function mayManage(tower: Tower, playerId: number): boolean {
@@ -261,6 +265,10 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateSetColor(state, cmd);
     case "useAbility":
       return validateUseAbility(state, cmd);
+    case "passHost":
+      if (!findPlayer(state, cmd.playerId)) return "no_player";
+      if (cmd.playerId !== state.host) return "not_host";
+      return findPlayer(state, cmd.to) ? null : "no_player";
     case "chooseDoctrine": {
       const player = findPlayer(state, cmd.playerId);
       if (!player) return "no_player";
@@ -321,18 +329,20 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
           color: pickColor(state.players, cmd.color),
         });
         state.players.sort((a, b) => a.id - b.id);
+        if (!findPlayer(state, state.host)) state.host = cmd.playerId;
       }
       return true;
-    case "callWave":
-      state.waveCalls.push(cmd.playerId);
-      if (state.waveCalls.length >= callQuorum(state.players.length)) {
-        const bonus = callWaveBonus((state.nextWaveTick ?? state.tick) - state.tick);
-        for (const player of state.players) {
-          player.gold += bonus;
-          player.earned += bonus;
-        }
-        state.nextWaveTick = state.tick;
+    case "callWave": {
+      const bonus = callWaveBonus((state.nextWaveTick ?? state.tick) - state.tick);
+      for (const player of state.players) {
+        player.gold += bonus;
+        player.earned += bonus;
       }
+      state.nextWaveTick = state.tick;
+      return true;
+    }
+    case "passHost":
+      state.host = cmd.to;
       return true;
     case "gift":
       findPlayer(state, cmd.playerId)!.gold -= cmd.amount;
@@ -380,6 +390,7 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
     case "leave": {
       const leaving = findPlayer(state, cmd.playerId)!;
       state.players = state.players.filter((p) => p.id !== cmd.playerId);
+      if (state.host === cmd.playerId) state.host = nextSeat(state, cmd.playerId);
       for (const tower of state.towers) if (tower.owner === cmd.playerId) tower.owner = TEAM_OWNER;
       const remaining = state.players.length;
       if (remaining > 0) {

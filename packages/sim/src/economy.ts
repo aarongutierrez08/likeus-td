@@ -28,7 +28,3 @@ export function interestOn(gold: number, cap: number = ECONOMY.interestCapGold, 
 export function callWaveBonus(ticksSaved: number): number {
   return Math.floor(ticksSaved / TICKS_PER_SECOND) * ECONOMY.callWaveBonusPerSecond;
 }
-
-export function callQuorum(players: number): number {
-  return players >= ECONOMY.callQuorumFromPlayers ? ECONOMY.callQuorum : 1;
-}

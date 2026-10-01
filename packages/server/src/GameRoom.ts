@@ -117,6 +117,7 @@ export class GameRoom extends Room {
     this.onMessage<{ ready?: unknown }>("ready", (client, msg) => this.handleReady(client, msg));
     this.onMessage<{ color?: unknown }>("setColor", (client, msg) => this.handleSetColor(client, msg));
     this.onMessage<{ deck?: unknown }>("setDeck", (client, msg) => this.handleSetDeck(client, msg));
+    this.onMessage<{ to?: unknown }>("passHost", (client, msg) => this.handlePassHost(client, msg));
   }
 
   override async onJoin(client: Client, options?: JoinRoomOptions): Promise<void> {
@@ -148,6 +149,7 @@ export class GameRoom extends Room {
       return;
     }
     player.connected = false;
+    if (player.playerId === this.creatorPlayerId) this.handOnHost(player.playerId);
     this.broadcastPlayers();
     try {
       const reconnected = await this.allowReconnection(client, RECONNECT_SECONDS);
@@ -169,7 +171,7 @@ export class GameRoom extends Room {
     if (!this.isCreator(client) || this.phase !== "lobby" || !this.everyoneReady(client)) return;
     this.clearReady();
     const players = [...this.players.values()].map((p) => ({ id: p.playerId, color: p.color, deck: p.deck }));
-    this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players, deckTowers: DECK.coopTowers });
+    this.sim = createInitialState({ seed: this.seed, mapId: this.mapId, players, deckTowers: DECK.coopTowers, host: this.creatorPlayerId });
     this.initialState = this.sim;
     this.history.length = 0;
     this.setPhase("playing");
@@ -209,6 +211,9 @@ export class GameRoom extends Room {
     if (this.sim.tick % HASH_EVERY_TICKS === 0) message.hash = hashState(this.sim);
     this.broadcast("tick", message);
     if (this.sim.wave !== waveBefore) void this.publishMetadata();
+    if (this.sim.host !== this.creatorPlayerId) this.setHost(this.sim.host);
+    const hostSeat = this.playerList().find((p) => p.playerId === this.sim.host);
+    if (hostSeat && !hostSeat.connected) this.handOnHost(hostSeat.playerId);
   }
 
   /** Commands are re-validated one after another so two players cannot take the same cell in one tick. */
@@ -325,6 +330,29 @@ export class GameRoom extends Room {
     player.deck = deck;
     player.ready = false;
     this.broadcastPlayers();
+  }
+
+  /** In the lobby the host hands the role on directly; in play the sim owns it and this goes through as a command. */
+  private handlePassHost(client: Client, msg: { to?: unknown }): void {
+    if (!this.isCreator(client) || this.phase === "playing" || typeof msg?.to !== "number") return;
+    if (![...this.players.values()].some((p) => p.playerId === msg.to && p.connected)) return;
+    this.setHost(msg.to);
+  }
+
+  /** A host who drops hands the role to the next connected seat: in play through the sim, in the lobby directly. */
+  private handOnHost(from: number): void {
+    const seats = this.playerList().filter((p) => p.connected && p.playerId !== from);
+    const next = seats.find((p) => p.playerId > from) ?? seats[0];
+    if (!next) return;
+    if (this.phase === "playing") this.pending.push({ type: "passHost", tick: this.sim.tick, playerId: from, to: next.playerId });
+    else this.setHost(next.playerId);
+  }
+
+  private setHost(playerId: number): void {
+    if (playerId === this.creatorPlayerId) return;
+    this.creatorPlayerId = playerId;
+    this.broadcast("host", playerId);
+    void this.publishMetadata();
   }
 
   private handleKick(client: Client, msg: { playerId?: unknown }): void {
@@ -455,7 +483,7 @@ export class GameRoom extends Room {
   private async removePlayer(player: Player): Promise<void> {
     this.players.delete(player.sessionId);
     if (this.phase === "playing") this.pending.push({ type: "leave", tick: this.sim.tick, playerId: player.playerId });
-    if (player.playerId === this.creatorPlayerId) this.creatorPlayerId = this.lowestPlayerId();
+    if (player.playerId === this.creatorPlayerId && this.phase !== "playing") this.setHost(this.lowestPlayerId());
     this.broadcastPlayers();
     await this.publishMetadata();
   }
@@ -548,6 +576,9 @@ function toCommand(value: unknown, tick: number, playerId: number): Command | nu
       };
     case "callWave":
       return { type: "callWave", tick, playerId };
+    case "passHost":
+      if (!Number.isInteger(v["to"])) return null;
+      return { type: "passHost", tick, playerId, to: v["to"] as number };
     case "gift":
       if (!Number.isInteger(v["to"]) || !Number.isInteger(v["amount"])) return null;
       return { type: "gift", tick, playerId, to: v["to"] as number, amount: v["amount"] as number };

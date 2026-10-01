@@ -17,7 +17,6 @@ export function cloneState(state: GameState): GameState {
       doctrineOffer: p.doctrineOffer.slice(),
     })),
     spawnQueue: state.spawnQueue.slice(),
-    waveCalls: state.waveCalls.slice(),
     towers: state.towers.map((t) => ({ ...t })),
     enemies: state.enemies.map((e) => ({ ...e })),
     blasts: state.blasts.map((b) => ({ ...b })),

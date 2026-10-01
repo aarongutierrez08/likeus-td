@@ -48,6 +48,8 @@ export interface ScenarioOptions {
   /** Towers each deck holds; with it, every player needs an entry in `decks`. */
   deckTowers?: number;
   decks?: Record<number, Deck>;
+  /** Player who starts as host; the lowest id when absent. */
+  host?: number;
   /** Doctrines each player starts with, as if picked earlier. */
   doctrines?: Record<number, DoctrineKind[]>;
 }
@@ -103,6 +105,7 @@ export class Scenario {
   private readonly deckTowers: number | undefined;
   private readonly decks: Record<number, Deck>;
   private readonly doctrines: Record<number, DoctrineKind[]>;
+  private readonly host: number | undefined;
 
   constructor(opts: ScenarioOptions) {
     this.current = createInitialState({ seed: opts.seed });
@@ -114,6 +117,7 @@ export class Scenario {
     this.deckTowers = opts.deckTowers;
     this.decks = opts.decks ?? {};
     this.doctrines = opts.doctrines ?? {};
+    this.host = opts.host;
     this.wavesOn = opts.waves ?? false;
     this.bot = opts.bot ? createBot(opts.bot === true ? "trivial" : opts.bot) : undefined;
   }
@@ -150,6 +154,11 @@ export class Scenario {
   /** Queues a real join command for the next tick that runs. */
   join(playerId: number, deck?: Deck): this {
     this.queued.push(deck ? { type: "join", tick: 0, playerId, deck } : { type: "join", tick: 0, playerId });
+    return this;
+  }
+
+  passHost(from: number, to: number): this {
+    this.queued.push({ type: "passHost", tick: 0, playerId: from, to });
     return this;
   }
 
@@ -308,6 +317,7 @@ export class Scenario {
       startWave: this.startWave,
       ranked: this.rankedOption,
       deckTowers: this.deckTowers,
+      host: this.host,
     });
     if (!this.wavesOn) this.current = { ...this.current, nextWaveTick: WAVES_OFF };
     if (this.pendingTowers.length > 0) this.placeTowers();
