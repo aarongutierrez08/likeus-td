@@ -67,10 +67,16 @@ export function createInitialState(opts: InitialStateOptions): GameState {
       kills: 0,
       leaks: 0,
       goldEarned: 0,
-      damageByTower: Object.fromEntries(TOWER_KINDS.map((kind) => [kind, 0])) as Record<TowerKind, number>,
+      damageByTower: perTower(),
+      shotsByTower: perTower(),
+      hitsByTower: perTower(),
       damageByAbility: perAbility(() => 0),
     },
   };
+}
+
+function perTower(): Record<TowerKind, number> {
+  return Object.fromEntries(TOWER_KINDS.map((kind) => [kind, 0])) as Record<TowerKind, number>;
 }
 
 function perAbility<T>(value: () => T): Record<AbilityKind, T> {

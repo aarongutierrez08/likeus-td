@@ -71,6 +71,7 @@ export function effectiveRange(state: GameState, tower: Tower): number {
 }
 
 function hit(state: GameState, tower: Tower, target: Enemy): void {
+  state.stats.hitsByTower[tower.kind]++;
   if (target.shield > 0) {
     target.shield--;
     return;
@@ -125,6 +126,7 @@ export function towersAttack(state: GameState): void {
     }
     const target = pickTarget(tower, effectiveRange(state, tower), located, def.targeting, def.minRange);
     if (target === null) continue;
+    state.stats.shotsByTower[tower.kind]++;
     if (def.splash > 0) {
       for (const e of located) {
         if (squaredDistance(target.x, target.y, e.x, e.y) <= def.splash * def.splash) hit(state, tower, e.enemy);

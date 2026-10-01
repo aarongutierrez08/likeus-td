@@ -23,7 +23,13 @@ export function cloneState(state: GameState): GameState {
     enemies: state.enemies.map((e) => ({ ...e })),
     blasts: state.blasts.map((b) => ({ ...b })),
     frostZones: state.frostZones.map((z) => ({ ...z })),
-    stats: { ...state.stats, damageByTower: { ...state.stats.damageByTower }, damageByAbility: { ...state.stats.damageByAbility } },
+    stats: {
+      ...state.stats,
+      damageByTower: { ...state.stats.damageByTower },
+      shotsByTower: { ...state.stats.shotsByTower },
+      hitsByTower: { ...state.stats.hitsByTower },
+      damageByAbility: { ...state.stats.damageByAbility },
+    },
   };
 }
 

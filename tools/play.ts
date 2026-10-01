@@ -14,9 +14,12 @@ export interface PlayOptions {
   untilTick?: number;
 }
 
-/** The informed bot plays the reference deck; the random one draws a valid deck from its own seed. */
-function deckFor(mode: BotMode, botSeed: number, solo: boolean): Deck {
-  if (mode === "trivial") return solo ? DEFAULT_DECKS.solo : DEFAULT_DECKS.coop;
+/** The informed bot plays the reference deck (alternating with the support deck in co-op); the random one draws a valid deck from its own seed. */
+/** The second deck informed bots take in co-op, so a team has control, a wall and an aura like a real one would. */
+const COOP_SUPPORT_DECK: Deck = { towers: ["archer", "mage", "frost", "wall", "aura"], abilities: ["frost", "repair"] };
+
+function deckFor(mode: BotMode, botSeed: number, solo: boolean, seat: number): Deck {
+  if (mode === "trivial") return solo ? DEFAULT_DECKS.solo : seat % 2 === 0 ? DEFAULT_DECKS.coop : COOP_SUPPORT_DECK;
   return randomDeck(botSeed, solo ? DECK.soloTowers : DECK.coopTowers);
 }
 
@@ -33,7 +36,7 @@ export function playGame(opts: PlayOptions): GameState {
     gold: opts.gold,
     mapId: opts.mapId,
     deckTowers: solo ? DECK.soloTowers : DECK.coopTowers,
-    players: ids.map((id) => ({ id, deck: deckFor(opts.mode, botSeed(id), solo) })),
+    players: ids.map((id) => ({ id, deck: deckFor(opts.mode, botSeed(id), solo, id) })),
   });
   while (state.status === "playing" && state.tick < limit) {
     state = step(

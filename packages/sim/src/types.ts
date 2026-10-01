@@ -254,6 +254,9 @@ export interface GameStats {
   leaks: number;
   goldEarned: number;
   damageByTower: Record<TowerKind, number>;
+  /** Shots fired and enemies those shots hit, per tower kind: hits over shots is what an area tower really touches. */
+  shotsByTower: Record<TowerKind, number>;
+  hitsByTower: Record<TowerKind, number>;
   damageByAbility: Record<AbilityKind, number>;
 }
 

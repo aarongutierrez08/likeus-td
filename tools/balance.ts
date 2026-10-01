@@ -59,7 +59,11 @@ function record(summary: SeedSummary, final: GameState): void {
   else summary.lossWaves.push(final.wave);
   summary.goldLeft.push(final.players.reduce((sum, p) => sum + p.gold, 0));
   for (const t of final.towers) summary.towersBuilt[t.kind]++;
-  for (const k of TOWER_KINDS) summary.damage[k] += final.stats.damageByTower[k];
+  for (const k of TOWER_KINDS) {
+    summary.damage[k] += final.stats.damageByTower[k];
+    shots[k] += final.stats.shotsByTower[k];
+    hits[k] += final.stats.hitsByTower[k];
+  }
 }
 
 function avg(values: readonly number[]): number {
@@ -84,6 +88,9 @@ function modeFor(choice: BotChoice, run: number): "trivial" | "variant" {
 
 const runs = runsFor(bot);
 const summaries: SeedSummary[] = [];
+/** Shots and enemies hit per tower kind over every game, for the measured area column. */
+const shots = zeroByKind();
+const hits = zeroByKind();
 for (let seed = seedFrom; seed <= seedTo; seed++) {
   const summary: SeedSummary = { seed, wins: 0, lossWaves: [], goldLeft: [], towersBuilt: zeroByKind(), damage: zeroByKind() };
   for (let run = 0; run < runs; run++) record(summary, playGame({ seed, mode: modeFor(bot, run), botSeed: run, players }));
@@ -115,14 +122,18 @@ console.log(`loss wave (avg): ${allLossWaves.length === 0 ? "-" : avg(allLossWav
 console.log(`damage share: ${shareLine(damageByKind)}`);
 console.log(`purchase share: ${shareLine(builtByKind)}`);
 
-console.log("\n| Tower | Cost | Damage/s | Damage/s per 100 gold |");
-console.log("|---|---|---|---|");
+console.log("\n| Tower | Cost | Damage/s | Damage/s per 100 gold | Enemies per shot (measured) | Effective per 100 gold |");
+console.log("|---|---|---|---|---|---|");
 for (const k of TOWER_KINDS) {
   const def = TOWERS[k];
   if (!hasAttack(def)) continue;
   const perSecond = (def.damage * TICKS_PER_SECOND) / def.cooldown;
   const area = def.splash > 0 ? " (area)" : "";
-  console.log(`| ${k}${area} | ${def.cost} | ${perSecond.toFixed(1)} | ${((perSecond * 100) / def.cost).toFixed(1)} |`);
+  const perShot = shots[k] === 0 ? null : hits[k] / shots[k];
+  const effective = perShot === null ? "-" : ((perSecond * perShot * 100) / def.cost).toFixed(1);
+  console.log(
+    `| ${k}${area} | ${def.cost} | ${perSecond.toFixed(1)} | ${((perSecond * 100) / def.cost).toFixed(1)} | ${perShot === null ? "-" : perShot.toFixed(2)} | ${effective} |`,
+  );
 }
 console.log(`\nstarting gold: solo ${startingGold(1)}, coop ${startingGold(2)}`);
 
