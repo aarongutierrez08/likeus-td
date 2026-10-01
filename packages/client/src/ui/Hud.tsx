@@ -1,5 +1,6 @@
-import { For, Show, createSignal, untrack } from "solid-js";
+import { For, Show, createSignal, onCleanup, untrack } from "solid-js";
 import {
+  waveDef,
   validateCommand,
   type RejectReason,
   MAPS,
@@ -36,6 +37,20 @@ export interface EconomyActions {
   speed?: () => number;
 }
 
+/**
+ * The top bar wraps when it carries many buttons (host, detours, speed). Everything placed below it reads
+ * --topbar-h, so it is kept to the bar's real height instead of a fixed guess.
+ */
+function trackTopbarHeight(el: HTMLElement): void {
+  const root = document.documentElement;
+  const observer = new ResizeObserver(() => root.style.setProperty("--topbar-h", `${el.offsetHeight}px`));
+  observer.observe(el);
+  onCleanup(() => {
+    observer.disconnect();
+    root.style.removeProperty("--topbar-h");
+  });
+}
+
 const DETOUR_SHOWN: (RejectReason | null)[] = [null, "no_gold", "detour_blocked"];
 
 export function Hud(props: { store: GameStore; net?: NetStore; economy?: EconomyActions }) {
@@ -44,7 +59,7 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
   const countdownTicks = () => (s().nextWaveTick === null ? null : s().nextWaveTick! - s().tick);
   const wavePending = () => {
     const left = countdownTicks();
-    return s().status === "playing" && s().wave < WAVES.length && left !== null && left > 0 && s().wavesClosed === s().wave;
+    return s().status === "playing" && waveDef(s(), s().wave + 1) !== null && left !== null && left > 0 && s().wavesClosed === s().wave;
   };
   const isHost = () => s().host === props.store.you;
   /** The sim's own answer to opening this detour now; the button shows when the only obstacle is gold or a tower in the way. */
@@ -57,11 +72,12 @@ export function Hud(props: { store: GameStore; net?: NetStore; economy?: Economy
   const seconds = () => (s().tick / TICKS_PER_SECOND).toFixed(1);
   return (
     <>
-      <div class="topbar">
+      <div class="topbar" ref={trackTopbarHeight}>
         <span class="gold">Oro {props.store.gold()}</span>
         <span class="lives">Vidas {s().lives}</span>
         <span>
-          Oleada {s().wave}/{WAVES.length}
+          Oleada {s().wave}
+          {s().mode === "endless" ? " · infinito" : `/${WAVES.length}`}
         </span>
         <span>Enemigos {s().enemies.length}</span>
         <span>

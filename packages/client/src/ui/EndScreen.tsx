@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import { playerCss } from "./colors";
-import { DOCTRINES, TICKS_PER_SECOND, WAVES, type GameState } from "@td/sim";
+import type { DailyBoard } from "@td/server/protocol";
+import { DOCTRINES, TICKS_PER_SECOND, WAVES, scoreOf, type GameState } from "@td/sim";
 
 export interface EndActions {
   /** New game on the same map with a fresh seed (solo) or back to the lobby (coop creator). */
@@ -19,7 +20,15 @@ function playerName(names: Map<number, string> | undefined, id: number): string 
 }
 
 /** Result of a finished game with a short per-player tally. */
-export function EndScreen(props: { state: GameState; you: number; names?: Map<number, string>; actions: EndActions; waitingFor?: string }) {
+export function EndScreen(props: {
+  state: GameState;
+  you: number;
+  names?: Map<number, string>;
+  actions: EndActions;
+  waitingFor?: string;
+  /** Daily challenge: today's board, or a line about the score being sent or refused. */
+  daily?: DailyBoard | string | null;
+}) {
   const seconds = () => Math.round(props.state.tick / TICKS_PER_SECOND);
   const rows = () =>
     props.state.players.map((p) => ({
@@ -33,10 +42,17 @@ export function EndScreen(props: { state: GameState; you: number; names?: Map<nu
   return (
     <div class="overlay end">
       <div class="end-panel">
-        <h2>{props.state.status === "won" ? "Victoria" : "Derrota"}</h2>
+        <h2>
+          {props.state.mode === "endless"
+            ? `Puntaje: ${scoreOf(props.state)} oleadas`
+            : props.state.status === "won"
+              ? "Victoria"
+              : "Derrota"}
+        </h2>
         <p class="muted">
-          Oleada {props.state.wave}/{WAVES.length} · {seconds()} s · {props.state.lives} vidas · mapa {props.state.mapId} · seed{" "}
-          {props.state.seed}
+          Oleada {props.state.wave}
+          {props.state.mode === "endless" ? "" : `/${WAVES.length}`} · {seconds()} s · {props.state.lives} vidas · mapa {props.state.mapId}{" "}
+          · seed {props.state.seed}
         </p>
         <table>
           <thead>
@@ -64,6 +80,23 @@ export function EndScreen(props: { state: GameState; you: number; names?: Map<nu
             </For>
           </tbody>
         </table>
+        <Show when={props.daily}>
+          {(daily) => (
+            <Show when={typeof daily() !== "string" ? (daily() as DailyBoard) : null} fallback={<p class="muted">{daily() as string}</p>}>
+              {(board) => (
+                <ol class="daily-board">
+                  <For each={board().entries} fallback={<li class="muted">Todavía nadie jugó hoy</li>}>
+                    {(e) => (
+                      <li>
+                        {e.name} · {e.score} oleadas
+                      </li>
+                    )}
+                  </For>
+                </ol>
+              )}
+            </Show>
+          )}
+        </Show>
         <div class="row">
           <Show when={props.actions.again}>
             <button

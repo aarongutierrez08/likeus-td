@@ -8,7 +8,9 @@ import { startingGold } from "./economy";
 import { pickColor } from "./colors";
 import { seedRng } from "./rng";
 import { deckProblem } from "./deck";
-import type { AbilityKind, AbilitySlot, Deck, DoctrineKind, GameState, Player, TowerKind } from "./types";
+import { DECK } from "./balance/deck";
+import { dailySeed } from "./waveDefs";
+import type { AbilityKind, AbilitySlot, Deck, DoctrineKind, GameMode, GameState, Player, TowerKind } from "./types";
 
 export interface PlayerSetup {
   id: number;
@@ -32,6 +34,7 @@ export interface InitialStateOptions {
   startWave?: number;
   /** Set false to opt out of records; any gold or startWave override forces false. */
   ranked?: boolean;
+  mode?: GameMode;
   /** Player who calls waves early; default the lowest id. */
   host?: number;
   /** Towers each player's deck holds (DECK.soloTowers or DECK.coopTowers). Absent: no decks, every card for everyone. */
@@ -40,7 +43,7 @@ export interface InitialStateOptions {
 
 export function createInitialState(opts: InitialStateOptions): GameState {
   const mapId: MapId = resolveMapId(opts.mapId);
-  const startWave = clampWave(opts.startWave ?? 1);
+  const startWave = clampWave(opts.startWave ?? 1, opts.mode ?? "campaign");
   return {
     balanceVersion: BALANCE_VERSION,
     seed: opts.seed,
@@ -50,6 +53,7 @@ export function createInitialState(opts: InitialStateOptions): GameState {
     status: "playing",
     ranked: isRanked(opts),
     deckTowers: opts.deckTowers ?? 0,
+    mode: opts.mode ?? "campaign",
     players: initialPlayers(opts),
     lives: GAME.lives,
     wave: startWave - 1,
@@ -73,6 +77,11 @@ export function createInitialState(opts: InitialStateOptions): GameState {
       damageByAbility: perAbility(() => 0),
     },
   };
+}
+
+/** The daily challenge: a solo endless game on the day's seed and the default map. Client, server and tests build it here. */
+export function dailyStart(day: string, deck: Deck): GameState {
+  return createInitialState({ seed: dailySeed(day), mode: "endless", deckTowers: DECK.soloTowers, players: [{ id: 0, deck }] });
 }
 
 function perTower(): Record<TowerKind, number> {
@@ -141,7 +150,8 @@ function resolveMapId(id: string | undefined): MapId {
   return id;
 }
 
-function clampWave(wave: number): number {
+/** Endless games may start past the campaign; campaign ones stop at its last wave. */
+function clampWave(wave: number, mode: GameMode): number {
   if (!Number.isInteger(wave)) return 1;
-  return Math.max(1, Math.min(wave, WAVES.length));
+  return Math.max(1, mode === "endless" ? wave : Math.min(wave, WAVES.length));
 }

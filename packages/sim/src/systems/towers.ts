@@ -4,7 +4,7 @@ import { ENEMIES } from "../balance/enemies";
 import { towerDef } from "../balance/towers";
 import { auraBonusOf, towerDamage } from "../commands";
 import { attenuatedBounty, scaledEnemyHp } from "../economy";
-import { WAVES } from "../balance/waves";
+import { waveDef } from "../waveDefs";
 import type { Enemy, EnemyKind, GameState, Tower } from "../types";
 import { doctrineEffect, doctrinesOf } from "./doctrines";
 import { locate, markOn, pickTarget, squaredDistance, type EnemyAt } from "./targeting";
@@ -168,7 +168,7 @@ const SPLIT_SPACING = 250;
 
 /** Hit points of an enemy of this kind in that wave, scaled like the wave's own spawns; base hp outside waves. */
 function waveHpOf(state: GameState, kind: EnemyKind, wave: number): number {
-  const def = WAVES[wave - 1];
+  const def = waveDef(state, wave);
   if (!def) return ENEMIES[kind].hp;
   return scaledEnemyHp(Math.floor((ENEMIES[kind].hp * def.hpPct) / 100), state.players.length);
 }

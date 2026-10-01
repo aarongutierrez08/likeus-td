@@ -1,6 +1,6 @@
 export { BALANCE_VERSION, FP, TEAM_OWNER, TICKS_PER_SECOND } from "./constants";
 export type * from "./types";
-export { createInitialState, type InitialStateOptions, type PlayerSetup } from "./state";
+export { createInitialState, dailyStart, type InitialStateOptions, type PlayerSetup } from "./state";
 export { step, cloneState } from "./step";
 export {
   applyCommand,
@@ -23,6 +23,8 @@ export {
 export { hashState } from "./hash";
 export { deckProblem } from "./deck";
 export { canSubmitRecord } from "./records";
+export { waveDef, scoreOf, dailySeed } from "./waveDefs";
+export { ENDLESS } from "./balance/endless";
 export { dumpState } from "./dump";
 export { createBot, randomDeck, type Bot, type BotMode } from "./bot/index";
 export {

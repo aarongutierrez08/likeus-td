@@ -13,6 +13,8 @@ import type { AbilityKind } from "./balance/abilities";
 import type { TowerKind } from "./balance/towers";
 import type { EnemyKind } from "./balance/enemies";
 export type GameStatus = "playing" | "won" | "lost";
+/** "campaign" is the twenty waves; "endless" keeps going with generated waves until lives run out. */
+export type GameMode = "campaign" | "endless";
 
 export interface Tower {
   id: number;
@@ -267,6 +269,7 @@ export interface GameState {
   mapId: MapId;
   tick: number;
   status: GameStatus;
+  mode: GameMode;
   /** Towers each deck must hold; 0 when the game plays without decks and everyone has every card. */
   deckTowers: number;
   /** False when the game started with dev overrides; such games never submit records. */

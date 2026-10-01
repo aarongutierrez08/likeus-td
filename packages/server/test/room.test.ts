@@ -5,12 +5,13 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { Client, type Room } from "@colyseus/sdk";
 import type { Server } from "@colyseus/core";
-import { DEFAULT_DECKS, hashState, startingGold, step, type Command, type Deck, type GameState } from "@td/sim";
+import { DEFAULT_DECKS, dailyStart, hashState, scoreOf, startingGold, step, type Command, type Deck, type GameState } from "@td/sim";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   MAX_COMMANDS_PER_TICK,
   ROOM_CODE_ALPHABET,
   ROOM_NAME,
+  type DailyBoard,
   type PlayerInfo,
   type RejectedMessage,
   type SnapshotMessage,
@@ -546,5 +547,49 @@ describe("game room", () => {
     const guest = await joinRoom(host.room.roomId, "guest");
     guest.room.send("chat", { text: "  hola  " });
     expect(await host.next("chat")).toEqual({ playerId: 1, name: "guest", text: "hola" });
+  });
+});
+
+describe("daily challenge", () => {
+  const today = new Date().toISOString().slice(0, 10);
+  const post = (body: unknown) =>
+    fetch(`http://127.0.0.1:${port}/daily`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  const board = async () => (await (await fetch(`http://127.0.0.1:${port}/daily`)).json()) as DailyBoard;
+  const deck = DEFAULT_DECKS.solo;
+
+  /** Plays the day's game locally with these builds at tick 0, as the client's runner would record them. */
+  const playLocally = (builds: Command[]) => {
+    let state = dailyStart(today, deck);
+    const history = builds.length > 0 ? [{ tick: 0, commands: builds }] : [];
+    while (state.status === "playing") state = step(state, state.tick === 0 ? builds : []);
+    return { state, history };
+  };
+  const archer = (x: number, playerId = 0): Command => ({ type: "build", tick: 0, playerId, tower: "archer", x, y: 3 });
+
+  it("replays the submitted commands to the same score the player saw, and ranks it", async () => {
+    const played = playLocally([archer(3), archer(4), archer(5)]);
+    expect((await post({ day: today, name: "Ana", deck, history: played.history })).status).toBe(200);
+    expect((await board()).entries).toContainEqual({ name: "Ana", score: scoreOf(played.state), ticks: played.state.tick });
+  });
+
+  it("ignores commands of any other player in a submission", async () => {
+    await new Promise((r) => setTimeout(r, 1100));
+    const own = playLocally([archer(3)]);
+    const foreign = { tick: 0, commands: [archer(3), archer(6, 1)] };
+    expect((await post({ day: today, name: "Beto", deck, history: [foreign] })).status).toBe(200);
+    expect((await board()).entries).toContainEqual({ name: "Beto", score: scoreOf(own.state), ticks: own.state.tick });
+  });
+
+  it("refuses another day, a bad deck and a second submission under the same name right away", async () => {
+    await new Promise((r) => setTimeout(r, 1100));
+    expect((await post({ day: "2000-01-01", name: "Caro", deck, history: [] })).status).toBe(400);
+    expect((await post({ day: today, name: "Caro", deck: { towers: ["archer"], abilities: [] }, history: [] })).status).toBe(400);
+    expect((await post({ day: today, name: "Caro", deck, history: [] })).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 1100));
+    expect((await post({ day: today, name: "Caro", deck, history: [] })).status).toBe(400);
   });
 });

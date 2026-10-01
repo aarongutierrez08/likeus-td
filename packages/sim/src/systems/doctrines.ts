@@ -73,9 +73,9 @@ export function doctrineOdds(state: GameState, playerId: number): Record<Doctrin
   return odds;
 }
 
-/** At the close of every DOCTRINE.everyWaves-th wave, each player gets a fresh offer and their reroll back. */
-export function offerDoctrines(state: GameState, closedWave: number, lastWave: number): void {
-  if (closedWave % DOCTRINE.everyWaves !== 0 || closedWave >= lastWave) return;
+/** At the close of every DOCTRINE.everyWaves-th wave with another one to come, each player gets a fresh offer and their reroll back. */
+export function offerDoctrines(state: GameState, closedWave: number, hasNext: boolean): void {
+  if (closedWave % DOCTRINE.everyWaves !== 0 || !hasNext) return;
   for (const player of state.players) {
     player.doctrineOffer = drawOffer(state, player);
     player.doctrineRerolled = false;

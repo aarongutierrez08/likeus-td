@@ -3,7 +3,8 @@ import { ENEMIES } from "../balance/enemies";
 import { ECONOMY, MARKET } from "../balance/economy";
 import { GAME } from "../balance/game";
 import { TOWER_KINDS, towerDef } from "../balance/towers";
-import { WAVES, type SpawnGroup, type WaveDef } from "../balance/waves";
+import type { SpawnGroup, WaveDef } from "../balance/waves";
+import { waveDef } from "../waveDefs";
 import { towerIncome } from "../commands";
 import { interestOn, scaledEnemyHp } from "../economy";
 import { rollInt, rollJitter } from "../rng";
@@ -30,8 +31,8 @@ function spawnOrder(state: GameState, wave: WaveDef): SpawnGroup[] {
 
 /** Starts the next wave when its tick arrives, queueing every spawn in mixed order with RNG jitter. */
 export function scheduleWave(state: GameState): void {
-  if (state.wave >= WAVES.length || state.nextWaveTick === null || state.tick < state.nextWaveTick) return;
-  const wave = WAVES[state.wave]!;
+  const wave = waveDef(state, state.wave + 1);
+  if (!wave || state.nextWaveTick === null || state.tick < state.nextWaveTick) return;
   state.wave++;
   expireOffers(state);
   let t = state.tick;
@@ -93,8 +94,8 @@ export function closeWaves(state: GameState): void {
     }
     for (const player of state.players) coolMarket(player);
     state.wavesClosed = wave;
-    offerDoctrines(state, wave, WAVES.length);
-    if (wave < WAVES.length) state.nextWaveTick = state.tick + 1 + GAME.waveGapTicks;
+    offerDoctrines(state, wave, waveDef(state, wave + 1) !== null);
+    if (waveDef(state, wave + 1)) state.nextWaveTick = state.tick + 1 + GAME.waveGapTicks;
   }
 }
 
@@ -112,7 +113,7 @@ export function checkEnd(state: GameState): void {
     state.status = "lost";
     return;
   }
-  if (state.wave >= WAVES.length && state.spawnQueue.length === 0 && state.enemies.length === 0) {
+  if (!waveDef(state, state.wave + 1) && state.spawnQueue.length === 0 && state.enemies.length === 0) {
     state.status = "won";
   }
 }

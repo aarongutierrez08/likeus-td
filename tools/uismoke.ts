@@ -59,6 +59,10 @@ try {
   await page.waitForSelector(".deck-screen");
   if (!(await card("Alcancía").evaluate((el) => el.classList.contains("in")))) throw new Error("el mazo elegido no se recordó");
   done("pantalla de mazo: incompleto no juega, la tienda muestra el mazo y se recuerda");
+  await page.getByRole("button", { name: "Infinito" }).click();
+  await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await page.getByText("· infinito").waitFor({ timeout: 2000 });
+  done("el modo infinito arranca desde la pantalla de mazo");
 
   const testDeck = "archer,mage,hammer,cannon,frost,radar,wall,aura";
   await page.goto(`${base}?seed=42&wave=4&gold=900&speed=1&bot=0&deck=${testDeck};bombard,frost`);

@@ -218,6 +218,15 @@ try {
   if ((await towers(a)) !== (await towers(b))) throw new Error("las torres difieren entre pestañas");
   await a.screenshot({ path: resolve(outDir, "coopsmoke.png") });
   done(`ambas pestañas en tick ~${ta}, captura en tools/out/coopsmoke.png`);
+
+  const solo = await newPage();
+  await solo.goto(`${base}?daily=1&name=Diaria`);
+  await solo.waitForSelector(".deck-screen");
+  await solo.getByRole("button", { name: "Desafío del día" }).click();
+  await solo.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await solo.locator("button", { hasText: "4×" }).first().click();
+  await solo.locator(".daily-board").filter({ hasText: "Diaria" }).waitFor({ timeout: 240000 });
+  done("desafío del día: la partida termina, el server la repite y entra al ranking");
 } catch (err) {
   failed = true;
   console.error(`FALLÓ tras ${steps.length} pasos: ${err instanceof Error ? err.message : String(err)}`);

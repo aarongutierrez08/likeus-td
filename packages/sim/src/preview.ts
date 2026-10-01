@@ -2,13 +2,18 @@ import { damageMultiplier } from "./balance/damage";
 import { hasAttack } from "./balance/define";
 import { ENEMIES } from "./balance/enemies";
 import { TOWER_KINDS, TOWERS } from "./balance/towers";
-import { WAVES, type WaveDef } from "./balance/waves";
+import type { WaveDef } from "./balance/waves";
+import { waveDef } from "./waveDefs";
 import type { GameState, TowerKind } from "./types";
 
 /** The next `count` waves still to come, in order. Empty once the last wave has started. */
 export function upcomingWaves(state: GameState, count: number): { number: number; def: WaveDef }[] {
   const out: { number: number; def: WaveDef }[] = [];
-  for (let i = state.wave; i < Math.min(WAVES.length, state.wave + count); i++) out.push({ number: i + 1, def: WAVES[i]! });
+  for (let n = state.wave + 1; n <= state.wave + count; n++) {
+    const def = waveDef(state, n);
+    if (!def) break;
+    out.push({ number: n, def });
+  }
   return out;
 }
 

@@ -62,6 +62,8 @@ export interface ScenarioOptions {
   /** Towers each deck holds; with it, every player needs an entry in `decks`. */
   deckTowers?: number;
   decks?: Record<number, Deck>;
+  /** "endless" keeps going past the campaign with generated waves. */
+  mode?: "campaign" | "endless";
   /** Player who starts as host; the lowest id when absent. */
   host?: number;
   /** Doctrines each player starts with, as if picked earlier. */
@@ -120,6 +122,7 @@ export class Scenario {
   private readonly decks: Record<number, Deck>;
   private readonly doctrines: Record<number, DoctrineKind[]>;
   private readonly host: number | undefined;
+  private readonly mode: "campaign" | "endless" | undefined;
 
   constructor(opts: ScenarioOptions) {
     this.current = createInitialState({ seed: opts.seed });
@@ -132,6 +135,7 @@ export class Scenario {
     this.decks = opts.decks ?? {};
     this.doctrines = opts.doctrines ?? {};
     this.host = opts.host;
+    this.mode = opts.mode;
     this.wavesOn = opts.waves ?? false;
     this.bot = opts.bot ? createBot(opts.bot === true ? "trivial" : opts.bot) : undefined;
   }
@@ -337,6 +341,7 @@ export class Scenario {
       ranked: this.rankedOption,
       deckTowers: this.deckTowers,
       host: this.host,
+      mode: this.mode,
     });
     if (!this.wavesOn) this.current = { ...this.current, nextWaveTick: WAVES_OFF };
     if (this.pendingTowers.length > 0) this.placeTowers();

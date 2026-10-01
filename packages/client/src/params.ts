@@ -3,6 +3,8 @@ import { parseDeckParam } from "./game/deck";
 
 export type GameMode = "solo" | "coop";
 
+export type SoloKind = "campaign" | "endless" | "daily";
+
 export interface UrlParams {
   mode: GameMode;
   /** Room code to join or reconnect to (coop). */
@@ -23,6 +25,8 @@ export interface UrlParams {
   deck: Deck | null;
   /** Doctrines the solo player starts with: "wideAuras,firstCheap". Unknown names are dropped. */
   doctrines: DoctrineKind[];
+  /** Solo game kind: the twenty-wave campaign, endless, or the daily challenge (endless on the day's seed). */
+  kind: SoloKind;
   /** True when any dev parameter was used: the game is not eligible for records. */
   usesDevParams: boolean;
 }
@@ -65,7 +69,7 @@ function nameParam(params: URLSearchParams): string | undefined {
 }
 
 /**
- * Public: ?mode=solo|coop&room=&name=&seed=&map=&speed=. Dev only, solo mode, non-production builds:
+ * Public: ?mode=solo|coop&room=&name=&seed=&map=&speed=&endless=1&daily=1. Dev only, solo mode, non-production builds:
  * &gold=&wave=&tick=&dump=1&bot=1&tower=archer|cannon|aura&deck=archer,mage,...;bombard,repair&doctrines=wideAuras,...
  */
 export function parseUrlParams(search: string, dev: boolean = import.meta.env.DEV): UrlParams {
@@ -88,6 +92,7 @@ export function parseUrlParams(search: string, dev: boolean = import.meta.env.DE
     tower: towerParam(devParams),
     deck: parseDeckParam(devParams.get("deck")),
     doctrines: DOCTRINE_KINDS.filter((kind) => (devParams.get("doctrines") ?? "").split(",").includes(kind)),
+    kind: params.get("daily") === "1" ? "daily" : params.get("endless") === "1" ? "endless" : "campaign",
     usesDevParams,
   };
 }

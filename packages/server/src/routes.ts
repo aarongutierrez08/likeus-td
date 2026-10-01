@@ -1,5 +1,6 @@
 import { createEndpoint, createRouter, matchMaker } from "@colyseus/core";
-import { ROOM_NAME, type RoomMetadata } from "./protocol";
+import { dailyBoard, submitDaily } from "./daily";
+import { ROOM_NAME, type DailySubmission, type RoomMetadata } from "./protocol";
 
 export interface RoomListing {
   rooms: RoomMetadata[];
@@ -13,6 +14,15 @@ const listRooms = createEndpoint("/rooms", { method: "GET" }, async () => {
   return Response.json(listing);
 });
 
+/** GET /daily: today's top of the daily challenge. */
+const getDaily = createEndpoint("/daily", { method: "GET" }, () => Promise.resolve(Response.json(dailyBoard())));
+
+/** POST /daily: a finished daily game; the server replays it and ranks the score it computes itself. */
+const postDaily = createEndpoint("/daily", { method: "POST" }, (ctx) => {
+  const result = submitDaily(ctx.body as DailySubmission);
+  return Promise.resolve(typeof result === "string" ? Response.json({ error: result }, { status: 400 }) : Response.json(result));
+});
+
 export function createGameRouter() {
-  return createRouter({ listRooms });
+  return createRouter({ listRooms, getDaily, postDaily });
 }

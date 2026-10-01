@@ -36,7 +36,7 @@ const MAX_RECONNECT_RETRIES = 10;
 
 const TOKEN_KEY_PREFIX = "td:reconnect:";
 
-function defaultEndpoint(): string {
+export function defaultEndpoint(): string {
   const configured =
     (import.meta.env["VITE_SERVER_URL"] as string | undefined) ?? (window as { __VITE_SERVER_URL?: string }).__VITE_SERVER_URL;
   if (configured) return configured;
@@ -44,7 +44,7 @@ function defaultEndpoint(): string {
   return `${protocol}://${location.hostname}:2567`;
 }
 
-function httpEndpoint(wsEndpoint: string): string {
+export function httpEndpoint(wsEndpoint: string): string {
   return wsEndpoint.replace(/^ws/, "http");
 }
 

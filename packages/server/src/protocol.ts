@@ -165,6 +165,29 @@ export type CommandRequest =
   | UseAbilityRequest
   | UpgradeAbilityRequest;
 
+/** A finished solo game of the day's challenge: the server replays it to compute the score, never trusts one. */
+export interface DailySubmission {
+  /** UTC day the game started, "2026-09-30"; today's or yesterday's is accepted. */
+  day: string;
+  name: string;
+  deck: Deck;
+  /** Every tick that had commands, in order, as the client's runner recorded them. */
+  history: HistoryEntry[];
+}
+
+export interface DailyEntry {
+  name: string;
+  /** Waves closed. */
+  score: number;
+  /** Ticks the game lasted; fewer breaks a tie. */
+  ticks: number;
+}
+
+export interface DailyBoard {
+  day: string;
+  entries: DailyEntry[];
+}
+
 export interface DesyncReport {
   tick: number;
   hash: string;

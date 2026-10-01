@@ -23,6 +23,8 @@ export class GameRunner {
   paused = false;
   readonly remote: boolean;
   private queue: Command[] = [];
+  /** The player's own commands by tick, bot excluded: what a daily game sends so the server can replay it. */
+  readonly history: { tick: number; commands: Command[] }[] = [];
   private accumulator = 0;
   private lastFrame = 0;
   private readonly bot: Bot | undefined;
@@ -60,6 +62,7 @@ export class GameRunner {
   }
 
   stepOnce(): void {
+    if (this.queue.length > 0) this.history.push({ tick: this.state.tick, commands: this.queue });
     const commands = this.bot ? this.queue.concat(this.bot.decide(this.state)) : this.queue;
     this.queue = [];
     this.state = step(this.state, commands);

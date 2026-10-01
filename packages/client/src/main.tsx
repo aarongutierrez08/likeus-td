@@ -8,7 +8,10 @@ import {
   attenuatedBounty,
   createBot,
   dumpState,
+  DEFAULT_MAP,
   createInitialState,
+  dailySeed,
+  dailyStart,
   deckProblem,
   findPlayer,
   hashState,
@@ -25,13 +28,13 @@ import {
   type UpgradeAbilityCommand,
   type UseAbilityCommand,
 } from "@td/sim";
-import type { CommandReject, CommandRequest, SnapshotMessage } from "@td/server/protocol";
+import type { CommandReject, CommandRequest, DailyBoard, SnapshotMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
 import { createGameStore, type GameStore } from "./game/store";
 import { Connection, type RoomHandlers } from "./net/connection";
 import { captureErrors, recentErrors } from "./net/errors";
 import { createNetStore, type NetStore } from "./net/store";
-import { parseUrlParams, type UrlParams } from "./params";
+import { parseUrlParams, type SoloKind, type UrlParams } from "./params";
 import { createRenderer, type Renderer } from "./render/app";
 import { playerCss, readPreferredColor, writePreferredColor } from "./ui/colors";
 import { Chat } from "./ui/Chat";
@@ -44,6 +47,7 @@ import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { DeckScreen } from "./ui/DeckScreen";
 import { DoctrinePanel, type DoctrineActions } from "./ui/DoctrinePanel";
 import { readDeck, writeDeck } from "./game/deck";
+import { submitDaily, todayUtc } from "./net/daily";
 import { AbilityBar, pickAbility, type AbilityActions, type AbilityRequest } from "./ui/AbilityBar";
 import { Shop } from "./ui/Shop";
 import { TowerPanel } from "./ui/TowerPanel";
@@ -292,6 +296,8 @@ function GameView(props: {
   onGiveUp?: () => void;
   end: EndActions;
   endWaitingFor?: () => string | undefined;
+  /** Daily challenge only: the board once the score was sent, or what happened to it. */
+  daily?: () => DailyBoard | string | null;
 }) {
   const actions = () => debugActions(props.game);
   return (
@@ -322,6 +328,7 @@ function GameView(props: {
           names={props.net ? new Map(props.net.roomInfo()?.players.map((p) => [p.playerId, p.name]) ?? []) : undefined}
           actions={props.end}
           waitingFor={props.endWaitingFor?.()}
+          daily={props.daily?.()}
         />
       </Show>
       <Show when={props.net?.dropped()}>
@@ -342,16 +349,16 @@ function GameView(props: {
 function bootSolo(params: UrlParams): void {
   const fromUrl = params.deck && deckProblem(params.deck, DECK.soloTowers) === null ? params.deck : null;
   if (fromUrl || params.usesDevParams) {
-    void startSolo(params, fromUrl ?? readDeck("solo"));
+    void startSolo(params, fromUrl ?? readDeck("solo"), params.kind);
     return;
   }
   const dispose = render(
     () => (
       <DeckScreen
-        onPlay={(deck) => {
+        onPlay={(deck, kind) => {
           writeDeck("solo", deck);
           dispose();
-          void startSolo(params, deck);
+          void startSolo(params, deck, kind);
         }}
       />
     ),
@@ -359,16 +366,21 @@ function bootSolo(params: UrlParams): void {
   );
 }
 
-async function startSolo(params: UrlParams, deck: Deck): Promise<void> {
-  const initial = createInitialState({
-    seed: params.seed,
-    mapId: params.map,
-    gold: params.gold,
-    startWave: params.wave,
-    ranked: !params.usesDevParams,
-    deckTowers: DECK.soloTowers,
-    players: [{ id: 0, deck, doctrines: params.doctrines }],
-  });
+async function startSolo(params: UrlParams, deck: Deck, kind: SoloKind): Promise<void> {
+  const day = todayUtc();
+  const initial =
+    kind === "daily" && !params.usesDevParams
+      ? dailyStart(day, deck)
+      : createInitialState({
+          seed: kind === "daily" ? dailySeed(day) : params.seed,
+          mapId: kind === "daily" ? DEFAULT_MAP : params.map,
+          mode: kind === "campaign" ? "campaign" : "endless",
+          gold: params.gold,
+          startWave: params.wave,
+          ranked: !params.usesDevParams,
+          deckTowers: DECK.soloTowers,
+          players: [{ id: 0, deck, doctrines: params.doctrines }],
+        });
   const preselected = params.tower && deck.towers.includes(params.tower) ? params.tower : null;
   const store = createGameStore(initial, preselected, 0);
   const runner = new GameRunner(initial, {
@@ -437,7 +449,18 @@ async function startSolo(params: UrlParams, deck: Deck): Promise<void> {
     again: () => location.assign(withSeed(null)),
     repeat: () => location.assign(withSeed(initial.seed)),
   };
-  render(() => <GameView game={game} dump={params.dump} economy={economy} end={end} />, hudEl);
+  /** A ranked daily game goes to the server once it ends; the server replays it and answers with today's board. */
+  const [daily, setDaily] = createSignal<DailyBoard | string | null>(null);
+  if (kind === "daily" && initial.ranked) {
+    createRoot(() =>
+      createEffect(() => {
+        if (store.state().status !== "lost" || daily() !== null) return;
+        setDaily("Enviando el puntaje…");
+        void submitDaily({ day, name: params.name ?? "Anónimo", deck, history: runner.history }).then(setDaily);
+      }),
+    );
+  }
+  render(() => <GameView game={game} dump={params.dump} economy={economy} end={end} daily={kind === "daily" ? daily : undefined} />, hudEl);
 
   if (params.tick > 0) runner.fastForward(params.tick);
   if (params.speed === 0) {

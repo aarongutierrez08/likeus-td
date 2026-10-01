@@ -7,6 +7,8 @@
   --gold: #f4c542;
   --lives: #ef6b6b;
   --accent: #5ab0ff;
+  /* The bar's own minimum; --topbar-h follows its real height (Hud measures it) for what sits below. */
+  --topbar-min: 34px;
   --topbar-h: 34px;
   --shop-h: 72px;
   color-scheme: dark;
@@ -64,7 +66,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  min-height: var(--topbar-h);
+  min-height: var(--topbar-min);
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
@@ -291,6 +293,7 @@ body {
 
 @media (max-width: 600px) {
   :root {
+    --topbar-min: 56px;
     --topbar-h: 56px;
   }
 
@@ -1046,4 +1049,10 @@ body {
     top: auto;
     bottom: calc(var(--shop-h) + 64px);
   }
+}
+
+.daily-board {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
 }

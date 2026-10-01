@@ -5,7 +5,7 @@ import { detourCells, isBuildable, isInside, isPathCell, routeOf } from "./grid"
 import { DETOUR, MAPS } from "./balance/maps";
 import { ECONOMY, MARKET } from "./balance/economy";
 import { TEAM_OWNER } from "./constants";
-import { WAVES } from "./balance/waves";
+import { waveDef } from "./waveDefs";
 import { isPlayerColor, pickColor } from "./colors";
 import { callWaveBonus, startingGold } from "./economy";
 import { deckProblem } from "./deck";
@@ -160,7 +160,7 @@ export function validateJoin(state: GameState, cmd: JoinCommand): RejectReason |
 
 export function validateCallWave(state: GameState, cmd: CallWaveCommand): RejectReason | null {
   if (!findPlayer(state, cmd.playerId)) return "no_player";
-  if (state.wave >= WAVES.length) return "wave_not_pending";
+  if (!waveDef(state, state.wave + 1)) return "wave_not_pending";
   if (state.wavesClosed < state.wave) return "wave_in_progress";
   if (state.nextWaveTick === null || state.nextWaveTick <= state.tick) return "wave_not_pending";
   return cmd.playerId === state.host ? null : "not_host";
