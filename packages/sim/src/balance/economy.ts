@@ -16,7 +16,7 @@ export const ECONOMY = {
   /** Team gold grows by this percent of a solo bounty per extra player: share = (1 + growth·(N−1)) / N. */
   teamGoldGrowthPct: 50,
   /** Extra enemy hp per extra player on top of the gold scaling, for tower synergy. */
-  synergyPerPlayerPct: 5,
+  synergyPerPlayerPct: 3,
   /** Starting gold of each player when the game has two or more players. */
   multiplayerStartGoldPct: 75,
   interestPct: 10,

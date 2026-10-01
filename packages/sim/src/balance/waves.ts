@@ -75,7 +75,8 @@ export const WAVES: readonly WaveDef[] = [
   {
     hpPct: 320,
     groups: [
-      { kind: "normal", count: 10, spacing: 12 },
+      { kind: "normal", count: 6, spacing: 12 },
+      { kind: "enchanted", count: 4, spacing: 12 },
       { kind: "healer", count: 3, spacing: 30 },
     ],
   },
@@ -86,7 +87,13 @@ export const WAVES: readonly WaveDef[] = [
       { kind: "fast", count: 8, spacing: 8 },
     ],
   },
-  { hpPct: 360, groups: [{ kind: "blob", count: 8, spacing: 25 }] },
+  {
+    hpPct: 360,
+    groups: [
+      { kind: "blob", count: 5, spacing: 25 },
+      { kind: "rider", count: 5, spacing: 18 },
+    ],
+  },
   {
     hpPct: 380,
     groups: [
@@ -130,7 +137,8 @@ export const WAVES: readonly WaveDef[] = [
     groups: [
       { kind: "fast", count: 24, spacing: 6 },
       { kind: "blob", count: 6, spacing: 20 },
-      { kind: "shade", count: 10, spacing: 10 },
+      { kind: "shade", count: 6, spacing: 10 },
+      { kind: "enchanted", count: 4, spacing: 10 },
       { kind: "shielded", count: 6, spacing: 15 },
       { kind: "healer", count: 3, spacing: 30 },
       { kind: "boss", count: 1, spacing: 60 },

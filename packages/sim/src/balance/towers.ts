@@ -25,7 +25,7 @@ export const TOWERS = defineTowers({
     },
   },
   hammer: {
-    cost: 90,
+    cost: 80,
     label: "Mazazo",
     line: "un golpe pesado cada tanto",
     color: 0xc9a27a,
@@ -40,7 +40,7 @@ export const TOWERS = defineTowers({
     label: "Reviente",
     line: "explota en área",
     color: 0xf0954a,
-    attack: { type: "explosive", damage: 40, range: 3000, cooldown: 30, splash: 700 },
+    attack: { type: "explosive", damage: 40, range: 3000, cooldown: 30, splash: 600 },
     branches: {
       a: { label: "Bombazo", line: "más daño, misma área", attack: { damage: 60 } },
       b: { label: "Cañita voladora", line: "vuela lejos, no tira a lo que tiene encima", attack: { range: 5000 }, minRange: 2000 },

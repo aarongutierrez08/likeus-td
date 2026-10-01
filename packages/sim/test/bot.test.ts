@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bestAttackTower,
   DAMAGE_TABLE,
   ENEMIES,
   FP,
@@ -20,13 +21,6 @@ import { scenario, type Scenario } from "./helpers/scenario";
 
 const cheapest = Math.min(...TOWER_KINDS.map((k) => TOWERS[k].cost));
 const richest = Math.max(...TOWER_KINDS.map((k) => TOWERS[k].cost));
-
-const heavyShare = (wave: (typeof WAVES)[number]): number => {
-  const hpOf = (g: (typeof wave.groups)[number]): number => ENEMIES[g.kind].hp * g.count;
-  const total = wave.groups.reduce((sum, g) => sum + hpOf(g), 0);
-  const heavy = wave.groups.filter((g) => ENEMIES[g.kind].armor === "heavy").reduce((sum, g) => sum + hpOf(g), 0);
-  return (100 * heavy) / total;
-};
 
 const builtKind = (commands: Command[]): TowerKind | null => {
   const first = commands[0];
@@ -301,12 +295,12 @@ describe("informed bot in a team", () => {
 });
 
 describe("informed bot choosing an attack", () => {
-  it("builds the tower that hits heavy armor hardest before a mostly heavy wave instead of upgrading a piercing one", () => {
-    const heavyWave = WAVES.findIndex((w) => heavyShare(w) > 70) + 1;
-    expect(heavyWave).toBeGreaterThan(0);
+  it("builds the tower that hits heavy armor hardest before mostly heavy waves instead of upgrading a piercing one", () => {
     const heavyAnswer = TOWER_KINDS.filter((k) => hasAttack(TOWERS[k])).reduce((best, k) =>
       DAMAGE_TABLE[TOWERS[k].attackType!].heavy > DAMAGE_TABLE[TOWERS[best].attackType!].heavy ? k : best,
     );
+    const heavyWave = WAVES.findIndex((_, i) => bestAttackTower(WAVES.slice(i, i + 3)) === heavyAnswer) + 1;
+    expect(heavyWave).toBeGreaterThan(0);
     const before = scenario({ seed: 1, waves: true, startWave: heavyWave, gold: richest })
       .tower("radar", { x: 1, y: 2 })
       .tower("archer", { x: 15, y: 3 })

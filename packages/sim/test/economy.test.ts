@@ -4,7 +4,8 @@ import { scenario, type Scenario } from "./helpers/scenario";
 
 const ids = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
 const attenuated = (bounty: number, players: number): number => Math.floor((bounty * (players + 1)) / (2 * players));
-const scaledHp = (hp: number, players: number): number => Math.floor((hp * (players + 1) * (players + 19)) / 40);
+const scaledHp = (hp: number, players: number): number =>
+  Math.floor((hp * (100 + ECONOMY.teamGoldGrowthPct * (players - 1)) * (100 + ECONOMY.synergyPerPlayerPct * (players - 1))) / 10000);
 
 function killOneFast(players: number): Scenario {
   return scenario({ seed: 1, players: ids(players), gold: 0 })
