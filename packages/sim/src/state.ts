@@ -79,9 +79,20 @@ export function createInitialState(opts: InitialStateOptions): GameState {
   };
 }
 
+/** A ranked solo game, built the same on the client that plays it and on the server that replays it. */
+export function soloStart(opts: { seed: number; mapId: string; mode: GameMode; deck: Deck }): GameState {
+  return createInitialState({
+    seed: opts.seed,
+    mapId: opts.mapId,
+    mode: opts.mode,
+    deckTowers: DECK.soloTowers,
+    players: [{ id: 0, deck: opts.deck }],
+  });
+}
+
 /** The daily challenge: a solo endless game on the day's seed and the default map. Client, server and tests build it here. */
 export function dailyStart(day: string, deck: Deck): GameState {
-  return createInitialState({ seed: dailySeed(day), mode: "endless", deckTowers: DECK.soloTowers, players: [{ id: 0, deck }] });
+  return soloStart({ seed: dailySeed(day), mapId: DEFAULT_MAP, mode: "endless", deck });
 }
 
 function perTower(): Record<TowerKind, number> {

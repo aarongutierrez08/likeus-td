@@ -4,3 +4,4 @@ tools/out/
 *.tsbuildinfo
 .vite/
 .claude/last-test-url
+data/

@@ -21,5 +21,6 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 015 | Mercado por jugador |
 | 016 | Desvíos acotados: el camino depende de la ruta |
 | 017 | Infinito, desafío del día y ranking validado por el server |
+| 018 | Cuentas en nuestro server: invitado, vincular con Discord o Google, y solo el server registra |
 
 Plantilla: `000-template.md`.

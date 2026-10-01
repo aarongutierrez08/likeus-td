@@ -8,6 +8,14 @@ primary_region = "gru"
 [env]
   PORT = "2567"
   GITHUB_REPO = "aarongutierrez08/likeus-td"
+  ACCOUNTS_DB = "/data/accounts.db"
+  PUBLIC_URL = "https://likeus-td.fly.dev"
+  CLIENT_ORIGINS = "https://likeus-td.pages.dev"
+
+# Accounts live in SQLite on this volume (ADR 018). Create it once: `fly volumes create accounts --region gru --size 1`.
+[mounts]
+  source = "accounts"
+  destination = "/data"
 
 [http_service]
   internal_port = 2567

@@ -40,10 +40,15 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, hasTouch: true });
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   page.on("console", (m) => {
-    if (m.type() === "error") errors.push(`console: ${m.text()}`);
+    // No accounts server runs here on purpose: its refused requests are the case under test, not a failure.
+    if (m.type() === "error" && !m.text().includes("ERR_CONNECTION_REFUSED")) errors.push(`console: ${m.text()}`);
   });
   await page.goto(`${base}?seed=42`);
   await page.waitForSelector(".deck-screen");
+  await page.locator(".profile-button").click();
+  await page.locator(".profile-panel").filter({ hasText: "no están disponibles" }).waitFor({ timeout: 10000 });
+  await page.getByRole("button", { name: "Cerrar", exact: true }).click();
+  done("sin servidor de cuentas el perfil avisa y se juega igual como invitado");
   const play = page.getByRole("button", { name: "Jugar", exact: true });
   const card = (name: string) => page.locator(".deck-card").filter({ hasText: name });
   await card("Pincha").click();

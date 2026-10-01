@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js";
 import { playerCss } from "./colors";
-import type { DailyBoard } from "@td/server/protocol";
+import type { SoloResultMessage } from "@td/server/protocol";
 import { DOCTRINES, TICKS_PER_SECOND, WAVES, scoreOf, type GameState } from "@td/sim";
 
 export interface EndActions {
@@ -26,8 +26,8 @@ export function EndScreen(props: {
   names?: Map<number, string>;
   actions: EndActions;
   waitingFor?: string;
-  /** Daily challenge: today's board, or a line about the score being sent or refused. */
-  daily?: DailyBoard | string | null;
+  /** Solo ranked games: what the server recorded (experience, and the board for a daily one), or a line about it. */
+  submitted?: SoloResultMessage | string | null;
 }) {
   const seconds = () => Math.round(props.state.tick / TICKS_PER_SECOND);
   const rows = () =>
@@ -80,9 +80,13 @@ export function EndScreen(props: {
             </For>
           </tbody>
         </table>
-        <Show when={props.daily}>
+        <Show when={typeof props.submitted === "string" ? props.submitted : null}>{(line) => <p class="muted">{line()}</p>}</Show>
+        <Show when={typeof props.submitted === "object" && props.submitted?.xp !== null ? props.submitted : null}>
+          {(result) => <p class="xp-gained">+{result().xp} de experiencia</p>}
+        </Show>
+        <Show when={typeof props.submitted === "object" ? props.submitted?.board : null}>
           {(daily) => (
-            <Show when={typeof daily() !== "string" ? (daily() as DailyBoard) : null} fallback={<p class="muted">{daily() as string}</p>}>
+            <Show when={daily()}>
               {(board) => (
                 <ol class="daily-board">
                   <For each={board().entries} fallback={<li class="muted">Todavía nadie jugó hoy</li>}>

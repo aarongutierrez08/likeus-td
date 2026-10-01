@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { mkdir, mkdtemp } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { chromium, type Page } from "playwright";
 import { createServer } from "vite";
 import { intArg, parseArgs } from "./args";
@@ -17,8 +18,17 @@ const outDir = resolve("tools/out");
 await mkdir(outDir, { recursive: true });
 
 const serverLog: string[] = [];
+const vitePort = port + 1;
+const accountsDb = join(await mkdtemp(join(tmpdir(), "td-coopsmoke-")), "accounts.db");
 const serverProc = spawn(resolve("node_modules/.bin/tsx"), ["packages/server/src/index.ts"], {
-  env: { ...process.env, PORT: String(port) },
+  env: {
+    ...process.env,
+    PORT: String(port),
+    AUTH_FAKE: "1",
+    ACCOUNTS_DB: accountsDb,
+    PUBLIC_URL: `http://127.0.0.1:${port}`,
+    CLIENT_ORIGINS: `http://127.0.0.1:${vitePort}`,
+  },
   stdio: ["ignore", "pipe", "pipe"],
 });
 serverProc.stdout.on("data", (d: Buffer) => serverLog.push(d.toString()));
@@ -37,7 +47,7 @@ const vite = await createServer({
   root,
   configFile: resolve(root, "vite.config.ts"),
   logLevel: "error",
-  server: { port: 0, host: "127.0.0.1" },
+  server: { port: vitePort, strictPort: true, host: "127.0.0.1" },
 });
 await vite.listen();
 const base = vite.resolvedUrls!.local[0]!;
@@ -222,11 +232,28 @@ try {
   const solo = await newPage();
   await solo.goto(`${base}?daily=1&name=Diaria`);
   await solo.waitForSelector(".deck-screen");
+  await solo.locator(".profile-button").filter({ hasText: "nivel 1" }).waitFor({ timeout: 20000 });
+  await solo.locator(".profile-button").click();
+  await solo.getByRole("button", { name: "Prueba (solo desarrollo)" }).click();
+  await solo.waitForSelector(".deck-screen");
+  await solo.locator(".profile-panel .notice").filter({ hasText: "Cuenta vinculada" }).waitFor({ timeout: 10000 });
+  await solo.locator(".profile-panel").filter({ hasText: "Cuenta vinculada con Prueba" }).waitFor();
+  await solo.getByRole("button", { name: "Cerrar", exact: true }).click();
+  done("un invitado vincula su cuenta y vuelve a la misma pantalla");
+
   await solo.getByRole("button", { name: "Desafío del día" }).click();
   await solo.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
   await solo.locator("button", { hasText: "4×" }).first().click();
   await solo.locator(".daily-board").filter({ hasText: "Diaria" }).waitFor({ timeout: 240000 });
-  done("desafío del día: la partida termina, el server la repite y entra al ranking");
+  await solo.locator(".xp-gained").waitFor();
+  done("desafío del día: la partida termina, el server la repite, entra al ranking y paga experiencia");
+
+  await solo.locator(".profile-button").click();
+  await solo.locator(".profile-panel .history li").filter({ hasText: "infinito" }).waitFor({ timeout: 10000 });
+  await solo.getByRole("link", { name: "Ver replay" }).first().click();
+  await solo.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await solo.waitForFunction(() => (window.__td?.state().tick ?? 0) > 20);
+  done("la partida queda en el historial y su replay se reproduce");
 } catch (err) {
   failed = true;
   console.error(`FALLÓ tras ${steps.length} pasos: ${err instanceof Error ? err.message : String(err)}`);

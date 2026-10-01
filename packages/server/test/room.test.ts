@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { Client, type Room } from "@colyseus/sdk";
 import type { Server } from "@colyseus/core";
+import { accountsConfigFromEnv } from "../src/server";
 import { DEFAULT_DECKS, dailyStart, hashState, scoreOf, startingGold, step, type Command, type Deck, type GameState } from "@td/sim";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -40,7 +41,7 @@ beforeAll(async () => {
   reportsDir = await mkdtemp(join(tmpdir(), "td-reports-"));
   process.env["REPORTS_DIR"] = reportsDir;
   const http = createServer();
-  gameServer = createGameServer(http);
+  gameServer = createGameServer(http, { ...accountsConfigFromEnv({}), dbPath: ":memory:" });
   await gameServer.listen(0);
   port = (http.address() as AddressInfo).port;
 });

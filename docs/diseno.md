@@ -160,7 +160,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 14. ✅ Casillas de desvío acotadas (ADR 016). Uno o dos rodeos por mapa; los abre el anfitrión entre oleadas, por oro, con sus celdas libres; son permanentes y el tramo que saltean deja de construirse.
 15. 🔧 Ronda de `/balance` completa + playtest con amigos. La ronda con bots está hecha (`docs/balance.md`); falta el playtest (`docs/playtest.md`). Queda abierto, como cambio de lógica y no de números: el área del Reviente se lleva la sinergia de la Heladera, y el bot informado gana el 100%.
 16. ✅ Infinito con puntaje y seed diaria con ranking (ADR 017). Desde la pantalla de mazo: Jugar, Infinito o Desafío del día. El server repite cada partida diaria para validar su puntaje; el ranking vive en memoria hasta el punto 17.
-17. ⬜ Cuentas: invitado + vincular, historial, XP. Pendiente de ADR: el servicio que junte autenticación (Discord + Google), base de datos y archivos, para no operar tres sistemas; el server verifica tokens y escribe, el cliente lee, la sim intacta.
+17. ✅ Cuentas: invitado + vincular con Discord o Google, historial con replays, experiencia con tope diario (ADR 018). Todo en nuestro server con SQLite; para producción faltan el volumen y las credenciales (`docs/cuentas.md`).
 18. ⬜ Temporadas.
 19. ⬜ Diseños propios. Pendiente de ADR: tamaño, cantidad de frames y peso máximo del sprite sheet (orden de 64 px, ≤12 frames, ≤200 KB).
 20. ⬜ Versus (mandar enemigos al rival), bots de relleno en públicas, Discord Activity.

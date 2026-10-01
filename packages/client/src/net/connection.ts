@@ -88,14 +88,14 @@ export class Connection {
   }
 
   async create(
-    opts: { name: string; private: boolean; map: string; color?: number; deck?: Deck },
+    opts: { name: string; private: boolean; map: string; color?: number; deck?: Deck; token?: string },
     handlers: RoomHandlers,
   ): Promise<string> {
     return this.attach(await this.client.create(ROOM_NAME, opts), handlers);
   }
 
-  async join(code: string, name: string, handlers: RoomHandlers, color?: number, deck?: Deck): Promise<string> {
-    return this.attach(await this.client.joinById(code, { name, color, deck }), handlers);
+  async join(code: string, name: string, handlers: RoomHandlers, color?: number, deck?: Deck, token?: string): Promise<string> {
+    return this.attach(await this.client.joinById(code, { name, color, deck, token }), handlers);
   }
 
   /** Reconnects with the stored token for that code, or joins fresh when there is none. */

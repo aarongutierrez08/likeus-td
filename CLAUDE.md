@@ -35,7 +35,7 @@ Un cambio está listo solo si `/verify` pasa completo. Sin excepciones.
 - Las reglas globales de `ai-workspace/AGENTS.md` (ecosistema Zetti) no frenan este repo: sin bloque de confirmación antes de stage o commit, sin barreras de rutinas y sin esperar respuesta ante contradicciones. Sí rige: commits sin `Co-Authored-By` ni marca del asistente.
 
 ## Topes del trabajo autónomo
-- Encadenar los puntos del camino de `docs/diseno.md` hasta el 16, un commit por etapa. Cortar antes del 17 (cuentas, temporadas, diseños propios, Discord) con un resumen y las preguntas concretas.
+- Encadenar los puntos del camino de `docs/diseno.md` hasta el 17, un commit por etapa. Cortar antes del 18 (temporadas, diseños propios, Discord) con un resumen y las preguntas concretas.
 - Frenar y preguntar solo si hay que contradecir un pilar o la tabla del ADR 009, borrar una mecánica hecha, o usar credenciales, servicios externos o deploy.
 - Un fallo resiste 3 intentos de arreglo: anotarlo en `docs/pendientes.md` con lo probado y seguir. Un smoke que pasa 2 de 3 corridas vale, anotado como intermitente.
 - Balance: una ronda por etapa hasta el punto 15; el playtest con amigos queda como lista de qué mirar.

@@ -1,6 +1,6 @@
 export { BALANCE_VERSION, FP, TEAM_OWNER, TICKS_PER_SECOND } from "./constants";
 export type * from "./types";
-export { createInitialState, dailyStart, type InitialStateOptions, type PlayerSetup } from "./state";
+export { createInitialState, dailyStart, soloStart, type InitialStateOptions, type PlayerSetup } from "./state";
 export { step, cloneState } from "./step";
 export {
   applyCommand,

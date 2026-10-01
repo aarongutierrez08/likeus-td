@@ -50,6 +50,7 @@ import {
   type TickMessage,
 } from "./protocol";
 import { createReportSink, globalReportAllowed, type ReportSink } from "./reports";
+import { getAccounts } from "./accounts/service";
 import { uniqueRoomCode } from "./roomCode";
 
 const TICK_MS = 1000 / TICKS_PER_SECOND;
@@ -66,6 +67,8 @@ const MAX_SEED = 2 ** 31;
 
 interface Player extends PlayerInfo {
   sessionId: string;
+  /** Accounts session the player joined with; server-side only, never in PlayerInfo. */
+  token: string | null;
 }
 
 /**
@@ -129,6 +132,7 @@ export class GameRoom extends Room {
       connected: true,
       ready: false,
       deck: validDeck(options?.deck) ?? DEFAULT_DECKS.coop,
+      token: typeof options?.token === "string" ? options.token : null,
       sessionId: client.sessionId,
     };
     this.players.set(client.sessionId, player);
@@ -238,6 +242,10 @@ export class GameRoom extends Room {
     void this.lock();
     this.endedTimer = this.clock.setTimeout(() => void this.disconnect(), ENDED_ROOM_TTL_MS);
     console.log(`room ${this.roomId} ${this.sim.status} at tick ${this.sim.tick}, record eligible: ${canSubmitRecord(this.sim)}`);
+    if (this.initialState) {
+      const players = [...this.players.values()].map((p) => ({ token: p.token, name: p.name, playerId: p.playerId }));
+      getAccounts()?.recordRoom(players, this.initialState, this.sim, this.history);
+    }
   }
 
   private handleCommand(client: Client, request: CommandRequest): void {

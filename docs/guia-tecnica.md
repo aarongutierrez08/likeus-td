@@ -54,6 +54,7 @@ Cada una tiene su ADR de una página en `docs/adr/`. Resumen en lenguaje llano:
 12. **Doctrinas como datos, ofrecidas por la sim** (ADR 013). Al cerrar las oleadas 5, 10 y 15 cada jugador elige 1 de 3 modificadores que tocan solo lo suyo. La oferta sale de la RNG de la sim, vence al empezar la oleada siguiente y se puede cambiar una vez pagando.
 13. **Desvíos acotados** (ADR 016). Cada mapa tiene uno o dos rodeos que el anfitrión puede abrir entre oleadas pagando oro. El camino deja de depender solo del mapa: depende de la ruta (el mapa más los desvíos abiertos).
 14. **Infinito y desafío del día** (ADR 017). Además de las 20 oleadas hay un modo infinito con oleadas generadas desde la seed, y un desafío diario con la seed del día. El server repite cada partida diaria para validar el puntaje antes de rankearla.
+15. **Cuentas en nuestro server** (ADR 018). Se juega como invitado al instante; vincular Discord o Google guarda el progreso. El server registra solo partidas que vio terminar (co-op) o que repitió él mismo (solo), y guarda todo en SQLite. Cómo activarlo en producción: `docs/cuentas.md`.
 
 ## Cómo se juega, en dos párrafos
 

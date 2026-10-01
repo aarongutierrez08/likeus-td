@@ -1056,3 +1056,102 @@ body {
   padding-left: 20px;
   font-size: 14px;
 }
+
+.profile-button {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.profile-panel {
+  position: fixed;
+  top: 52px;
+  right: 8px;
+  z-index: 20;
+  width: min(460px, calc(100vw - 16px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.profile-panel .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.profile-panel input,
+.profile-panel button {
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #1f232d;
+  color: var(--text);
+  font: inherit;
+}
+
+.profile-panel button.danger {
+  border-color: var(--lives);
+  color: var(--lives);
+}
+
+.profile-panel .muted {
+  color: var(--muted);
+}
+
+.profile-panel .notice {
+  margin: 0;
+  color: var(--accent);
+}
+
+.profile-panel progress {
+  width: 100%;
+}
+
+.profile-panel h4 {
+  margin: 4px 0 0;
+}
+
+.profile-panel .history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-panel .history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.profile-panel a {
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.xp-gained {
+  margin: 0;
+  color: var(--gold);
+  font-weight: 600;
+}

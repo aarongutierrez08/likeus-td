@@ -38,6 +38,8 @@ export interface CreateRoomOptions {
   color?: number;
   /** The default co-op deck when absent or invalid. */
   deck?: Deck;
+  /** Accounts session of this browser, so the game lands in the player's history; never sent to anyone else. */
+  token?: string;
 }
 
 export const SPEEDS = [1, 2, 4] as const;
@@ -48,6 +50,8 @@ export interface JoinRoomOptions {
   color?: number;
   /** The default co-op deck when absent or invalid. */
   deck?: Deck;
+  /** Accounts session of this browser, so the game lands in the player's history; never sent to anyone else. */
+  token?: string;
 }
 
 export interface RoomMetadata {
@@ -165,14 +169,55 @@ export type CommandRequest =
   | UseAbilityRequest
   | UpgradeAbilityRequest;
 
-/** A finished solo game of the day's challenge: the server replays it to compute the score, never trusts one. */
-export interface DailySubmission {
-  /** UTC day the game started, "2026-09-30"; today's or yesterday's is accepted. */
-  day: string;
+/** A finished solo game: the server rebuilds its start, replays it and records what it computed, never what was claimed. */
+export interface SoloSubmission {
+  kind: "campaign" | "endless" | "daily";
+  /** Daily only: UTC day the game started, "2026-09-30"; today's or yesterday's is accepted. */
+  day?: string;
+  /** Campaign and endless: the seed and map played. The daily challenge fixes both. */
+  seed: number;
+  map: string;
   name: string;
   deck: Deck;
   /** Every tick that had commands, in order, as the client's runner recorded them. */
   history: HistoryEntry[];
+}
+
+/** What the server answers to a solo game: the experience it paid, and today's board for a daily one. */
+export interface SoloResultMessage {
+  xp: number | null;
+  board: DailyBoard | null;
+}
+
+/** Who is playing in this browser, as the server knows it. */
+export interface Profile {
+  kind: "guest" | "account";
+  /** Provider linked, for accounts. */
+  provider: string | null;
+  name: string;
+  color: number | null;
+  xp: number;
+  level: number;
+  /** Experience where this level starts and where the next one does. */
+  levelXp: number;
+  nextLevelXp: number;
+  /** Providers this server can log in with. */
+  providers: string[];
+}
+
+export interface HistoryItem {
+  playedAt: number;
+  mode: string;
+  map: string;
+  seed: number;
+  players: string[];
+  /** This player's deck and the doctrines they picked, in order. */
+  deck: Deck | null;
+  doctrines: DoctrineKind[];
+  result: "won" | "lost";
+  wave: number;
+  xp: number;
+  replayId: number;
 }
 
 export interface DailyEntry {

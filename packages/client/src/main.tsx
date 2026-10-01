@@ -12,6 +12,7 @@ import {
   createInitialState,
   dailySeed,
   dailyStart,
+  soloStart,
   deckProblem,
   findPlayer,
   hashState,
@@ -28,7 +29,7 @@ import {
   type UpgradeAbilityCommand,
   type UseAbilityCommand,
 } from "@td/sim";
-import type { CommandReject, CommandRequest, DailyBoard, SnapshotMessage } from "@td/server/protocol";
+import type { CommandReject, CommandRequest, SnapshotMessage, SoloResultMessage } from "@td/server/protocol";
 import { GameRunner } from "./game/runner";
 import { createGameStore, type GameStore } from "./game/store";
 import { Connection, type RoomHandlers } from "./net/connection";
@@ -47,7 +48,8 @@ import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { DeckScreen } from "./ui/DeckScreen";
 import { DoctrinePanel, type DoctrineActions } from "./ui/DoctrinePanel";
 import { readDeck, writeDeck } from "./game/deck";
-import { submitDaily, todayUtc } from "./net/daily";
+import { loadProfile, loadReplay, readSession, submitSolo, todayUtc, type Profile } from "./net/account";
+import { ProfileButton } from "./ui/ProfilePanel";
 import { AbilityBar, pickAbility, type AbilityActions, type AbilityRequest } from "./ui/AbilityBar";
 import { Shop } from "./ui/Shop";
 import { TowerPanel } from "./ui/TowerPanel";
@@ -176,6 +178,36 @@ function tapAim(game: Game, cell: Point, notify: (msg: string) => void): boolean
 const mapEl = document.getElementById("map")!;
 const hudEl = document.getElementById("hud")!;
 
+/** This browser's profile, loaded in the background: null while loading or when accounts are down, and the game never waits for it. */
+const [profile, setProfile] = createSignal<Profile | null>(null);
+/** What the provider said when the browser came back from logging in, shown once in the profile panel. */
+const [loginNotice, setLoginNotice] = createSignal<string | null>(null);
+
+/** The profile button shows outside of play (deck screen, lobby, end screen); during a game it would cover the top bar. */
+const [profileShown, setProfileShown] = createSignal(true);
+
+function startAccounts(name: string): void {
+  const back = /login=(ok|error)/.exec(location.hash)?.[1];
+  if (back) {
+    setLoginNotice(back === "ok" ? "Cuenta vinculada" : "No se pudo vincular la cuenta");
+    history.replaceState(null, "", `${location.pathname}${location.search}`);
+  }
+  const root = document.createElement("div");
+  document.body.appendChild(root);
+  render(
+    () => (
+      <Show when={profileShown()}>
+        <ProfileButton profile={profile} setProfile={setProfile} notice={loginNotice} clearNotice={() => setLoginNotice(null)} />
+      </Show>
+    ),
+    root,
+  );
+  void loadProfile(name).then((loaded) => {
+    setProfile(loaded);
+    if (loaded?.color !== null && loaded?.color !== undefined) writePreferredColor(loaded.color);
+  });
+}
+
 function markReady(): void {
   requestAnimationFrame(() => {
     if (window.__td) window.__td.ready = true;
@@ -296,8 +328,8 @@ function GameView(props: {
   onGiveUp?: () => void;
   end: EndActions;
   endWaitingFor?: () => string | undefined;
-  /** Daily challenge only: the board once the score was sent, or what happened to it. */
-  daily?: () => DailyBoard | string | null;
+  /** Solo ranked games: what the server answered once the game was sent, or what happened to it. */
+  submitted?: () => SoloResultMessage | string | null;
 }) {
   const actions = () => debugActions(props.game);
   return (
@@ -328,7 +360,7 @@ function GameView(props: {
           names={props.net ? new Map(props.net.roomInfo()?.players.map((p) => [p.playerId, p.name]) ?? []) : undefined}
           actions={props.end}
           waitingFor={props.endWaitingFor?.()}
-          daily={props.daily?.()}
+          submitted={props.submitted?.()}
         />
       </Show>
       <Show when={props.net?.dropped()}>
@@ -366,21 +398,62 @@ function bootSolo(params: UrlParams): void {
   );
 }
 
+/** Watches a recorded game: the same start and the same commands, tick by tick, with nobody able to act. */
+async function bootReplay(id: number): Promise<void> {
+  const data = await loadReplay(id);
+  if (!data) {
+    hudEl.textContent = "Ese replay no existe o las cuentas no están disponibles.";
+    return;
+  }
+  const initial = data.initialState as GameState;
+  const byTick = new Map(data.history.map((h) => [h.tick, h.commands as Command[]]));
+  const replayer = { decide: (state: GameState): Command[] => byTick.get(state.tick) ?? [] };
+  setProfileShown(false);
+  const spectator = -1;
+  const store = createGameStore(initial, null, spectator);
+  const runner = new GameRunner(initial, { speed: 1, bot: replayer, onState: store.setState });
+  const notify = makeNotifier({ store });
+  const game: Game = { store, runner, labels: createFloatingLabels(), ...cardActions(store, runner, notify, () => undefined) };
+  exposeForTools(game);
+  const renderer = await createRenderer(mapEl, { mapId: initial.mapId, onKills: killLabel(game), onCellTap: () => false });
+  bindRenderer(renderer, game);
+  const [speed, setSpeedSignal] = createSignal(1);
+  const economy: EconomyActions = {
+    speed,
+    setSpeed: (s) => {
+      runner.speed = s;
+      setSpeedSignal(s);
+    },
+    callWave: () => undefined,
+    gift: () => undefined,
+    sell: () => undefined,
+    upgrade: () => undefined,
+  };
+  render(() => <GameView game={game} dump={false} economy={economy} end={{ again: () => location.assign("?") }} />, hudEl);
+  notify("Replay: mirá la partida, nadie puede jugar");
+  runner.start();
+  markReady();
+}
+
 async function startSolo(params: UrlParams, deck: Deck, kind: SoloKind): Promise<void> {
+  setProfileShown(false);
   const day = todayUtc();
-  const initial =
-    kind === "daily" && !params.usesDevParams
+  const mode = kind === "campaign" ? "campaign" : "endless";
+  /** A ranked game is built exactly as the server rebuilds it to replay; a dev one, with its overrides and no record. */
+  const initial = !params.usesDevParams
+    ? kind === "daily"
       ? dailyStart(day, deck)
-      : createInitialState({
-          seed: kind === "daily" ? dailySeed(day) : params.seed,
-          mapId: kind === "daily" ? DEFAULT_MAP : params.map,
-          mode: kind === "campaign" ? "campaign" : "endless",
-          gold: params.gold,
-          startWave: params.wave,
-          ranked: !params.usesDevParams,
-          deckTowers: DECK.soloTowers,
-          players: [{ id: 0, deck, doctrines: params.doctrines }],
-        });
+      : soloStart({ seed: params.seed, mapId: params.map, mode, deck })
+    : createInitialState({
+        seed: kind === "daily" ? dailySeed(day) : params.seed,
+        mapId: kind === "daily" ? DEFAULT_MAP : params.map,
+        mode,
+        gold: params.gold,
+        startWave: params.wave,
+        ranked: !params.usesDevParams,
+        deckTowers: DECK.soloTowers,
+        players: [{ id: 0, deck, doctrines: params.doctrines }],
+      });
   const preselected = params.tower && deck.towers.includes(params.tower) ? params.tower : null;
   const store = createGameStore(initial, preselected, 0);
   const runner = new GameRunner(initial, {
@@ -449,18 +522,20 @@ async function startSolo(params: UrlParams, deck: Deck, kind: SoloKind): Promise
     again: () => location.assign(withSeed(null)),
     repeat: () => location.assign(withSeed(initial.seed)),
   };
-  /** A ranked daily game goes to the server once it ends; the server replays it and answers with today's board. */
-  const [daily, setDaily] = createSignal<DailyBoard | string | null>(null);
-  if (kind === "daily" && initial.ranked) {
+  /** A ranked game goes to the server once it ends: the server replays it, records it for this browser and pays experience. */
+  const [submitted, setSubmitted] = createSignal<SoloResultMessage | string | null>(null);
+  if (initial.ranked) {
     createRoot(() =>
       createEffect(() => {
-        if (store.state().status !== "lost" || daily() !== null) return;
-        setDaily("Enviando el puntaje…");
-        void submitDaily({ day, name: params.name ?? "Anónimo", deck, history: runner.history }).then(setDaily);
+        if (store.state().status === "playing" || submitted() !== null) return;
+        setProfileShown(true);
+        setSubmitted("Registrando la partida…");
+        const name = profile()?.name ?? params.name ?? "Anónimo";
+        void submitSolo({ kind, day, seed: initial.seed, map: initial.mapId, name, deck, history: runner.history }).then(setSubmitted);
       }),
     );
   }
-  render(() => <GameView game={game} dump={params.dump} economy={economy} end={end} daily={kind === "daily" ? daily : undefined} />, hudEl);
+  render(() => <GameView game={game} dump={params.dump} economy={economy} end={end} submitted={submitted} />, hudEl);
 
   if (params.tick > 0) runner.fastForward(params.tick);
   if (params.speed === 0) {
@@ -554,7 +629,10 @@ function bootCoop(params: UrlParams): void {
     },
     tick: (msg) => game()?.runner.applyTick(msg.tick, msg.commands, msg.hash),
     players: (list) => net.setRoomInfo((info) => (info ? { ...info, players: list } : info)),
-    phase: (phase) => net.setRoomInfo((info) => (info ? { ...info, phase } : info)),
+    phase: (phase) => {
+      setProfileShown(phase !== "playing");
+      net.setRoomInfo((info) => (info ? { ...info, phase } : info));
+    },
     chat: (msg) => net.pushChat(msg),
     rejected: (msg) => {
       const current = game();
@@ -606,8 +684,14 @@ function bootCoop(params: UrlParams): void {
 
   const actions: LobbyActions = {
     create: (name, isPrivate, map) =>
-      guarded(() => connection.create({ name, private: isPrivate, map, color: readPreferredColor(), deck: readDeck("coop") }, handlers)),
-    join: (code, name) => guarded(() => connection.join(code, name, handlers, readPreferredColor(), readDeck("coop"))),
+      guarded(() =>
+        connection.create(
+          { name, private: isPrivate, map, color: readPreferredColor(), deck: readDeck("coop"), token: readSession() ?? undefined },
+          handlers,
+        ),
+      ),
+    join: (code, name) =>
+      guarded(() => connection.join(code, name, handlers, readPreferredColor(), readDeck("coop"), readSession() ?? undefined)),
     listRooms: () => connection.listRooms(),
     start: () => connection.send("start", {}),
     kick: (playerId) => connection.send("kick", { playerId }),
@@ -690,5 +774,7 @@ function bootCoop(params: UrlParams): void {
 }
 
 const params = parseUrlParams(location.search);
-if (params.mode === "coop") bootCoop(params);
+startAccounts(params.name ?? "Jugador");
+if (params.replay !== null) void bootReplay(params.replay);
+else if (params.mode === "coop") bootCoop(params);
 else bootSolo(params);

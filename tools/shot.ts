@@ -39,7 +39,8 @@ try {
   const errors: string[] = [];
   page.on("pageerror", (err) => errors.push(err.message));
   page.on("console", (msg) => {
-    if (msg.type() === "error") errors.push(msg.text());
+    // The shot runs without the accounts server: the client then plays as before, so its refused requests are expected.
+    if (msg.type() === "error" && !msg.text().includes("ERR_CONNECTION_REFUSED")) errors.push(msg.text());
   });
   await page.goto(url);
   await page.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
