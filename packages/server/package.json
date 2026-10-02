@@ -7,7 +7,7 @@
     "./protocol": "./src/protocol.ts"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "AUTH_FAKE=1 tsx watch src/index.ts",
     "check": "tsc --noEmit",
     "start": "tsx src/index.ts"
   },
