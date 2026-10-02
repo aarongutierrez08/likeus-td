@@ -7,3 +7,5 @@ Las cuentas (ADR 018) funcionan sin estos pasos, pero sin volumen la base se pie
 3. **Google**: en Google Cloud Console crear un cliente OAuth "Aplicación web" con el redirect `https://likeus-td.fly.dev/auth/google/callback`, y cargar `fly secrets set GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...`.
 
 Nunca poner `AUTH_FAKE=1` en producción: cualquiera entraría como cualquiera. En desarrollo, `pnpm dev` ya lo prende y muestra el botón "Prueba"; la imagen de producción lo bloquea igual (`NODE_ENV=production`).
+
+**Probar el login real en desarrollo**: poner las claves en `.env.local` en la raíz (`DISCORD_CLIENT_ID=...`, una por línea; git lo ignora) y registrar en cada app el redirect `http://localhost:2567/auth/<discord|google>/callback`. `pnpm dev` lo carga solo.
