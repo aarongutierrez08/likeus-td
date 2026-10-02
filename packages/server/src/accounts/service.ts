@@ -17,6 +17,20 @@ interface PendingLogin {
   expires: number;
 }
 
+/**
+ * An identity the provider vouched for, waiting for the browser to claim it with its own session. Linking only on that
+ * claim means a login link started with someone else's session can never move this browser's account into theirs.
+ */
+interface PendingClaim {
+  token: string;
+  provider: string;
+  id: string;
+  name: string;
+  expires: number;
+}
+
+const CLAIM_TTL_MS = 60_000;
+
 export const LOGIN_COOKIE = "td_login";
 
 const LOGIN_TTL_MS = 10 * 60_000;
@@ -59,6 +73,7 @@ export class Accounts {
   private readonly store: AccountStore | null;
   private readonly providers: Map<string, Provider>;
   private readonly pending = new Map<string, PendingLogin>();
+  private readonly claims = new Map<string, PendingClaim>();
 
   constructor(private readonly config: AccountsConfig) {
     this.providers = providersFromEnv(config.env);
@@ -125,7 +140,7 @@ export class Accounts {
     const level = levelOf(subject.xp);
     return {
       kind: subject.kind,
-      provider: subject.provider,
+      linked: subject.linked,
       name: subject.name,
       color: subject.color,
       xp: subject.xp,
@@ -228,7 +243,7 @@ export class Accounts {
     return `${LOGIN_COOKIE}=${nonce}; Path=/auth; Max-Age=${maxAge}; HttpOnly; SameSite=Lax${secure}`;
   }
 
-  /** The provider sends the browser back: link the identity to the session that started the login, then go home. */
+  /** The provider sends the browser back: keep the identity it vouched for and send the browser home to claim it. */
   async finishLogin(
     provider: string,
     code: string | null,
@@ -249,11 +264,21 @@ export class Accounts {
       console.error(`login with ${provider} failed: ${String(err)}`);
       return { status: 302, redirect: `${login.returnTo}#login=error`, cookie: this.loginCookie("", 0) };
     }
-    const linked = this.guard((store) =>
-      store.link(login.token, provider, identity.id, cleanName(identity.name)) ? ok({}) : fail(401, "sesión inválida"),
-    );
-    if (linked.status !== 200) return { status: 302, redirect: `${login.returnTo}#login=error`, cookie: this.loginCookie("", 0) };
-    return { status: 302, redirect: `${login.returnTo}#login=ok`, cookie: this.loginCookie("", 0) };
+    for (const [key, claim] of this.claims) if (claim.expires < now) this.claims.delete(key);
+    const claim = newState();
+    this.claims.set(claim, { token: login.token, provider, id: identity.id, name: cleanName(identity.name), expires: now + CLAIM_TTL_MS });
+    return { status: 302, redirect: `${login.returnTo}#claim=${claim}`, cookie: this.loginCookie("", 0) };
+  }
+
+  /** The browser back from the provider claims the identity, with its own session: only the session that started it may. */
+  claimLogin(token: string | null, claimId: unknown, now = Date.now()): HttpResult {
+    const claim = typeof claimId === "string" ? this.claims.get(claimId) : undefined;
+    if (claim) this.claims.delete(claimId as string);
+    if (!claim || claim.expires < now || claim.token !== token) return fail(400, "vinculación inválida o vencida");
+    return this.withSubject(token, (store) => {
+      const linked = store.link(claim.token, claim.provider, claim.id, claim.name, now);
+      return linked ? ok(this.profileOf(linked)) : fail(409, "esa cuenta ya tiene ese proveedor vinculado");
+    });
   }
 
   private callbackUrl(provider: string): string {

@@ -73,7 +73,10 @@ export async function deleteAccount(): Promise<boolean> {
   return done !== null;
 }
 
-/** Sends the browser to the provider; it comes back to this same page with #login=ok or #login=error. */
+/** Links the identity the provider vouched for to this browser's own session; null when it was not this browser's login. */
+export const claimLogin = (claim: string) => call<Profile>("/auth/claim", { body: { claim } });
+
+/** Sends the browser to the provider; it comes back to this same page with #claim=<id> to claim, or #login=error. */
 export function loginUrl(provider: string): string {
   const returnTo = `${location.origin}${location.pathname}${location.search}`;
   return `${base()}/auth/${provider}/start?${new URLSearchParams({ token: readSession() ?? "", returnTo }).toString()}`;

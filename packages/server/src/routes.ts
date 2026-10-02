@@ -75,6 +75,7 @@ export function createGameRouter(accounts: Accounts) {
     logout: at("/me/logout", "POST", (ctx) => accounts.logout(tokenOf(ctx.headers))),
     deleteMe: at("/me/delete", "POST", (ctx) => accounts.deleteAccount(tokenOf(ctx.headers))),
     replay: at("/replays/:id", "GET", (ctx) => accounts.replay(Number(param(ctx, "id")))),
+    loginClaim: at("/auth/claim", "POST", (ctx) => accounts.claimLogin(tokenOf(ctx.headers), body(ctx)["claim"])),
     loginStart: at("/auth/:provider/start", "GET", (ctx) =>
       accounts.startLogin(param(ctx, "provider"), tokenOf(undefined, query(ctx)), textParam(ctx, "returnTo")),
     ),

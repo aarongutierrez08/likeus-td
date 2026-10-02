@@ -117,7 +117,7 @@ Se mantiene lo que hay, con un cambio de quién llama:
 ## Cuentas y progreso
 ### Identidad
 - **Invitado por defecto**: al entrar se genera una identidad local (id + nombre editable) guardada en el navegador. Se juega al instante.
-- **Vincular cuenta**: con Discord o Google. Al vincular, el historial del invitado de ese navegador se adopta. Sin contraseñas propias, nunca.
+- **Vincular cuenta**: con Discord o Google. Al vincular, el historial del invitado de ese navegador se adopta. Una cuenta puede tener Discord y Google a la vez: se agrega el segundo desde la sesión abierta, y si tenía progreso propio, se unen (ADR 019). Nunca se unen por mail. Sin contraseñas propias, nunca.
 - El server valida el token del proveedor y es la única autoridad sobre XP, nivel, historial y desbloqueos. El cliente nunca escribe nada de eso.
 
 ### Historial

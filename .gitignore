@@ -5,3 +5,6 @@ tools/out/
 .vite/
 .claude/last-test-url
 data/
+auth.txt
+.env.local
+*.kate-swp

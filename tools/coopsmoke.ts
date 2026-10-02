@@ -241,6 +241,16 @@ try {
   await solo.getByRole("button", { name: "Cerrar", exact: true }).click();
   done("un invitado vincula su cuenta y vuelve a la misma pantalla");
 
+  await solo.locator(".profile-button").click();
+  await solo.getByRole("button", { name: "Agregar Prueba 2 (solo desarrollo)" }).click();
+  await solo.waitForSelector(".deck-screen");
+  await solo
+    .locator(".profile-panel")
+    .filter({ hasText: "Cuenta vinculada con Prueba (solo desarrollo) y Prueba 2" })
+    .waitFor({ timeout: 10000 });
+  await solo.getByRole("button", { name: "Cerrar", exact: true }).click();
+  done("la cuenta suma una segunda forma de entrar");
+
   await solo.getByRole("button", { name: "Desafío del día" }).click();
   await solo.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
   await solo.locator("button", { hasText: "4×" }).first().click();

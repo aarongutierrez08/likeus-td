@@ -6,11 +6,15 @@ import type { Deck, DoctrineKind } from "@td/sim";
 import type { DailyEntry } from "../protocol";
 import { cappedXp } from "./xp";
 
-/** A guest (one per browser) or an account linked to Discord or Google. Guests turn into accounts when they link. */
+/**
+ * A guest (one per browser) or an account. Guests turn into accounts when they link a provider; an account may hold
+ * several ways in (Discord and Google), and logging in with any of them opens it.
+ */
 export interface Subject {
   id: number;
   kind: "guest" | "account";
-  provider: string | null;
+  /** Providers this account can log in with, in the order they were linked. */
+  linked: string[];
   name: string;
   /** Preferred player color index, or null for "first free". */
   color: number | null;
@@ -51,13 +55,17 @@ const SCHEMA = `
 create table if not exists subjects (
   id integer primary key autoincrement,
   kind text not null,
-  provider text,
-  provider_id text,
   name text not null,
   color integer,
   xp integer not null default 0,
-  created integer not null,
-  unique (provider, provider_id)
+  created integer not null
+);
+create table if not exists identities (
+  provider text not null,
+  provider_id text not null,
+  subject_id integer not null,
+  linked integer not null,
+  primary key (provider, provider_id)
 );
 create table if not exists sessions (token text primary key, subject_id integer not null);
 create table if not exists replays (id integer primary key autoincrement, data text not null);
@@ -83,7 +91,6 @@ create table if not exists daily (day text not null, name text not null, score i
 interface SubjectRow {
   id: number;
   kind: "guest" | "account";
-  provider: string | null;
   name: string;
   color: number | null;
   xp: number;
@@ -101,6 +108,17 @@ export class AccountStore {
     this.db = new DatabaseSync(path);
     this.db.exec(SCHEMA);
     this.addMissingColumns();
+    this.moveIdentities();
+  }
+
+  /** Databases from when an account had a single provider kept it on the subject: move it to identities, once. */
+  private moveIdentities(): void {
+    const columns = (this.db.prepare("pragma table_info(subjects)").all() as { name: string }[]).map((c) => c.name);
+    if (!columns.includes("provider")) return;
+    this.db.exec(
+      "insert or ignore into identities (provider, provider_id, subject_id, linked) select provider, provider_id, id, created from subjects where provider is not null",
+    );
+    this.db.exec("update subjects set provider = null, provider_id = null where provider is not null");
   }
 
   /** Databases created before the history kept decks and doctrines get those columns, empty for the old games. */
@@ -121,8 +139,12 @@ export class AccountStore {
   }
 
   subject(id: number): Subject | null {
-    const row = this.db.prepare("select id, kind, provider, name, color, xp from subjects where id = ?").get(id) as SubjectRow | undefined;
-    return row ?? null;
+    const row = this.db.prepare("select id, kind, name, color, xp from subjects where id = ?").get(id) as SubjectRow | undefined;
+    if (!row) return null;
+    const linked = this.db.prepare("select provider from identities where subject_id = ? order by linked, rowid").all(id) as {
+      provider: string;
+    }[];
+    return { ...row, linked: [...new Set(linked.map((l) => l.provider))] };
   }
 
   rename(id: number, name: string): void {
@@ -134,35 +156,49 @@ export class AccountStore {
   }
 
   /**
-   * The browser's guest links a provider identity. A first link turns the guest into the account; a link to an account
-   * that already exists moves the guest's history and experience into it. Either way the session now speaks for the account.
+   * The browser's session links a provider identity it just proved it owns.
+   * - A new identity joins the session's subject: a guest becomes an account, an account gains another way in.
+   * - An identity of another account: the two become one. A guest moves into that account; an account the browser was
+   *   already using keeps going and takes the other in. Either way the session now speaks for the result.
    */
-  link(token: string, provider: string, providerId: string, providerName: string): Subject | null {
+  link(token: string, provider: string, providerId: string, providerName: string, now = Date.now()): Subject | null {
     return this.inTransaction(() => {
-      const guest = this.subjectByToken(token);
-      if (!guest) return null;
-      const existing = this.db.prepare("select id from subjects where provider = ? and provider_id = ?").get(provider, providerId) as
-        { id: number } | undefined;
-      if (!existing) {
-        if (guest.kind === "account") return null;
+      const current = this.subjectByToken(token);
+      if (!current) return null;
+      const owner = this.db
+        .prepare("select subject_id from identities where provider = ? and provider_id = ?")
+        .get(provider, providerId) as { subject_id: number } | undefined;
+      if (!owner) {
+        // One way in per provider: a second Discord on the same account would only be a mistake to undo later.
+        if (current.linked.includes(provider)) return null;
         this.db
-          .prepare("update subjects set kind = 'account', provider = ?, provider_id = ? where id = ?")
-          .run(provider, providerId, guest.id);
-        if (guest.name.startsWith("Jugador")) this.rename(guest.id, providerName);
-        return this.subject(guest.id);
+          .prepare("insert into identities (provider, provider_id, subject_id, linked) values (?, ?, ?, ?)")
+          .run(provider, providerId, current.id, now);
+        if (current.kind === "guest") {
+          this.db.prepare("update subjects set kind = 'account' where id = ?").run(current.id);
+          if (current.name.startsWith("Jugador")) this.rename(current.id, providerName);
+        }
+        return this.subject(current.id);
       }
-      if (existing.id === guest.id) return guest;
-      if (guest.kind === "guest") this.mergeInto(guest.id, existing.id);
-      this.db.prepare("update sessions set subject_id = ? where token = ?").run(existing.id, token);
-      return this.subject(existing.id);
+      if (owner.subject_id === current.id) return current;
+      const [from, to] = current.kind === "guest" ? [current.id, owner.subject_id] : [owner.subject_id, current.id];
+      const toLinked = this.subject(to)?.linked ?? [];
+      if (this.subject(from)?.linked.some((provider) => toLinked.includes(provider))) return null;
+      this.mergeInto(from, to);
+      return this.subject(to);
     });
   }
 
-  /** The guest's days count against the account's daily cap: many guests merged into one account earn no more than one. */
+  /**
+   * Moves everything one subject has into another: games, ways in, sessions and experience. Its days count against the
+   * other's daily cap, so many guests or accounts merged into one earn no more than one would.
+   */
   private mergeInto(from: number, to: number): void {
     this.db.prepare("update games set subject_id = ? where subject_id = ?").run(to, from);
     const days = this.db.prepare("select day, xp from xp_days where subject_id = ?").all(from) as { day: string; xp: number }[];
-    let moved = 0;
+    // Experience earned before days were tracked was already paid under its own cap: it moves whole.
+    const untracked = (this.subject(from)?.xp ?? 0) - days.reduce((sum, d) => sum + d.xp, 0);
+    let moved = Math.max(0, untracked);
     for (const { day, xp } of days) {
       const paid = cappedXp(xp, this.dayXp(to, day));
       this.addDayXp(to, day, paid);
@@ -171,6 +207,7 @@ export class AccountStore {
     this.db.prepare("delete from xp_days where subject_id = ?").run(from);
     this.db.prepare("update subjects set xp = xp + ? where id = ?").run(moved, to);
     this.db.prepare("update sessions set subject_id = ? where subject_id = ?").run(to, from);
+    this.db.prepare("update identities set subject_id = ? where subject_id = ?").run(to, from);
     this.db.prepare("delete from subjects where id = ?").run(from);
   }
 
@@ -189,6 +226,7 @@ export class AccountStore {
       }
       this.db.prepare("delete from xp_days where subject_id = ?").run(id);
       this.db.prepare("delete from sessions where subject_id = ?").run(id);
+      this.db.prepare("delete from identities where subject_id = ?").run(id);
       this.db.prepare("delete from subjects where id = ?").run(id);
     });
   }

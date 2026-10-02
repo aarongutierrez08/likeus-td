@@ -48,7 +48,7 @@ import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { DeckScreen } from "./ui/DeckScreen";
 import { DoctrinePanel, type DoctrineActions } from "./ui/DoctrinePanel";
 import { readDeck, writeDeck } from "./game/deck";
-import { loadProfile, loadReplay, readSession, submitSolo, todayUtc, type Profile } from "./net/account";
+import { claimLogin, loadProfile, loadReplay, readSession, submitSolo, todayUtc, type Profile } from "./net/account";
 import { ProfileButton } from "./ui/ProfilePanel";
 import { AbilityBar, pickAbility, type AbilityActions, type AbilityRequest } from "./ui/AbilityBar";
 import { Shop } from "./ui/Shop";
@@ -186,12 +186,21 @@ const [loginNotice, setLoginNotice] = createSignal<string | null>(null);
 /** The profile button shows outside of play (deck screen, lobby, end screen); during a game it would cover the top bar. */
 const [profileShown, setProfileShown] = createSignal(true);
 
+/** Back from a provider: the hash carries an identity to claim with this browser's session, or a failure. */
+async function finishLogin(): Promise<void> {
+  const claim = /claim=([0-9a-f]+)/.exec(location.hash)?.[1];
+  const failed = location.hash.includes("login=error");
+  if (!claim && !failed) return;
+  history.replaceState(null, "", `${location.pathname}${location.search}`);
+  const linked = claim ? await claimLogin(claim) : null;
+  setLoginNotice(linked ? "Cuenta vinculada" : "No se pudo vincular la cuenta. Cada cuenta admite un solo Discord y un solo Google.");
+}
+
 function startAccounts(name: string): void {
-  const back = /login=(ok|error)/.exec(location.hash)?.[1];
-  if (back) {
-    setLoginNotice(back === "ok" ? "Cuenta vinculada" : "No se pudo vincular la cuenta");
-    history.replaceState(null, "", `${location.pathname}${location.search}`);
-  }
+  void finishLogin().then(() => showAccounts(name));
+}
+
+function showAccounts(name: string): void {
   const root = document.createElement("div");
   document.body.appendChild(root);
   render(

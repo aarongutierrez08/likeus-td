@@ -192,8 +192,8 @@ export interface SoloResultMessage {
 /** Who is playing in this browser, as the server knows it. */
 export interface Profile {
   kind: "guest" | "account";
-  /** Provider linked, for accounts. */
-  provider: string | null;
+  /** Providers this account can log in with; empty for guests. */
+  linked: string[];
   name: string;
   color: number | null;
   xp: number;

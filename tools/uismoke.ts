@@ -38,6 +38,8 @@ async function assertStable(page: Page, target: Locator, what: string): Promise<
 let failed = false;
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, hasTouch: true });
+  // A closed port, so the accounts-down case holds even with `pnpm dev` running on 2567.
+  await page.addInitScript(() => Object.assign(window, { __VITE_SERVER_URL: "ws://127.0.0.1:2509" }));
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   page.on("console", (m) => {
     // No accounts server runs here on purpose: its refused requests are the case under test, not a failure.

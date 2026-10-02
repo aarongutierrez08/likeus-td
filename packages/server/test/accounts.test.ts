@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import type { AddressInfo } from "node:net";
 import { Client, type Room } from "@colyseus/sdk";
 import type { Server } from "@colyseus/core";
@@ -51,12 +52,23 @@ const lostSolo = (token?: string) =>
     body: { kind: "campaign", seed: 5, map: "s", name: `Prueba ${names++}`, deck: DEFAULT_DECKS.solo, history: [] },
   });
 
-/** Follows the fake provider's round trip the way a browser would, cookie included, without following the final redirect. */
-async function linkWithFake(token: string, browserCookie = true): Promise<string | number> {
+/** The claim id in the address the provider round trip sends the browser back to. */
+const claimIn = (location: string | null | undefined) => /#claim=(\w+)/.exec(location ?? "")?.[1] ?? null;
+
+/**
+ * Follows the fake provider's round trip the way a browser would, cookie included, then claims it with the session of
+ * the browser that came back: by default the one the login was started with. Returns the claim's status.
+ */
+async function linkWithFake(token: string, opts: { browserCookie?: boolean; claimWith?: string } = {}): Promise<number> {
   const start = await fetch(`${base}/auth/fake/start?token=${token}&returnTo=${encodeURIComponent(`${origin}/`)}`, { redirect: "manual" });
   const cookie = start.headers.get("set-cookie")!.split(";")[0]!;
-  const callback = await fetch(start.headers.get("location")!, { redirect: "manual", headers: browserCookie ? { cookie } : {} });
-  return callback.headers.get("location") ?? callback.status;
+  const callback = await fetch(start.headers.get("location")!, {
+    redirect: "manual",
+    headers: opts.browserCookie === false ? {} : { cookie },
+  });
+  const claim = claimIn(callback.headers.get("location"));
+  if (!claim) return callback.status;
+  return (await call("/auth/claim", { token: opts.claimWith ?? token, body: { claim } })).status;
 }
 
 /** Plays a stored replay back the way the replay viewer does, to its end. */
@@ -80,11 +92,12 @@ const memoryAccounts = () =>
 const tokenOf = (accounts: Accounts) => (accounts.createGuest("Jugador").body as { token: string }).token;
 const profileOf = (accounts: Accounts, token: string) => accounts.me(token).body as Profile;
 
-async function linkDirect(accounts: Accounts, token: string): Promise<void> {
-  const start = accounts.startLogin("fake", token, `${origin}/`);
+async function linkDirect(accounts: Accounts, token: string, provider = "fake", code?: string): Promise<number> {
+  const start = accounts.startLogin(provider, token, `${origin}/`);
   const url = new URL(start.redirect!);
   const nonce = start.cookie!.split(";")[0]!.split("=")[1]!;
-  await accounts.finishLogin("fake", url.searchParams.get("code"), url.searchParams.get("state"), nonce);
+  const back = await accounts.finishLogin(provider, code ?? url.searchParams.get("code"), url.searchParams.get("state"), nonce);
+  return accounts.claimLogin(token, claimIn(back.redirect)).status;
 }
 
 describe("accounts", () => {
@@ -130,9 +143,9 @@ describe("accounts", () => {
   it("linking keeps what the guest played, and the same account from another browser sees it all", async () => {
     const first = await guest();
     const paid = (await lostSolo(first.token)).body.xp!;
-    expect(await linkWithFake(first.token)).toBe(`${origin}/#login=ok`);
+    expect(await linkWithFake(first.token)).toBe(200);
     const linked = (await call<Profile>("/me", { token: first.token })).body;
-    expect(linked).toMatchObject({ kind: "account", provider: "fake", xp: paid });
+    expect(linked).toMatchObject({ kind: "account", linked: ["fake"], xp: paid });
     const other = await guest();
     const paidThere = (await lostSolo(other.token)).body.xp!;
     await linkWithFake(other.token);
@@ -150,8 +163,18 @@ describe("accounts", () => {
 
   it("a provider link opened in a browser that did not start the login links nothing", async () => {
     const attacker = await guest();
-    expect(await linkWithFake(attacker.token, false)).toBe(400);
+    expect(await linkWithFake(attacker.token, { browserCookie: false })).toBe(400);
     expect((await call<Profile>("/me", { token: attacker.token })).body.kind).toBe("guest");
+  });
+
+  it("a login link started with someone else's session moves nothing into theirs", async () => {
+    const attacker = await guest();
+    const victim = await guest("Víctima");
+    await linkWithFake(victim.token);
+    const before = (await call<Profile>("/me", { token: victim.token })).body;
+    expect(await linkWithFake(attacker.token, { claimWith: victim.token })).toBe(400);
+    expect((await call<Profile>("/me", { token: attacker.token })).body.kind).toBe("guest");
+    expect((await call<Profile>("/me", { token: victim.token })).body).toEqual(before);
   });
 
   it("logging out ends the session; deleting the account removes it with its history", async () => {
@@ -227,6 +250,21 @@ describe("accounts", () => {
     expect(profileOf(accounts, tokens[1]!).xp).toBe(XP.dailyCap);
   });
 
+  it("an account saved when each one had a single provider still opens with it", async () => {
+    const path = join(mkdtempSync(join(tmpdir(), "td-accounts-")), "old.db");
+    const old = new DatabaseSync(path);
+    old.exec(
+      "create table subjects (id integer primary key autoincrement, kind text not null, provider text, provider_id text, name text not null, color integer, xp integer not null default 0, created integer not null, unique (provider, provider_id))",
+    );
+    old.exec("insert into subjects (kind, provider, provider_id, name, xp, created) values ('account', 'fake', '1', 'Ana', 70, 0)");
+    old.close();
+    const accounts = new Accounts({ dbPath: path, publicUrl: "http://server", clientOrigins: [origin], env: { AUTH_FAKE: "1" } });
+    const browser = tokenOf(accounts);
+    await linkDirect(accounts, browser);
+    expect(profileOf(accounts, browser)).toMatchObject({ name: "Ana", xp: 70, linked: ["fake"] });
+    accounts.close();
+  });
+
   it("accounts that cannot open answer unavailable", () => {
     const notADir = join(mkdtempSync(join(tmpdir(), "td-accounts-")), "file");
     writeFileSync(notADir, "");
@@ -249,15 +287,65 @@ describe("accounts", () => {
     expect(accounts.submitSolo(token, daily, new Date(now.getTime() + 11_000)).status).toBe(200);
   });
 
-  it("an account that logs in with a provider it has no link to comes back with an error", async () => {
+  it("an account adds a second way in, and either one opens it from another browser", async () => {
+    const accounts = memoryAccounts();
+    const first = tokenOf(accounts);
+    await linkDirect(accounts, first, "fake");
+    expect(await linkDirect(accounts, first, "fake2")).toBe(200);
+    expect(profileOf(accounts, first).linked).toEqual(["fake", "fake2"]);
+    const otherBrowser = tokenOf(accounts);
+    await linkDirect(accounts, otherBrowser, "fake2");
+    expect(profileOf(accounts, otherBrowser)).toEqual(profileOf(accounts, first));
+  });
+
+  it("two accounts with their own progress become one when one adds the other's way in", async () => {
+    const accounts = memoryAccounts();
+    const { start, final } = lostRanked();
+    const discordBrowser = tokenOf(accounts);
+    accounts.recordRoom([{ token: discordBrowser, name: "Ana", playerId: 0 }], start, final, []);
+    await linkDirect(accounts, discordBrowser, "fake");
+    const googleBrowser = tokenOf(accounts);
+    accounts.recordRoom([{ token: googleBrowser, name: "Ana", playerId: 0 }], start, final, []);
+    await linkDirect(accounts, googleBrowser, "fake2");
+    const apart = profileOf(accounts, discordBrowser).xp + profileOf(accounts, googleBrowser).xp;
+    await linkDirect(accounts, discordBrowser, "fake2");
+    const merged = profileOf(accounts, discordBrowser);
+    expect(merged).toMatchObject({ xp: apart, linked: ["fake", "fake2"] });
+    expect(accounts.history(discordBrowser).body).toHaveLength(2);
+    expect(profileOf(accounts, googleBrowser)).toEqual(merged);
+  });
+
+  it("two accounts at the daily cap merge into one capped day", async () => {
+    const accounts = memoryAccounts();
+    const { start, final } = lostRanked();
+    const farmed = { ...final, wave: Math.ceil(XP.dailyCap / XP.perWave) };
+    const discordBrowser = tokenOf(accounts);
+    const googleBrowser = tokenOf(accounts);
+    accounts.recordRoom([{ token: discordBrowser, name: "Ana", playerId: 0 }], start, farmed, []);
+    accounts.recordRoom([{ token: googleBrowser, name: "Ana", playerId: 0 }], start, farmed, []);
+    await linkDirect(accounts, discordBrowser, "fake");
+    await linkDirect(accounts, googleBrowser, "fake2");
+    await linkDirect(accounts, discordBrowser, "fake2");
+    expect(profileOf(accounts, discordBrowser).xp).toBe(XP.dailyCap);
+  });
+
+  it("an account keeps one way in per provider", async () => {
     const accounts = memoryAccounts();
     const token = tokenOf(accounts);
-    await linkDirect(accounts, token);
-    const otherProvider = accounts.startLogin("fake", token, `${origin}/`);
-    const url = new URL(otherProvider.redirect!);
-    const nonce = otherProvider.cookie!.split(";")[0]!.split("=")[1]!;
-    const back = await accounts.finishLogin("fake", "fake:2:Otra", url.searchParams.get("state"), nonce);
-    expect(back.redirect).toBe(`${origin}/#login=error`);
+    await linkDirect(accounts, token, "fake");
+    expect(await linkDirect(accounts, token, "fake", "fake:9:Otra")).toBe(409);
+    expect(profileOf(accounts, token).linked).toEqual(["fake"]);
+  });
+
+  it("two accounts that each have the same provider stay apart", async () => {
+    const accounts = memoryAccounts();
+    const first = tokenOf(accounts);
+    const second = tokenOf(accounts);
+    await linkDirect(accounts, first, "fake", "fake:1:Ana");
+    await linkDirect(accounts, second, "fake", "fake:9:Ana");
+    expect(await linkDirect(accounts, first, "fake", "fake:9:Ana")).toBe(409);
+    expect(profileOf(accounts, first).linked).toEqual(["fake"]);
+    expect(profileOf(accounts, second).linked).toEqual(["fake"]);
   });
 
   it("a second login from the same session voids the first one", async () => {
@@ -277,7 +365,7 @@ describe("accounts", () => {
       clientOrigins: [],
       env: { AUTH_FAKE: "1", NODE_ENV: "production" },
     });
-    expect((accounts.me(tokenOf(accounts)).body as Profile).providers).not.toContain("fake");
+    expect((accounts.me(tokenOf(accounts)).body as Profile).providers).toEqual([]);
   });
 });
 

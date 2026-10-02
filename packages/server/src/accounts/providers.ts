@@ -51,16 +51,19 @@ function oauth(cfg: {
   };
 }
 
-/** Dev and tests only: "logs in" whoever the code names, `fake:<id>:<name>`, with no network. */
-const fake: Provider = {
+/**
+ * Dev and tests only: "logs in" whoever the code names, `fake:<id>:<name>`, with no network. Two of them stand in for
+ * Discord and Google, to try an account with two ways in.
+ */
+const fakeProvider = (code: string): Provider => ({
   authorizeUrl(state, redirectUri) {
-    return `${redirectUri}?${new URLSearchParams({ state, code: "fake:1:Jugadora" }).toString()}`;
+    return `${redirectUri}?${new URLSearchParams({ state, code }).toString()}`;
   },
   identify(code) {
     const [, id = "1", name = "Jugadora"] = code.split(":");
     return Promise.resolve({ id, name });
   },
-};
+});
 
 /** Providers configured in this environment: Discord and Google need their app's id and secret; the fake one, AUTH_FAKE=1. */
 export function providersFromEnv(env: NodeJS.ProcessEnv): Map<string, Provider> {
@@ -94,7 +97,10 @@ export function providersFromEnv(env: NodeJS.ProcessEnv): Map<string, Provider> 
     );
   }
   // The fake provider lets anyone in as anyone: never with a production build.
-  if (env["AUTH_FAKE"] === "1" && env["NODE_ENV"] !== "production") providers.set("fake", fake);
+  if (env["AUTH_FAKE"] === "1" && env["NODE_ENV"] !== "production") {
+    providers.set("fake", fakeProvider("fake:1:Jugadora"));
+    providers.set("fake2", fakeProvider("fake:2:Jugadora"));
+  }
   return providers;
 }
 

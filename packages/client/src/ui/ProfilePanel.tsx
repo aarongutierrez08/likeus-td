@@ -2,7 +2,13 @@ import { DOCTRINES, TOWERS } from "@td/sim";
 import { For, Show, createSignal, onMount, untrack } from "solid-js";
 import { deleteAccount, loadHistory, loginUrl, logout, updateProfile, type HistoryItem, type Profile } from "../net/account";
 
-const PROVIDER_LABELS: Record<string, string> = { discord: "Discord", google: "Google", fake: "Prueba (solo desarrollo)" };
+const PROVIDER_LABELS: Record<string, string> = {
+  discord: "Discord",
+  google: "Google",
+  fake: "Prueba (solo desarrollo)",
+  fake2: "Prueba 2 (solo desarrollo)",
+};
+const label = (provider: string) => PROVIDER_LABELS[provider] ?? provider;
 const MODE_LABELS: Record<string, string> = { campaign: "campaña", endless: "infinito" };
 
 function date(ms: number): string {
@@ -80,7 +86,7 @@ export function ProfileButton(props: {
                       <For each={p().providers}>
                         {(provider) => (
                           <button type="button" onClick={() => location.assign(loginUrl(provider))}>
-                            {PROVIDER_LABELS[provider] ?? provider}
+                            {label(provider)}
                           </button>
                         )}
                       </For>
@@ -91,7 +97,14 @@ export function ProfileButton(props: {
                   }
                 >
                   <div class="row">
-                    <span class="muted">Cuenta vinculada con {PROVIDER_LABELS[p().provider ?? ""] ?? p().provider}</span>
+                    <span class="muted">Cuenta vinculada con {p().linked.map(label).join(" y ")}</span>
+                    <For each={p().providers.filter((provider) => !p().linked.includes(provider))}>
+                      {(provider) => (
+                        <button type="button" onClick={() => location.assign(loginUrl(provider))}>
+                          Agregar {label(provider)}
+                        </button>
+                      )}
+                    </For>
                     <button type="button" onClick={() => void leave()}>
                       Cerrar sesión
                     </button>

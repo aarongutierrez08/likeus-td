@@ -17,3 +17,4 @@ Lo que quedó abierto mientras se avanza el camino de mecánicas. Se resuelve en
 
 ## Balance
 - Desde las doctrinas (BALANCE_VERSION 27) el informado gana la seed 42 con 15 vidas en vez de 20: las ofertas consumen RNG y corren el jitter de las oleadas.
+- coopsmoke intermitente (2 de 3, 2026-10-02): el paso 12 a veces no ve "Oro insuficiente" en 2 s; falla antes de los pasos de cuentas.
