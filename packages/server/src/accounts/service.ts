@@ -254,8 +254,25 @@ export class Accounts {
     const p = this.providers.get(provider);
     const login = state ? this.pending.get(state) : undefined;
     if (state) this.pending.delete(state);
-    if (!p || !login || login.provider !== provider || login.nonce !== nonce || login.expires < now || !code)
-      return fail(400, "login inválido o vencido");
+    const problem = !p
+      ? "unknown provider"
+      : !login
+        ? "no login started with this state (opened directly, or the server restarted)"
+        : login.provider !== provider
+          ? "state started with another provider"
+          : login.nonce !== nonce
+            ? `login cookie ${nonce ? "does not match" : "missing"} (finished in another browser, or a newer login replaced it)`
+            : login.expires < now
+              ? "expired"
+              : !code
+                ? "the provider sent no code (cancelled or refused)"
+                : null;
+    if (problem || !p || !login || !code) {
+      // Back to the game with a notice, not a bare error page; the reason stays in the server log.
+      console.warn(`login with ${provider} rejected: ${problem}`);
+      const home = login?.returnTo ?? `${this.config.clientOrigins[0] ?? ""}/`;
+      return { status: 302, redirect: `${home}#login=error`, cookie: this.loginCookie("", 0) };
+    }
     let identity;
     try {
       identity = await p.identify(code, this.callbackUrl(provider));

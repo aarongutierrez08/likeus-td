@@ -192,7 +192,11 @@ async function finishLogin(): Promise<void> {
   const failed = location.hash.includes("login=error");
   if (!claim && !failed) return;
   history.replaceState(null, "", `${location.pathname}${location.search}`);
-  const linked = claim ? await claimLogin(claim) : null;
+  if (!claim) {
+    setLoginNotice("No se pudo vincular la cuenta. Probá de nuevo desde este panel.");
+    return;
+  }
+  const linked = await claimLogin(claim);
   setLoginNotice(linked ? "Cuenta vinculada" : "No se pudo vincular la cuenta. Cada cuenta admite un solo Discord y un solo Google.");
 }
 

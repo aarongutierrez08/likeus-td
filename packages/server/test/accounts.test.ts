@@ -57,7 +57,8 @@ const claimIn = (location: string | null | undefined) => /#claim=(\w+)/.exec(loc
 
 /**
  * Follows the fake provider's round trip the way a browser would, cookie included, then claims it with the session of
- * the browser that came back: by default the one the login was started with. Returns the claim's status.
+ * the browser that came back: by default the one the login was started with. Returns the claim's status, or 400 when the
+ * browser came back with a failed login.
  */
 async function linkWithFake(token: string, opts: { browserCookie?: boolean; claimWith?: string } = {}): Promise<number> {
   const start = await fetch(`${base}/auth/fake/start?token=${token}&returnTo=${encodeURIComponent(`${origin}/`)}`, { redirect: "manual" });
@@ -66,8 +67,9 @@ async function linkWithFake(token: string, opts: { browserCookie?: boolean; clai
     redirect: "manual",
     headers: opts.browserCookie === false ? {} : { cookie },
   });
-  const claim = claimIn(callback.headers.get("location"));
-  if (!claim) return callback.status;
+  const back = callback.headers.get("location");
+  const claim = claimIn(back);
+  if (!claim) return back?.endsWith("#login=error") ? 400 : callback.status;
   return (await call("/auth/claim", { token: opts.claimWith ?? token, body: { claim } })).status;
 }
 
@@ -151,6 +153,11 @@ describe("accounts", () => {
     await linkWithFake(other.token);
     expect((await call<Profile>("/me", { token: other.token })).body.xp).toBe(paid + paidThere);
     expect((await call<HistoryItem[]>("/me/history", { token: first.token })).body).toHaveLength(2);
+  });
+
+  it("a callback opened without a login in progress goes back to the game with a notice", async () => {
+    const opened = await fetch(`${base}/auth/fake/callback`, { redirect: "manual" });
+    expect(opened.headers.get("location")).toBe(`${origin}/#login=error`);
   });
 
   it("a login only sends the browser back to an allowed address", async () => {
@@ -355,7 +362,7 @@ describe("accounts", () => {
     accounts.startLogin("fake", token, `${origin}/`);
     const nonce = first.cookie!.split(";")[0]!.split("=")[1]!;
     const back = await accounts.finishLogin("fake", "fake:1:Ana", new URL(first.redirect!).searchParams.get("state"), nonce);
-    expect(back.status).toBe(400);
+    expect(back.redirect).toBe(`${origin}/#login=error`);
   });
 
   it("the fake provider never exists in a production build", () => {
