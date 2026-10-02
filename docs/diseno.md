@@ -53,7 +53,6 @@ Una carta es cualquier cosa que un jugador lleva a la partida. Tres tipos:
 
 ### Colección
 - Un **set base** de cartas siempre disponible para todos.
-- Cartas de **temporada** que se suman por un tiempo (ver Temporadas).
 - Nada se compra con dinero; los desbloqueos están en Cuentas y progreso.
 
 ### Reglas de balance de cartas
@@ -108,12 +107,6 @@ Se mantiene lo que hay, con un cambio de quién llama:
 - **Liberar la oleada antes** lo hace solo el **anfitrión**; el bono de oro por tiempo ahorrado lo cobran todos. Se elimina el quórum.
 - Si el anfitrión se desconecta, el rol pasa al siguiente asiento ocupado. El anfitrión puede ceder el rol desde el lobby o durante la partida.
 
-## Temporadas
-- Una temporada dura unas 8 semanas. Trae: un set de cartas nuevas (3-5), 1 mapa, cosméticos, un tema (a definir más adelante; acá solo el sistema).
-- Al terminar, sus cartas pasan al **archivo**: usables en salas privadas y en solo, no en públicas ni en la seed diaria. Así nada se pierde, pero las públicas mantienen un pool acotado y balanceado.
-- Cada temporada sube `BALANCE_VERSION`. La seed diaria y los rankings se resetean por temporada.
-- Nivel de temporada (XP de la temporada) y nivel de cuenta (acumulado) son distintos.
-
 ## Cuentas y progreso
 ### Identidad
 - **Invitado por defecto**: al entrar se genera una identidad local (id + nombre editable) guardada en el navegador. Se juega al instante.
@@ -126,7 +119,6 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 ### XP y nivel
 - XP por partida = f(oleada alcanzada, victoria, N jugadores). Bonus chico por co-op (nunca más del 25%). Tope diario para que grindear no sea la forma de subir.
 - Los niveles desbloquean **solo cosméticos y opciones**: colores extra, marcos de nombre, ranuras de diseño propio, mazos guardados extra. Nunca cartas con poder ni ventajas de partida.
-- Las cartas de temporada se desbloquean por *jugar* (misiones simples: "ganá una partida con 3 tipos de ataque"), no por nivel.
 
 ## Identidad visual del jugador
 ### Color de jugador
@@ -161,7 +153,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 15. 🔧 Ronda de `/balance` completa + playtest con amigos. La ronda con bots está hecha (`docs/balance.md`); falta el playtest (`docs/playtest.md`). Queda abierto, como cambio de lógica y no de números: el área del Reviente se lleva la sinergia de la Heladera, y el bot informado gana el 100%.
 16. ✅ Infinito con puntaje y seed diaria con ranking (ADR 017). Desde la pantalla de mazo: Jugar, Infinito o Desafío del día. El server repite cada partida diaria para validar su puntaje; el ranking vive en memoria hasta el punto 17.
 17. ✅ Cuentas: invitado + vincular con Discord o Google, historial con replays, experiencia con tope diario (ADR 018). Todo en nuestro server con SQLite; para producción faltan el volumen y las credenciales (`docs/cuentas.md`).
-18. ⬜ Temporadas.
+18. ❌ Temporadas: descartado (ver Descartado).
 19. ⬜ Diseños propios. Pendiente de ADR: tamaño, cantidad de frames y peso máximo del sprite sheet (orden de 64 px, ≤12 frames, ≤200 KB).
 20. ⬜ Versus (mandar enemigos al rival), bots de relleno en públicas, Discord Activity.
 21. ⬜ Visual y animación, con todo lo anterior cerrado.
@@ -171,6 +163,7 @@ Regla: balance serio recién después del punto 6. Antes, los números son de re
 Regla: animación y diseño visual quedan para después de que las mecánicas estén cerradas. Todo se muestra con texto y los colores que ya hay. El color de jugador (punto 7) es la única excepción: es identidad, no decoración.
 
 ## Descartado y por qué
+- **Temporadas** (cartas, mapa y cosméticos por unas 8 semanas, archivo de cartas viejas, nivel de temporada, reinicio de rankings): descartado por decisión del usuario (2026-10-02). La colección queda en el set base.
 - **Apuesta de oleada** (bono condicionado a no perder vidas): agrega tensión pero también reproches en co-op; no sirve a la identidad.
 - **Doctrinas de equipo**: con 8 jugadores todo lo apilable rompe, y una doctrina que afecta a todos borra los roles emergentes. Cada doctrina afecta solo a quien la eligió.
 
