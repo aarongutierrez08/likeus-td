@@ -3,7 +3,6 @@
 Lo que quedó abierto mientras se avanza el camino de mecánicas. Se resuelve en su punto o en la ronda de balance (punto 15).
 
 ## Decisiones para el usuario
-- El comando de sim `setColor` quedó sin uso desde que el color es fijo (2026-10-03): sacarlo con su validación cuando se toque la sim.
 - Cuentas, riesgos menores anotados por el revisor: los replays se leen por id secuencial sin sesión (se pueden recorrer; los de co-op conservan nombres aunque se borre una cuenta); un invitado cuyo nombre empieza con "Jugador" toma el del proveedor al vincular; una partida en solo que choca con el límite de repeticiones se rechaza en vez de esperar turno; en el bonus de grupo cuentan también los asientos sin sesión.
 - Cuentas en producción: crear el volumen de Fly y las apps de Discord y Google (`docs/cuentas.md`). Sin volumen, cuentas, historial y ranking se pierden en cada reinicio.
 - Reparación sin tope de vidas: con 8 jugadores el equipo recupera hasta 8 vidas por enfriamiento y puede pasar de 20.

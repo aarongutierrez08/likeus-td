@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLAYER_COLORS, createInitialState, step, validateCommand } from "../src/index";
+import { createInitialState, step, validateCommand, type Command } from "../src/index";
 import { scenario } from "./helpers/scenario";
 
 describe("player colors", () => {
@@ -25,13 +25,11 @@ describe("player colors", () => {
     expect(game.state().players.find((p) => p.id === 3)?.color).toBe(1);
   });
 
-  it("a player may switch to a free color but not to a taken or unknown one", () => {
+  it("a player's color stays as drawn: a command to change it is unknown and changes nothing", () => {
     const game = scenario({ seed: 1, players: [0, 1] }).run(0);
-    const to = (color: number) => ({ type: "setColor" as const, tick: 0, playerId: 0, color });
-    expect(validateCommand(game.state(), to(1))).toBe("color_taken");
-    expect(validateCommand(game.state(), to(PLAYER_COLORS.length))).toBe("bad_color");
-    expect(validateCommand(game.state(), to(7))).toBeNull();
-    const after = step(game.state(), [to(7)]);
-    expect(after.players[0]!.color).toBe(7);
+    const recolor = { type: "setColor", tick: 0, playerId: 0, color: 7 } as unknown as Command;
+    expect(validateCommand(game.state(), recolor)).toBe("unknown_command");
+    const drawn = game.state().players[0]!.color;
+    expect(step(game.state(), [recolor]).players[0]!.color).toBe(drawn);
   });
 });

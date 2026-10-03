@@ -89,13 +89,6 @@ export interface JoinCommand {
   deck?: Deck;
 }
 
-export interface SetColorCommand {
-  type: "setColor";
-  tick: number;
-  playerId: number;
-  color: number;
-}
-
 export interface CallWaveCommand {
   type: "callWave";
   tick: number;
@@ -189,7 +182,6 @@ export type Command =
   | SellCommand
   | UpgradeCommand
   | LeaveCommand
-  | SetColorCommand
   | UseAbilityCommand
   | UpgradeAbilityCommand
   | ChooseDoctrineCommand

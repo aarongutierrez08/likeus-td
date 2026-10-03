@@ -6,7 +6,7 @@ import { DETOUR, MAPS } from "./balance/maps";
 import { ECONOMY, MARKET } from "./balance/economy";
 import { TEAM_OWNER } from "./constants";
 import { waveDef } from "./waveDefs";
-import { isPlayerColor, pickColor } from "./colors";
+import { pickColor } from "./colors";
 import { callWaveBonus, startingGold } from "./economy";
 import { deckProblem } from "./deck";
 import { freshAbilities, freshDoctrines, fullDeck } from "./state";
@@ -25,7 +25,6 @@ import type {
   OpenDetourCommand,
   Player,
   SellCommand,
-  SetColorCommand,
   Tower,
   TowerKind,
   UpgradeAbilityCommand,
@@ -52,8 +51,6 @@ export type RejectReason =
   | "wall_active"
   | "wall_cooldown"
   | "wall_under_attack"
-  | "bad_color"
-  | "color_taken"
   | "branch_required"
   | "bad_branch"
   | "unknown_ability"
@@ -66,7 +63,8 @@ export type RejectReason =
   | "already_rerolled"
   | "bad_detour"
   | "already_open"
-  | "detour_blocked";
+  | "detour_blocked"
+  | "unknown_command";
 
 export function upgradeCost(kind: TowerKind): number {
   return Math.floor((TOWERS[kind].cost * UPGRADE.costPctPerLevel) / 100);
@@ -179,13 +177,6 @@ export function validateSell(state: GameState, cmd: SellCommand): RejectReason |
   return null;
 }
 
-export function validateSetColor(state: GameState, cmd: SetColorCommand): RejectReason | null {
-  if (!findPlayer(state, cmd.playerId)) return "no_player";
-  if (!isPlayerColor(cmd.color)) return "bad_color";
-  if (state.players.some((p) => p.id !== cmd.playerId && p.color === cmd.color)) return "color_taken";
-  return null;
-}
-
 export function validateLeave(state: GameState, cmd: LeaveCommand): RejectReason | null {
   return findPlayer(state, cmd.playerId) ? null : "no_player";
 }
@@ -284,8 +275,6 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
       return validateUpgrade(state, cmd);
     case "leave":
       return validateLeave(state, cmd);
-    case "setColor":
-      return validateSetColor(state, cmd);
     case "useAbility":
       return validateUseAbility(state, cmd);
     case "openDetour":
@@ -309,6 +298,9 @@ export function validateCommand(state: GameState, cmd: Command): RejectReason | 
     }
     case "upgradeAbility":
       return validateUpgradeAbility(state, cmd);
+    default:
+      // A command this version does not know, such as one from an older client or a hand-made replay.
+      return "unknown_command";
   }
 }
 
@@ -392,9 +384,6 @@ export function applyCommand(state: GameState, cmd: Command): boolean {
       findPlayer(state, cmd.playerId)!.gold -= upgradeCost(tower.kind);
       return true;
     }
-    case "setColor":
-      findPlayer(state, cmd.playerId)!.color = cmd.color;
-      return true;
     case "useAbility":
       castAbility(state, cmd);
       return true;
