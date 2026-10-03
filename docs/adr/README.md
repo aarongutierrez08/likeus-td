@@ -23,5 +23,6 @@ Una decisión importante = un archivo de una página. Numerados, nunca se editan
 | 017 | Infinito, desafío del día y ranking validado por el server |
 | 018 | Cuentas en nuestro server: invitado, vincular con Discord o Google, y solo el server registra |
 | 019 | Varias formas de entrar por cuenta, unión de cuentas y vinculación confirmada por el navegador |
+| 020 | Retención de datos y login por ticket |
 
 Plantilla: `000-template.md`.

@@ -1,4 +1,4 @@
-import { PLAYER_COLORS, TEAM_OWNER, type GameState } from "@td/sim";
+import { PLAYER_COLORS, TEAM_OWNER, freeColors, type GameState } from "@td/sim";
 
 export function cssColor(color: number): string {
   return `#${color.toString(16).padStart(6, "0")}`;
@@ -11,21 +11,8 @@ export function playerCss(state: GameState, playerId: number): string {
   return cssColor(PLAYER_COLORS[player.color] ?? PLAYER_COLORS[0]);
 }
 
-export const PREFERRED_COLOR_KEY = "td.color";
-
-export function readPreferredColor(): number | undefined {
-  try {
-    const raw = localStorage.getItem(PREFERRED_COLOR_KEY);
-    return raw === null ? undefined : Number.parseInt(raw, 10);
-  } catch {
-    return undefined;
-  }
-}
-
-export function writePreferredColor(color: number): void {
-  try {
-    localStorage.setItem(PREFERRED_COLOR_KEY, String(color));
-  } catch {
-    /* private mode: the preference is simply not kept */
-  }
+/** A color for a solo game, drawn at random each time; it is never kept. */
+export function drawSoloColor(): number {
+  const free = freeColors([]);
+  return free[Math.floor(Math.random() * free.length)] ?? 0;
 }

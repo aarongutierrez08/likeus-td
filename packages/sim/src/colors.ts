@@ -11,3 +11,9 @@ export function pickColor(taken: readonly { color: number }[], wanted?: number):
   for (let c = 0; c < PLAYER_COLORS.length; c++) if (!used.has(c)) return c;
   return 0;
 }
+
+/** Color indexes nobody holds, in order. Whoever draws one at random does it outside the sim, which stays deterministic. */
+export function freeColors(taken: readonly { color: number }[]): number[] {
+  const used = new Set(taken.map((p) => p.color));
+  return PLAYER_COLORS.map((_, c) => c).filter((c) => !used.has(c));
+}

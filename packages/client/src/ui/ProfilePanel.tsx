@@ -1,6 +1,16 @@
 import { DOCTRINES, TOWERS } from "@td/sim";
 import { For, Show, createSignal, onMount, untrack } from "solid-js";
-import { deleteAccount, loadHistory, loginUrl, logout, updateProfile, type HistoryItem, type Profile } from "../net/account";
+import {
+  deleteAccount,
+  downloadReplay,
+  loadHistory,
+  logout,
+  openReplayFile,
+  startLogin,
+  updateProfile,
+  type HistoryItem,
+  type Profile,
+} from "../net/account";
 
 const PROVIDER_LABELS: Record<string, string> = {
   discord: "Discord",
@@ -13,6 +23,13 @@ const MODE_LABELS: Record<string, string> = { campaign: "campaña", endless: "in
 
 function date(ms: number): string {
   return new Date(ms).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+}
+
+const DAY_MS = 86_400_000;
+
+function expiresIn(at: number): string {
+  const days = Math.ceil((at - Date.now()) / DAY_MS);
+  return days <= 1 ? "vence en menos de un día" : `vence en ${days} días`;
 }
 
 /** "Perfil" button and its panel: name, level, linking, history with replays, logout and account deletion. */
@@ -50,6 +67,19 @@ export function ProfileButton(props: {
     await logout();
     location.reload();
   };
+  const [problem, setProblem] = createSignal<string | null>(null);
+  const login = async (provider: string) => {
+    if (!(await startLogin(provider))) setProblem("No se pudo iniciar el login. Probá de nuevo en un rato.");
+  };
+  const download = async (g: HistoryItem) => {
+    const name = `likeus-td-${new Date(g.playedAt).toISOString().slice(0, 16).replace(":", "")}.json`;
+    if (g.replayId === null || !(await downloadReplay(g.replayId, name))) setProblem("No se pudo descargar ese replay.");
+  };
+  const openFile = async (file: File | undefined) => {
+    const problems = { invalid: "Ese archivo no es un replay de Likeus TD.", too_big: "Ese replay es demasiado largo para abrirlo acá." };
+    const result = file ? await openReplayFile(file) : null;
+    if (result && result !== "ok") setProblem(problems[result]);
+  };
   return (
     <>
       <button type="button" class="profile-button" onClick={() => (open() ? close() : openPanel())}>
@@ -60,6 +90,7 @@ export function ProfileButton(props: {
       <Show when={open()}>
         <div class="profile-panel">
           <Show when={props.notice()}>{(n) => <p class="notice">{n()}</p>}</Show>
+          <Show when={problem()}>{(n) => <p class="notice">{n()}</p>}</Show>
           <Show
             when={props.profile()}
             fallback={
@@ -82,10 +113,13 @@ export function ProfileButton(props: {
                   when={p().kind === "account"}
                   fallback={
                     <div class="row">
-                      <span class="muted">Jugás como invitado. Vinculá una cuenta para no perder tu progreso:</span>
+                      <span class="muted guest-warning">
+                        Jugás como invitado: si pasás {p().retention.idleGuestDays} días sin jugar, se borra tu progreso (a los{" "}
+                        {p().retention.emptyGuestDays} días si todavía no terminaste ninguna partida). Vinculá una cuenta para guardarlo:
+                      </span>
                       <For each={p().providers}>
                         {(provider) => (
-                          <button type="button" onClick={() => location.assign(loginUrl(provider))}>
+                          <button type="button" onClick={() => void login(provider)}>
                             {label(provider)}
                           </button>
                         )}
@@ -100,7 +134,7 @@ export function ProfileButton(props: {
                     <span class="muted">Cuenta vinculada con {p().linked.map(label).join(" y ")}</span>
                     <For each={p().providers.filter((provider) => !p().linked.includes(provider))}>
                       {(provider) => (
-                        <button type="button" onClick={() => location.assign(loginUrl(provider))}>
+                        <button type="button" onClick={() => void login(provider)}>
                           Agregar {label(provider)}
                         </button>
                       )}
@@ -114,6 +148,13 @@ export function ProfileButton(props: {
                   </div>
                 </Show>
                 <h4>Historial</h4>
+                <p class="muted replay-warning">
+                  Los replays se guardan {p().retention.replayDays} días. Descargalos para conservarlos; un replay descargado se abre acá:{" "}
+                  <label class="file-button">
+                    Abrir replay descargado
+                    <input type="file" accept="application/json,.json" onChange={(e) => void openFile(e.currentTarget.files?.[0])} />
+                  </label>
+                </p>
                 <ul class="history">
                   <For
                     each={history() ?? []}
@@ -131,7 +172,15 @@ export function ProfileButton(props: {
                             {g.doctrines.length > 0 ? ` · doctrinas: ${g.doctrines.map((d) => DOCTRINES[d].label).join(", ")}` : ""}
                           </small>
                         </span>
-                        <a href={`?replay=${g.replayId}`}>Ver replay</a>
+                        <Show when={g.replayId !== null && g.replayExpiresAt !== null} fallback={<span class="muted">replay vencido</span>}>
+                          <span class="replay-links">
+                            <a href={`?replay=${g.replayId}`}>Ver replay</a>
+                            <button type="button" class="link" onClick={() => void download(g)}>
+                              Descargar
+                            </button>
+                            <small class="muted">{expiresIn(g.replayExpiresAt!)}</small>
+                          </span>
+                        </Show>
                       </li>
                     )}
                   </For>

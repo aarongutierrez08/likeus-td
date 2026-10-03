@@ -97,7 +97,8 @@ export function providersFromEnv(env: NodeJS.ProcessEnv): Map<string, Provider> 
     );
   }
   // The fake provider lets anyone in as anyone: never with a production build.
-  if (env["AUTH_FAKE"] === "1" && env["NODE_ENV"] !== "production") {
+  // The fake ones stand in while no real provider is configured; with real keys at hand there is no need for them.
+  if (env["AUTH_FAKE"] === "1" && env["NODE_ENV"] !== "production" && providers.size === 0) {
     providers.set("fake", fakeProvider("fake:1:Jugadora"));
     providers.set("fake2", fakeProvider("fake:2:Jugadora"));
   }

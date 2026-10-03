@@ -1,4 +1,4 @@
-import { DECK, dailySeed, deckProblem, isMapId, scoreOf, soloStart, step, DEFAULT_MAP, type Command, type GameState } from "@td/sim";
+import { DECK, dailyStart, deckProblem, isMapId, isPlayerColor, scoreOf, soloStart, step, type Command, type GameState } from "@td/sim";
 import type { DailyBoard, DailyEntry, SoloSubmission } from "./protocol";
 
 /** A replay longer than this is refused: an endless game this long would mean something other than play. */
@@ -51,11 +51,13 @@ export function cleanName(raw: unknown): string {
   return typeof raw === "string" && raw.trim() ? raw.trim().slice(0, MAX_NAME) : "Anónimo";
 }
 
+/** The color the client drew only paints the replay; anything else falls back to the first one. */
+const colorOf = (submission: SoloSubmission): number | undefined => (isPlayerColor(submission.color) ? submission.color : undefined);
+
 /** The start the client built for this submission, rebuilt here from what it says it played. */
 function startOf(submission: SoloSubmission): GameState | string {
   if (deckProblem(submission.deck, DECK.soloTowers) !== null) return "mazo inválido";
-  if (submission.kind === "daily")
-    return soloStart({ seed: dailySeed(submission.day!), mapId: DEFAULT_MAP, mode: "endless", deck: submission.deck });
+  if (submission.kind === "daily") return dailyStart(submission.day!, submission.deck, colorOf(submission));
   if (!Number.isInteger(submission.seed) || submission.seed < 0 || submission.seed >= MAX_SEED) return "seed inválida";
   if (typeof submission.map !== "string" || !isMapId(submission.map)) return "mapa inválido";
   return soloStart({
@@ -63,6 +65,7 @@ function startOf(submission: SoloSubmission): GameState | string {
     mapId: submission.map,
     mode: submission.kind === "endless" ? "endless" : "campaign",
     deck: submission.deck,
+    color: colorOf(submission),
   });
 }
 

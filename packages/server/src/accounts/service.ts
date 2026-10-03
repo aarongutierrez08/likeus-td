@@ -1,7 +1,8 @@
-import { findPlayer, isPlayerColor, type GameState } from "@td/sim";
-import type { HistoryEntry, HistoryItem, Profile, SoloResultMessage, SoloSubmission } from "../protocol";
+import { DECK, deckProblem, findPlayer, type Deck, type GameState } from "@td/sim";
+import type { DeckMode, HistoryEntry, HistoryItem, Profile, SoloResultMessage, SoloSubmission } from "../protocol";
 import { cleanName, dailyBoard, memoryBoard, replaySolo, todayUtc, type BoardStore } from "../solo";
 import { newState, providersFromEnv, type Provider } from "./providers";
+import { RETENTION } from "./retention";
 import { AccountStore, type Subject } from "./store";
 import { gameXp, levelOf, xpForLevel } from "./xp";
 
@@ -30,6 +31,21 @@ interface PendingClaim {
 }
 
 const CLAIM_TTL_MS = 60_000;
+
+/**
+ * A one-use ticket that starts a provider login. The browser asks for it with its session in a header, then navigates
+ * with the ticket in the address: the session itself never shows up in an address, a log or the browser history.
+ */
+interface LoginTicket {
+  token: string;
+  provider: string;
+  returnTo: string;
+  expires: number;
+}
+
+const TICKET_TTL_MS = 60_000;
+const PURGE_EVERY_MS = 60 * 60_000;
+const DECK_TOWERS: Record<DeckMode, number> = { solo: DECK.soloTowers, coop: DECK.coopTowers };
 
 export const LOGIN_COOKIE = "td_login";
 
@@ -74,6 +90,8 @@ export class Accounts {
   private readonly providers: Map<string, Provider>;
   private readonly pending = new Map<string, PendingLogin>();
   private readonly claims = new Map<string, PendingClaim>();
+  private readonly tickets = new Map<string, LoginTicket>();
+  private readonly purgeTimer: NodeJS.Timeout;
 
   constructor(private readonly config: AccountsConfig) {
     this.providers = providersFromEnv(config.env);
@@ -84,6 +102,20 @@ export class Accounts {
       console.error(`accounts unavailable: ${String(err)}`);
     }
     this.store = store;
+    this.purge();
+    this.purgeTimer = setInterval(() => this.purge(), PURGE_EVERY_MS).unref();
+  }
+
+  /** Drops expired replays, idle guests and idle sessions; runs on start and every hour. */
+  purge(now = Date.now()): void {
+    if (!this.store) return;
+    try {
+      const purged = this.store.purge(now);
+      if (purged.replays + purged.guests + purged.sessions > 0)
+        console.log(`accounts purge: ${purged.replays} replays, ${purged.guests} guests, ${purged.sessions} sessions`);
+    } catch (err) {
+      console.error(`accounts purge failed: ${String(err)}`);
+    }
   }
 
   get available(): boolean {
@@ -142,12 +174,13 @@ export class Accounts {
       kind: subject.kind,
       linked: subject.linked,
       name: subject.name,
-      color: subject.color,
       xp: subject.xp,
       level,
       levelXp: xpForLevel(level),
       nextLevelXp: xpForLevel(level + 1),
       providers: [...this.providers.keys()],
+      decks: subject.decks,
+      retention: { replayDays: RETENTION.replayDays, idleGuestDays: RETENTION.idleGuestDays, emptyGuestDays: RETENTION.emptyGuestDays },
     };
   }
 
@@ -169,13 +202,15 @@ export class Accounts {
     return this.withSubject(token, (_store, subject) => ok(this.profileOf(subject)));
   }
 
-  update(token: string | null, body: { name?: unknown; color?: unknown }): HttpResult {
+  update(token: string | null, body: { name?: unknown; deck?: { mode?: unknown; deck?: unknown } }): HttpResult {
     return this.withSubject(token, (store, subject) => {
-      if (body?.name !== undefined) store.rename(subject.id, cleanName(body.name));
-      if (body?.color !== undefined) {
-        if (body.color !== null && !isPlayerColor(body.color)) return fail(400, "color inválido");
-        store.setColor(subject.id, body.color);
+      if (body?.deck !== undefined) {
+        const mode = body.deck?.mode;
+        const deck = body.deck?.deck as Deck | undefined;
+        if ((mode !== "solo" && mode !== "coop") || deckProblem(deck, DECK_TOWERS[mode]) !== null) return fail(400, "mazo inválido");
+        store.setDeck(subject.id, mode, { towers: [...deck!.towers], abilities: [...deck!.abilities] });
       }
+      if (body?.name !== undefined) store.rename(subject.id, cleanName(body.name));
       return ok(this.profileOf(store.subject(subject.id)!));
     });
   }
@@ -184,7 +219,7 @@ export class Accounts {
     return this.withSubject(token, (store, subject) => {
       const items: HistoryItem[] = store
         .history(subject.id)
-        .map(({ playedAt, mode, map, seed, players, result, wave, xp, replayId, deck, doctrines }) => ({
+        .map(({ playedAt, mode, map, seed, players, result, wave, xp, replayId, replayExpiresAt, deck, doctrines }) => ({
           playedAt,
           mode,
           map,
@@ -196,6 +231,7 @@ export class Accounts {
           wave,
           xp,
           replayId,
+          replayExpiresAt,
         }));
       return ok(items);
     });
@@ -222,19 +258,36 @@ export class Accounts {
     });
   }
 
-  /** Starts a provider login for the browser holding this guest or account session. */
-  startLogin(provider: string, token: string | null, returnTo: string | null, now = Date.now()): HttpResult {
-    const p = this.providers.get(provider);
-    if (!p) return fail(404, "proveedor no disponible");
-    if (!returnTo || !this.config.clientOrigins.some((o) => returnTo === o || returnTo.startsWith(`${o}/`) || returnTo.startsWith(`${o}?`)))
+  /** The browser holding this session asks to log in with a provider: it gets the address to go to, with a one-use ticket. */
+  loginTicket(provider: string, token: string | null, returnTo: unknown, now = Date.now()): HttpResult {
+    if (!this.providers.has(provider)) return fail(404, "proveedor no disponible");
+    if (
+      typeof returnTo !== "string" ||
+      !this.config.clientOrigins.some((o) => returnTo === o || returnTo.startsWith(`${o}/`) || returnTo.startsWith(`${o}?`))
+    )
       return fail(400, "dirección de vuelta no permitida");
     return this.withSubject(token, () => {
-      for (const [state, login] of this.pending) if (login.expires < now || login.token === token) this.pending.delete(state);
-      const state = newState();
-      const nonce = newState();
-      this.pending.set(state, { token: token!, provider, nonce, returnTo, expires: now + LOGIN_TTL_MS });
-      return { status: 302, redirect: p.authorizeUrl(state, this.callbackUrl(provider)), cookie: this.loginCookie(nonce) };
+      for (const [id, ticket] of this.tickets) if (ticket.expires < now || ticket.token === token) this.tickets.delete(id);
+      const id = newState();
+      this.tickets.set(id, { token: token!, provider, returnTo, expires: now + TICKET_TTL_MS });
+      return ok({ url: `${this.config.publicUrl}/auth/${provider}/start?ticket=${id}` });
     });
+  }
+
+  /** The browser arrives with its ticket: off to the provider, holding the nonce the callback will ask for. */
+  startLogin(provider: string, ticketId: string | null, now = Date.now()): HttpResult {
+    const p = this.providers.get(provider);
+    const ticket = ticketId ? this.tickets.get(ticketId) : undefined;
+    if (ticketId) this.tickets.delete(ticketId);
+    if (!p || !ticket || ticket.provider !== provider || ticket.expires < now) {
+      const home = ticket?.returnTo ?? `${this.config.clientOrigins[0] ?? ""}/`;
+      return { status: 302, redirect: `${home}#login=error` };
+    }
+    for (const [state, login] of this.pending) if (login.expires < now || login.token === ticket.token) this.pending.delete(state);
+    const state = newState();
+    const nonce = newState();
+    this.pending.set(state, { token: ticket.token, provider, nonce, returnTo: ticket.returnTo, expires: now + LOGIN_TTL_MS });
+    return { status: 302, redirect: p.authorizeUrl(state, this.callbackUrl(provider)), cookie: this.loginCookie(nonce) };
   }
 
   /** The login nonce cookie; a max age of 0 clears it once the round trip is over. */
@@ -359,7 +412,7 @@ export class Accounts {
     group: number = players.length,
   ): number {
     const store = this.store!;
-    const replayId = store.saveReplay({ initialState: start, history });
+    const replayId = store.saveReplay({ initialState: start, history }, now.getTime());
     const won = final.status === "won";
     const earned = gameXp({ wave: final.wave, won, players: group });
     const game = {
@@ -383,6 +436,7 @@ export class Accounts {
   }
 
   close(): void {
+    clearInterval(this.purgeTimer);
     this.store?.close();
   }
 }

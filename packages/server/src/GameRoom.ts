@@ -16,7 +16,7 @@ import {
   DEFAULT_MAP,
   hashState,
   applyCommand,
-  isPlayerColor,
+  freeColors,
   pickColor,
   step,
   validateCommand,
@@ -118,7 +118,6 @@ export class GameRoom extends Room {
     this.onMessage<{ speed?: unknown }>("setSpeed", (client, msg) => this.handleSetSpeed(client, msg));
     this.onMessage("restart", (client) => void this.handleRestart(client));
     this.onMessage<{ ready?: unknown }>("ready", (client, msg) => this.handleReady(client, msg));
-    this.onMessage<{ color?: unknown }>("setColor", (client, msg) => this.handleSetColor(client, msg));
     this.onMessage<{ deck?: unknown }>("setDeck", (client, msg) => this.handleSetDeck(client, msg));
     this.onMessage<{ to?: unknown }>("passHost", (client, msg) => this.handlePassHost(client, msg));
   }
@@ -128,7 +127,7 @@ export class GameRoom extends Room {
     const player: Player = {
       playerId,
       name: sanitizeName(options?.name, playerId),
-      color: pickColor([...this.players.values()], options?.color),
+      color: drawColor([...this.players.values()]),
       connected: true,
       ready: false,
       deck: validDeck(options?.deck) ?? DEFAULT_DECKS.coop,
@@ -315,15 +314,6 @@ export class GameRoom extends Room {
     if (text.length === 0) return;
     const chat: ChatMessage = { playerId: player.playerId, name: player.name, text };
     this.broadcast("chat", chat);
-  }
-
-  /** Colors are picked while nobody plays; during a game the sim owns them. */
-  private handleSetColor(client: Client, msg: { color?: unknown }): void {
-    const player = this.players.get(client.sessionId);
-    if (!player || this.phase === "playing" || !isPlayerColor(msg?.color)) return;
-    if ([...this.players.values()].some((p) => p !== player && p.color === msg.color)) return;
-    player.color = msg.color;
-    this.broadcastPlayers();
   }
 
   /** Decks are chosen while nobody plays; changing it takes back a ready mark, since the team may have counted on the old one. */
@@ -560,6 +550,12 @@ function validDeck(value: unknown): Deck | null {
 function pickSeed(requested: number | undefined): number {
   if (Number.isInteger(requested) && requested! >= 0) return requested!;
   return Math.floor(Math.random() * MAX_SEED);
+}
+
+/** A color drawn at random among the free ones on joining; it stays with the player for the whole room. */
+function drawColor(taken: readonly { color: number }[]): number {
+  const free = freeColors(taken);
+  return free[Math.floor(Math.random() * free.length)] ?? pickColor(taken);
 }
 
 function sanitizeName(raw: string | undefined, playerId: number): string {

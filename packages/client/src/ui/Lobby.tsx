@@ -15,7 +15,6 @@ export interface LobbyActions {
   leave(): Promise<void>;
   setReady(ready: boolean): void;
   passHost(to: number): void;
-  setColor(color: number): void;
   setDeck(deck: Deck): void;
 }
 
@@ -157,21 +156,11 @@ function RoomLobby(props: { net: NetStore; actions: LobbyActions; info: NonNulla
           )}
         </For>
       </ul>
-      <div class="row swatches">
-        <span class="muted">Tu color</span>
-        <For each={[...PLAYER_COLORS.keys()]}>
-          {(color) => (
-            <button
-              type="button"
-              class="swatch"
-              classList={{ selected: me()?.color === color }}
-              disabled={props.info.players.some((p) => p.playerId !== props.info.you && p.color === color)}
-              style={{ background: cssColor(PLAYER_COLORS[color]!) }}
-              title={`Color ${color + 1}`}
-              onClick={() => props.actions.setColor(color)}
-            />
-          )}
-        </For>
+      <div class="row">
+        <span class="muted">Tu color, sorteado al entrar</span>
+        <Show when={me()}>
+          {(m) => <span class="swatch" style={{ background: cssColor(PLAYER_COLORS[m().color] ?? PLAYER_COLORS[0]) }} />}
+        </Show>
       </div>
       <Show when={draft()}>{(deck) => <DeckBuilder towers={DECK.coopTowers} deck={deck()} onChange={editDeck} team={teamDecks()} />}</Show>
       <div class="row">

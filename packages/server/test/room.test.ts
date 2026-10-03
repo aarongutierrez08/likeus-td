@@ -216,7 +216,10 @@ describe("game room", () => {
     const lateSnapshot = await late.next<SnapshotMessage>("snapshot");
     expect(lateSnapshot.you).toBe(2);
     const joinTick = await host.next<TickMessage>("tick", (t) => t.commands.some((c) => c.type === "join"));
-    expect(joinTick.commands).toContainEqual({ type: "join", tick: joinTick.tick, playerId: 2, color: 2, deck: DEFAULT_DECKS.coop });
+    const join = joinTick.commands.find((c) => c.type === "join");
+    expect(join).toMatchObject({ type: "join", tick: joinTick.tick, playerId: 2, deck: DEFAULT_DECKS.coop });
+    const colors = [...started.state.players.map((p) => p.color), (join as { color: number }).color];
+    expect(new Set(colors).size).toBe(3);
   });
 
   it("relays the host's wave call: the wave starts and everyone gets the bonus", async () => {

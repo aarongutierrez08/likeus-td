@@ -24,12 +24,10 @@ function send(result: HttpResult): Response {
   return Response.json(result.body ?? {}, { status: result.status });
 }
 
-/** The session token: the Authorization header, or ?token= for browser navigations that cannot set headers. */
-function tokenOf(headers: Headers | undefined, query?: Record<string, unknown>): string | null {
+/** The session token, from the Authorization header only: a session never travels in an address. */
+function tokenOf(headers: Headers | undefined): string | null {
   const header = headers?.get("authorization");
-  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length);
-  const fromQuery = query?.["token"];
-  return typeof fromQuery === "string" ? fromQuery : null;
+  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : null;
 }
 
 /** GET /rooms: public, unlocked rooms for the lobby list. Colyseus 0.18 has no built-in listing route. */
@@ -56,7 +54,6 @@ function cookieOf(headers: Headers | undefined, name: string): string | null {
 }
 
 export function createGameRouter(accounts: Accounts) {
-  const query = (ctx: Ctx) => (ctx.query ?? {}) as Record<string, unknown>;
   const body = (ctx: Ctx) => (ctx.body ?? {}) as Record<string, unknown>;
   const param = (ctx: Ctx, name: string) => (ctx.params as Record<string, string> | undefined)?.[name] ?? "";
   const at = (path: string, method: "GET" | "POST", handle: (ctx: Ctx) => HttpResult | Promise<HttpResult>) =>
@@ -76,9 +73,10 @@ export function createGameRouter(accounts: Accounts) {
     deleteMe: at("/me/delete", "POST", (ctx) => accounts.deleteAccount(tokenOf(ctx.headers))),
     replay: at("/replays/:id", "GET", (ctx) => accounts.replay(Number(param(ctx, "id")))),
     loginClaim: at("/auth/claim", "POST", (ctx) => accounts.claimLogin(tokenOf(ctx.headers), body(ctx)["claim"])),
-    loginStart: at("/auth/:provider/start", "GET", (ctx) =>
-      accounts.startLogin(param(ctx, "provider"), tokenOf(undefined, query(ctx)), textParam(ctx, "returnTo")),
+    loginTicket: at("/auth/:provider/ticket", "POST", (ctx) =>
+      accounts.loginTicket(param(ctx, "provider"), tokenOf(ctx.headers), body(ctx)["returnTo"]),
     ),
+    loginStart: at("/auth/:provider/start", "GET", (ctx) => accounts.startLogin(param(ctx, "provider"), textParam(ctx, "ticket"))),
     loginCallback: at("/auth/:provider/callback", "GET", (ctx) =>
       accounts.finishLogin(param(ctx, "provider"), textParam(ctx, "code"), textParam(ctx, "state"), cookieOf(ctx.headers, LOGIN_COOKIE)),
     ),

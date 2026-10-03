@@ -10,8 +10,8 @@ import {
   dumpState,
   DEFAULT_MAP,
   createInitialState,
-  dailySeed,
   dailyStart,
+  dailySeed,
   soloStart,
   deckProblem,
   findPlayer,
@@ -37,7 +37,7 @@ import { captureErrors, recentErrors } from "./net/errors";
 import { createNetStore, type NetStore } from "./net/store";
 import { parseUrlParams, type SoloKind, type UrlParams } from "./params";
 import { createRenderer, type Renderer } from "./render/app";
-import { playerCss, readPreferredColor, writePreferredColor } from "./ui/colors";
+import { drawSoloColor, playerCss } from "./ui/colors";
 import { Chat } from "./ui/Chat";
 import { DebugPanel, type DebugActions } from "./ui/DebugPanel";
 import { Dump } from "./ui/Dump";
@@ -47,8 +47,8 @@ import { Hud, type EconomyActions } from "./ui/Hud";
 import { Lobby, type LobbyActions } from "./ui/Lobby";
 import { DeckScreen } from "./ui/DeckScreen";
 import { DoctrinePanel, type DoctrineActions } from "./ui/DoctrinePanel";
-import { readDeck, writeDeck } from "./game/deck";
-import { claimLogin, loadProfile, loadReplay, readSession, submitSolo, todayUtc, type Profile } from "./net/account";
+import { adoptAccountDecks, readDeck, writeDeck } from "./game/deck";
+import { claimLogin, loadProfile, loadReplay, readReplayFile, readSession, submitSolo, todayUtc, type Profile } from "./net/account";
 import { ProfileButton } from "./ui/ProfilePanel";
 import { AbilityBar, pickAbility, type AbilityActions, type AbilityRequest } from "./ui/AbilityBar";
 import { Shop } from "./ui/Shop";
@@ -217,7 +217,7 @@ function showAccounts(name: string): void {
   );
   void loadProfile(name).then((loaded) => {
     setProfile(loaded);
-    if (loaded?.color !== null && loaded?.color !== undefined) writePreferredColor(loaded.color);
+    if (loaded) adoptAccountDecks(loaded.decks);
   });
 }
 
@@ -412,10 +412,13 @@ function bootSolo(params: UrlParams): void {
 }
 
 /** Watches a recorded game: the same start and the same commands, tick by tick, with nobody able to act. */
-async function bootReplay(id: number): Promise<void> {
-  const data = await loadReplay(id);
+async function bootReplay(source: number | "file"): Promise<void> {
+  const data = source === "file" ? readReplayFile() : await loadReplay(source);
   if (!data) {
-    hudEl.textContent = "Ese replay no existe o las cuentas no están disponibles.";
+    hudEl.textContent =
+      source === "file"
+        ? "No se pudo abrir el replay: volvé a elegir el archivo desde el perfil."
+        : "Ese replay venció, no existe o las cuentas no están disponibles. Si lo descargaste, abrilo desde el perfil.";
     return;
   }
   const initial = data.initialState as GameState;
@@ -452,11 +455,13 @@ async function startSolo(params: UrlParams, deck: Deck, kind: SoloKind): Promise
   setProfileShown(false);
   const day = todayUtc();
   const mode = kind === "campaign" ? "campaign" : "endless";
+  // Dev games keep the first color, so a shot or a dump of the same seed and tick always comes out the same.
+  const color = params.usesDevParams ? 0 : drawSoloColor();
   /** A ranked game is built exactly as the server rebuilds it to replay; a dev one, with its overrides and no record. */
   const initial = !params.usesDevParams
     ? kind === "daily"
-      ? dailyStart(day, deck)
-      : soloStart({ seed: params.seed, mapId: params.map, mode, deck })
+      ? dailyStart(day, deck, color)
+      : soloStart({ seed: params.seed, mapId: params.map, mode, deck, color })
     : createInitialState({
         seed: kind === "daily" ? dailySeed(day) : params.seed,
         mapId: kind === "daily" ? DEFAULT_MAP : params.map,
@@ -465,7 +470,7 @@ async function startSolo(params: UrlParams, deck: Deck, kind: SoloKind): Promise
         startWave: params.wave,
         ranked: !params.usesDevParams,
         deckTowers: DECK.soloTowers,
-        players: [{ id: 0, deck, doctrines: params.doctrines }],
+        players: [{ id: 0, deck, color, doctrines: params.doctrines }],
       });
   const preselected = params.tower && deck.towers.includes(params.tower) ? params.tower : null;
   const store = createGameStore(initial, preselected, 0);
@@ -544,7 +549,9 @@ async function startSolo(params: UrlParams, deck: Deck, kind: SoloKind): Promise
         setProfileShown(true);
         setSubmitted("Registrando la partida…");
         const name = profile()?.name ?? params.name ?? "Anónimo";
-        void submitSolo({ kind, day, seed: initial.seed, map: initial.mapId, name, deck, history: runner.history }).then(setSubmitted);
+        void submitSolo({ kind, day, seed: initial.seed, map: initial.mapId, name, deck, color, history: runner.history }).then(
+          setSubmitted,
+        );
       }),
     );
   }
@@ -698,21 +705,13 @@ function bootCoop(params: UrlParams): void {
   const actions: LobbyActions = {
     create: (name, isPrivate, map) =>
       guarded(() =>
-        connection.create(
-          { name, private: isPrivate, map, color: readPreferredColor(), deck: readDeck("coop"), token: readSession() ?? undefined },
-          handlers,
-        ),
+        connection.create({ name, private: isPrivate, map, deck: readDeck("coop"), token: readSession() ?? undefined }, handlers),
       ),
-    join: (code, name) =>
-      guarded(() => connection.join(code, name, handlers, readPreferredColor(), readDeck("coop"), readSession() ?? undefined)),
+    join: (code, name) => guarded(() => connection.join(code, name, handlers, readDeck("coop"), readSession() ?? undefined)),
     listRooms: () => connection.listRooms(),
     start: () => connection.send("start", {}),
     kick: (playerId) => connection.send("kick", { playerId }),
     setReady: (ready) => connection.send("ready", { ready }),
-    setColor: (color) => {
-      writePreferredColor(color);
-      connection.send("setColor", { color });
-    },
     passHost: (to) => connection.send("passHost", { to }),
     setDeck: (deck) => {
       writeDeck("coop", deck);

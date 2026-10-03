@@ -20,7 +20,7 @@ export type Phase = "lobby" | "playing" | "ended";
 export interface PlayerInfo {
   playerId: number;
   name: string;
-  /** Index into PLAYER_COLORS, unique in the room. */
+  /** Index into PLAYER_COLORS: drawn at random among the free ones on joining, unique in the room and fixed. */
   color: number;
   connected: boolean;
   /** Marked in the lobby and on the end screen; start and restart wait for every connected player. */
@@ -34,8 +34,6 @@ export interface CreateRoomOptions {
   private?: boolean;
   name?: string;
   map?: string;
-  /** Preferred player color; the first free one when absent or taken. */
-  color?: number;
   /** The default co-op deck when absent or invalid. */
   deck?: Deck;
   /** Accounts session of this browser, so the game lands in the player's history; never sent to anyone else. */
@@ -47,7 +45,6 @@ export type Speed = (typeof SPEEDS)[number];
 
 export interface JoinRoomOptions {
   name?: string;
-  color?: number;
   /** The default co-op deck when absent or invalid. */
   deck?: Deck;
   /** Accounts session of this browser, so the game lands in the player's history; never sent to anyone else. */
@@ -179,6 +176,8 @@ export interface SoloSubmission {
   map: string;
   name: string;
   deck: Deck;
+  /** The color the client drew for this game; only paints the replay. */
+  color?: number;
   /** Every tick that had commands, in order, as the client's runner recorded them. */
   history: HistoryEntry[];
 }
@@ -195,7 +194,6 @@ export interface Profile {
   /** Providers this account can log in with; empty for guests. */
   linked: string[];
   name: string;
-  color: number | null;
   xp: number;
   level: number;
   /** Experience where this level starts and where the next one does. */
@@ -203,7 +201,13 @@ export interface Profile {
   nextLevelXp: number;
   /** Providers this server can log in with. */
   providers: string[];
+  /** The last deck played per mode, so it follows the account to another browser. */
+  decks: Partial<Record<DeckMode, Deck>>;
+  /** Days the server keeps what this player leaves behind, to tell them. */
+  retention: { replayDays: number; idleGuestDays: number; emptyGuestDays: number };
 }
+
+export type DeckMode = "solo" | "coop";
 
 export interface HistoryItem {
   playedAt: number;
@@ -217,7 +221,9 @@ export interface HistoryItem {
   result: "won" | "lost";
   wave: number;
   xp: number;
-  replayId: number;
+  /** Null once the replay expired; the game stays in the history. */
+  replayId: number | null;
+  replayExpiresAt: number | null;
 }
 
 export interface DailyEntry {
@@ -314,8 +320,6 @@ export interface ClientMessages {
   /** Creator only: back to the lobby with the same players and a fresh seed. */
   restart: Record<string, never>;
   ready: { ready: boolean };
-  /** Lobby and end screen only: pick a free color. */
-  setColor: { color: number };
   /** Lobby and end screen only: the host hands the role on; during a game it is the `passHost` command. */
   passHost: { to: number };
   /** Lobby and end screen only: an invalid deck is rejected with bad_deck. */

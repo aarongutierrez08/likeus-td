@@ -28,7 +28,8 @@ export interface UrlParams {
   /** Solo game kind: the twenty-wave campaign, endless, or the daily challenge (endless on the day's seed). */
   kind: SoloKind;
   /** Replay to watch instead of playing, from a history link. */
-  replay: number | null;
+  /** A replay to watch: one the server keeps, by id, or "file" for one the player opened from their own copy. */
+  replay: number | "file" | null;
   /** True when any dev parameter was used: the game is not eligible for records. */
   usesDevParams: boolean;
 }
@@ -71,7 +72,7 @@ function nameParam(params: URLSearchParams): string | undefined {
 }
 
 /**
- * Public: ?mode=solo|coop&room=&name=&seed=&map=&speed=&endless=1&daily=1&replay=<id>. Dev only, solo mode, non-production builds:
+ * Public: ?mode=solo|coop&room=&name=&seed=&map=&speed=&endless=1&daily=1&replay=<id>|file. Dev only, solo mode, non-production builds:
  * &gold=&wave=&tick=&dump=1&bot=1&tower=archer|cannon|aura&deck=archer,mage,...;bombard,repair&doctrines=wideAuras,...
  */
 export function parseUrlParams(search: string, dev: boolean = import.meta.env.DEV): UrlParams {
@@ -95,7 +96,7 @@ export function parseUrlParams(search: string, dev: boolean = import.meta.env.DE
     deck: parseDeckParam(devParams.get("deck")),
     doctrines: DOCTRINE_KINDS.filter((kind) => (devParams.get("doctrines") ?? "").split(",").includes(kind)),
     kind: params.get("daily") === "1" ? "daily" : params.get("endless") === "1" ? "endless" : "campaign",
-    replay: intParam(params, "replay") ?? null,
+    replay: params.get("replay") === "file" ? "file" : (intParam(params, "replay") ?? null),
     usesDevParams,
   };
 }

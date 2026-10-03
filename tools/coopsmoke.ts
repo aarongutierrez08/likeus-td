@@ -234,6 +234,7 @@ try {
   await solo.waitForSelector(".deck-screen");
   await solo.locator(".profile-button").filter({ hasText: "nivel 1" }).waitFor({ timeout: 20000 });
   await solo.locator(".profile-button").click();
+  await solo.locator(".profile-panel .guest-warning").filter({ hasText: "30 días sin jugar" }).waitFor();
   await solo.getByRole("button", { name: "Prueba (solo desarrollo)" }).click();
   await solo.waitForSelector(".deck-screen");
   await solo.locator(".profile-panel .notice").filter({ hasText: "Cuenta vinculada" }).waitFor({ timeout: 10000 });
@@ -260,10 +261,23 @@ try {
 
   await solo.locator(".profile-button").click();
   await solo.locator(".profile-panel .history li").filter({ hasText: "infinito" }).waitFor({ timeout: 10000 });
+  await solo.locator(".profile-panel .replay-warning").filter({ hasText: "se guardan 30 días" }).waitFor();
+  await solo.locator(".profile-panel .history li").filter({ hasText: "vence en" }).first().waitFor();
+  const [download] = await Promise.all([solo.waitForEvent("download"), solo.getByRole("button", { name: "Descargar" }).first().click()]);
+  const saved = resolve(outDir, "coopsmoke-replay.json");
+  await download.saveAs(saved);
   await solo.getByRole("link", { name: "Ver replay" }).first().click();
   await solo.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
   await solo.waitForFunction(() => (window.__td?.state().tick ?? 0) > 20);
-  done("la partida queda en el historial y su replay se reproduce");
+  done("la partida queda en el historial con su vencimiento, se descarga y su replay se reproduce");
+
+  await solo.goto(`${base}?daily=1`);
+  await solo.waitForSelector(".deck-screen");
+  await solo.locator(".profile-button").click();
+  await solo.locator(".profile-panel .file-button input").setInputFiles(saved);
+  await solo.waitForFunction(() => document.documentElement.dataset["ready"] === "1", null, { timeout: 30000 });
+  await solo.waitForFunction(() => (window.__td?.state().tick ?? 0) > 20);
+  done("un replay descargado se abre desde el perfil y se reproduce");
 } catch (err) {
   failed = true;
   console.error(`FALLÓ tras ${steps.length} pasos: ${err instanceof Error ? err.message : String(err)}`);

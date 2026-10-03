@@ -115,6 +115,9 @@ Se mantiene lo que hay, con un cambio de quién llama:
 
 ### Historial
 Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alcanzada, mazo usado, doctrinas elegidas, link al replay. Las partidas con parámetros de desarrollo no se registran.
+- El replay vence a los 30 días; antes se puede descargar y el archivo se abre desde el perfil. La partida queda en el historial (ADR 020).
+- Un invitado se borra a los 30 días de su última partida, o a los 7 si nunca jugó; el perfil se lo avisa. Las cuentas vinculadas no se borran.
+- El último mazo de cada modo se guarda en el navegador y en la cuenta.
 
 ### XP y nivel
 - XP por partida = f(oleada alcanzada, victoria, N jugadores). Bonus chico por co-op (nunca más del 25%). Tope diario para que grindear no sea la forma de subir.
@@ -123,7 +126,7 @@ Por partida terminada: fecha, modo, mapa, seed, jugadores, resultado, oleada alc
 ## Identidad visual del jugador
 ### Color de jugador
 - 8 colores fijos, distinguibles entre sí y para daltónicos (paleta a definir; contraste probado sobre el mapa).
-- Se asigna al entrar y se puede cambiar en el lobby si está libre. Persistente en la cuenta como preferencia.
+- Se sortea al entrar a una partida entre los libres, sin repetir entre jugadores, y queda fijo: no se cambia en el lobby ni se guarda en la cuenta (decisión del usuario, 2026-10-03). Las partidas con parámetros de desarrollo usan siempre el primero, para que las capturas sean reproducibles.
 - Aparece en: las torres propias (base o anillo), el nombre en el HUD y el chat, el oro flotante, la marca en el calendario de doctrinas, la pantalla de fin.
 - Una torre siempre se identifica por *forma* (tipo) y *color* (dueño), nunca solo por color.
 

@@ -95,7 +95,7 @@ export {
 export { WAVES, type WaveDef, type SpawnGroup } from "./balance/waves";
 export { GAME } from "./balance/game";
 export { PLAYER_COLORS } from "./balance/players";
-export { isPlayerColor, pickColor } from "./colors";
+export { freeColors, isPlayerColor, pickColor } from "./colors";
 export { currentTarget, damageAgainst, effectiveCooldown, effectiveRange, auraRadiusOf } from "./systems/towers";
 export { currentSpeed } from "./systems/move";
 export { upcomingWaves, multiplierAgainstWaves, bestAttackTower, wavesNeedReveal } from "./preview";

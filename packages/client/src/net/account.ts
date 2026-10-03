@@ -1,4 +1,5 @@
-import type { DailyBoard, HistoryItem, Profile, SoloResultMessage, SoloSubmission } from "@td/server/protocol";
+import type { Deck } from "@td/sim";
+import type { DailyBoard, DeckMode, HistoryItem, Profile, SoloResultMessage, SoloSubmission } from "@td/server/protocol";
 import { defaultEndpoint, httpEndpoint } from "./connection";
 
 const TOKEN_KEY = "td.session";
@@ -59,7 +60,7 @@ export async function loadProfile(name: string): Promise<Profile | null> {
   return created.profile;
 }
 
-export const updateProfile = (changes: { name?: string; color?: number | null }) => call<Profile>("/me", { body: changes });
+export const updateProfile = (changes: { name?: string; deck?: { mode: DeckMode; deck: Deck } }) => call<Profile>("/me", { body: changes });
 export const loadHistory = () => call<HistoryItem[]>("/me/history");
 
 export async function logout(): Promise<void> {
@@ -76,14 +77,72 @@ export async function deleteAccount(): Promise<boolean> {
 /** Links the identity the provider vouched for to this browser's own session; null when it was not this browser's login. */
 export const claimLogin = (claim: string) => call<Profile>("/auth/claim", { body: { claim } });
 
-/** Sends the browser to the provider; it comes back to this same page with #claim=<id> to claim, or #login=error. */
-export function loginUrl(provider: string): string {
+/**
+ * Sends the browser to the provider: the session goes in a header to get a one-use address, never in the address itself.
+ * It comes back to this same page with #claim=<id> to claim, or #login=error. False when accounts are down.
+ */
+export async function startLogin(provider: string): Promise<boolean> {
   const returnTo = `${location.origin}${location.pathname}${location.search}`;
-  return `${base()}/auth/${provider}/start?${new URLSearchParams({ token: readSession() ?? "", returnTo }).toString()}`;
+  const ticket = await call<{ url: string }>(`/auth/${provider}/ticket`, { body: { returnTo } });
+  if (!ticket) return false;
+  location.assign(ticket.url);
+  return true;
 }
 
-export async function loadReplay(id: number): Promise<{ initialState: unknown; history: { tick: number; commands: unknown[] }[] } | null> {
+export interface ReplayData {
+  initialState: unknown;
+  history: { tick: number; commands: unknown[] }[];
+}
+
+export async function loadReplay(id: number): Promise<ReplayData | null> {
   return call(`/replays/${id}`);
+}
+
+const REPLAY_FILE_KEY = "td.replay.file";
+
+function isReplayData(value: unknown): value is ReplayData {
+  const data = value as Partial<ReplayData> | null;
+  return typeof data?.initialState === "object" && data.initialState !== null && Array.isArray(data.history);
+}
+
+/** Saves the replay as a file the player keeps after the server drops it. */
+export async function downloadReplay(id: number, name: string): Promise<boolean> {
+  const data = await loadReplay(id);
+  if (!data) return false;
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+  link.download = name;
+  link.click();
+  // Revoking in the same tick can cut the download short in some browsers.
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+  return true;
+}
+
+/** Opens a downloaded replay: kept for this tab only, then played back like any other. */
+export async function openReplayFile(file: File): Promise<"ok" | "invalid" | "too_big"> {
+  let data: unknown;
+  try {
+    data = JSON.parse(await file.text()) as unknown;
+  } catch {
+    return "invalid";
+  }
+  if (!isReplayData(data)) return "invalid";
+  try {
+    sessionStorage.setItem(REPLAY_FILE_KEY, JSON.stringify(data));
+  } catch {
+    return "too_big";
+  }
+  location.assign("?replay=file");
+  return "ok";
+}
+
+export function readReplayFile(): ReplayData | null {
+  try {
+    const data = JSON.parse(sessionStorage.getItem(REPLAY_FILE_KEY) ?? "null") as unknown;
+    return isReplayData(data) ? data : null;
+  } catch {
+    return null;
+  }
 }
 
 /** A finished solo game: the server replays it, records it for this session and answers with the experience it paid. */

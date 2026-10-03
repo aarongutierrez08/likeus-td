@@ -9,6 +9,7 @@ import type { Server } from "@colyseus/core";
 import { DEFAULT_DECKS, createInitialState, soloStart, step, type Command, type GameState } from "@td/sim";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Accounts } from "../src/accounts/service";
+import { RETENTION } from "../src/accounts/retention";
 import { XP, cappedXp, gameXp, levelOf } from "../src/accounts/xp";
 import { ROOM_NAME, type HistoryEntry, type HistoryItem, type Profile, type SoloResultMessage } from "../src/protocol";
 import { createGameServer, type AccountsConfig } from "../src/server";
@@ -61,7 +62,8 @@ const claimIn = (location: string | null | undefined) => /#claim=(\w+)/.exec(loc
  * browser came back with a failed login.
  */
 async function linkWithFake(token: string, opts: { browserCookie?: boolean; claimWith?: string } = {}): Promise<number> {
-  const start = await fetch(`${base}/auth/fake/start?token=${token}&returnTo=${encodeURIComponent(`${origin}/`)}`, { redirect: "manual" });
+  const ticket = await call<{ url: string }>("/auth/fake/ticket", { token, body: { returnTo: `${origin}/` } });
+  const start = await fetch(ticket.body.url, { redirect: "manual" });
   const cookie = start.headers.get("set-cookie")!.split(";")[0]!;
   const callback = await fetch(start.headers.get("location")!, {
     redirect: "manual",
@@ -94,8 +96,14 @@ const memoryAccounts = () =>
 const tokenOf = (accounts: Accounts) => (accounts.createGuest("Jugador").body as { token: string }).token;
 const profileOf = (accounts: Accounts, token: string) => accounts.me(token).body as Profile;
 
+/** The ticket in the address a login ticket sends the browser to. */
+function ticketOf(accounts: Accounts, token: string, provider = "fake"): string {
+  const { url } = accounts.loginTicket(provider, token, `${origin}/`).body as { url: string };
+  return new URL(url).searchParams.get("ticket")!;
+}
+
 async function linkDirect(accounts: Accounts, token: string, provider = "fake", code?: string): Promise<number> {
-  const start = accounts.startLogin(provider, token, `${origin}/`);
+  const start = accounts.startLogin(provider, ticketOf(accounts, token, provider));
   const url = new URL(start.redirect!);
   const nonce = start.cookie!.split(";")[0]!.split("=")[1]!;
   const back = await accounts.finishLogin(provider, code ?? url.searchParams.get("code"), url.searchParams.get("state"), nonce);
@@ -110,10 +118,24 @@ describe("accounts", () => {
     expect((await call("/me", { token: "nope" })).status).toBe(401);
   });
 
-  it("a player renames themself and keeps a color, checked by the server", async () => {
+  it("a player renames themself and the account keeps their last deck per mode, checked by the server", async () => {
     const { token } = await guest();
-    expect((await call<Profile>("/me", { token, body: { name: "Beto", color: 3 } })).body).toMatchObject({ name: "Beto", color: 3 });
-    expect((await call("/me", { token, body: { color: 99 } })).status).toBe(400);
+    const coop = DEFAULT_DECKS.coop;
+    expect((await call<Profile>("/me", { token, body: { name: "Beto", deck: { mode: "coop", deck: coop } } })).body).toMatchObject({
+      name: "Beto",
+      decks: { coop },
+    });
+    expect((await call("/me", { token, body: { deck: { mode: "coop", deck: DEFAULT_DECKS.solo } } })).status).toBe(400);
+  });
+
+  it("a session never travels in an address: the login starts from a one-use ticket", async () => {
+    const { token } = await guest();
+    const ticket = await call<{ url: string }>("/auth/fake/ticket", { token, body: { returnTo: `${origin}/` } });
+    expect(ticket.body.url).not.toContain(token);
+    expect((await fetch(ticket.body.url, { redirect: "manual" })).status).toBe(302);
+    const again = await fetch(ticket.body.url, { redirect: "manual" });
+    expect(again.headers.get("location")).toBe(`${origin}/#login=error`);
+    expect((await call("/auth/fake/ticket", { body: { returnTo: `${origin}/` } })).status).toBe(401);
   });
 
   it("a solo game the server replays lands in the history with its experience and a replay", async () => {
@@ -162,10 +184,8 @@ describe("accounts", () => {
 
   it("a login only sends the browser back to an allowed address", async () => {
     const { token } = await guest();
-    const start = await fetch(`${base}/auth/fake/start?token=${token}&returnTo=${encodeURIComponent("https://evil.example/")}`, {
-      redirect: "manual",
-    });
-    expect(start.status).toBe(400);
+    const ticket = await call("/auth/fake/ticket", { token, body: { returnTo: "https://evil.example/" } });
+    expect(ticket.status).toBe(400);
   });
 
   it("a provider link opened in a browser that did not start the login links nothing", async () => {
@@ -358,11 +378,36 @@ describe("accounts", () => {
   it("a second login from the same session voids the first one", async () => {
     const accounts = memoryAccounts();
     const token = tokenOf(accounts);
-    const first = accounts.startLogin("fake", token, `${origin}/`);
-    accounts.startLogin("fake", token, `${origin}/`);
+    const first = accounts.startLogin("fake", ticketOf(accounts, token));
+    accounts.startLogin("fake", ticketOf(accounts, token));
     const nonce = first.cookie!.split(";")[0]!.split("=")[1]!;
     const back = await accounts.finishLogin("fake", "fake:1:Ana", new URL(first.redirect!).searchParams.get("state"), nonce);
     expect(back.redirect).toBe(`${origin}/#login=error`);
+  });
+
+  it("a solo game's color reaches its replay", () => {
+    const accounts = memoryAccounts();
+    const token = tokenOf(accounts);
+    const at = new Date(Date.now() + 3_600_000);
+    const sent = accounts.submitSolo(
+      token,
+      { kind: "campaign", seed: 5, map: "s", name: "Ana", deck: DEFAULT_DECKS.solo, color: 6, history: [] },
+      at,
+    );
+    expect(sent.status).toBe(200);
+    const [game] = accounts.history(token).body as HistoryItem[];
+    const replay = accounts.replay(game!.replayId!).body as { initialState: GameState };
+    expect(replay.initialState.players[0]!.color).toBe(6);
+  });
+
+  it("the test providers step aside once real ones are configured", () => {
+    const accounts = new Accounts({
+      dbPath: ":memory:",
+      publicUrl: "",
+      clientOrigins: [],
+      env: { AUTH_FAKE: "1", DISCORD_CLIENT_ID: "id", DISCORD_CLIENT_SECRET: "secret" },
+    });
+    expect(profileOf(accounts, tokenOf(accounts)).providers).toEqual(["discord"]);
   });
 
   it("the fake provider never exists in a production build", () => {
@@ -373,6 +418,92 @@ describe("accounts", () => {
       env: { AUTH_FAKE: "1", NODE_ENV: "production" },
     });
     expect((accounts.me(tokenOf(accounts)).body as Profile).providers).toEqual([]);
+  });
+});
+
+describe("retention", () => {
+  const day = 86_400_000;
+  const start = Date.now();
+  const guestAt = (accounts: Accounts, at: number) => (accounts.createGuest("Jugador", at).body as { token: string }).token;
+  const playAt = (accounts: Accounts, token: string, at: number) => {
+    const { start: initial, final } = lostRanked();
+    accounts.recordRoom([{ token, name: "Ana", playerId: 0 }], initial, final, [], new Date(at));
+  };
+
+  it("a replay expires after its days; the game stays in the history without it", async () => {
+    const accounts = memoryAccounts();
+    const token = guestAt(accounts, start);
+    await linkDirect(accounts, token);
+    playAt(accounts, token, start);
+    const [kept] = accounts.history(token).body as HistoryItem[];
+    expect(kept).toMatchObject({ replayExpiresAt: start + RETENTION.replayDays * day });
+    accounts.purge(start + (RETENTION.replayDays - 1) * day);
+    expect(accounts.replay(kept!.replayId!).status).toBe(200);
+    accounts.purge(start + (RETENTION.replayDays + 1) * day);
+    expect(accounts.history(token).body).toMatchObject([{ replayId: null, replayExpiresAt: null, wave: kept!.wave }]);
+    expect(accounts.replay(kept!.replayId!).status).toBe(404);
+  });
+
+  it("a database from the previous version keeps its accounts, history, replays and guests on the day it is migrated", () => {
+    const path = join(mkdtempSync(join(tmpdir(), "td-accounts-")), "prod.db");
+    const longAgo = start - 100 * day;
+    const old = new DatabaseSync(path);
+    old.exec(`
+      create table subjects (id integer primary key autoincrement, kind text not null, name text not null, color integer, xp integer not null default 0, created integer not null);
+      create table identities (provider text not null, provider_id text not null, subject_id integer not null, linked integer not null, primary key (provider, provider_id));
+      create table sessions (token text primary key, subject_id integer not null);
+      create table replays (id integer primary key autoincrement, data text not null);
+      create table games (id integer primary key autoincrement, subject_id integer not null, played_at integer not null, mode text not null, map text not null, seed integer not null, players text not null, result text not null, wave integer not null, xp integer not null, replay_id integer not null, deck text, doctrines text not null default '[]');
+      create table xp_days (subject_id integer not null, day text not null, xp integer not null, primary key (subject_id, day));
+      create table daily (day text not null, name text not null, score integer not null, ticks integer not null);
+    `);
+    old.exec(
+      `insert into subjects (kind, name, color, xp, created) values ('account', 'Ana', 3, 30, ${longAgo}), ('guest', 'Jugador', null, 0, ${longAgo})`,
+    );
+    old.exec("insert into identities values ('fake', '1', 1, 0)");
+    old.exec("insert into sessions values ('ana-session', 1), ('guest-session', 2)");
+    old.exec(`insert into replays (data) values ('{"initialState":{"tick":0},"history":[]}')`);
+    old.exec(
+      `insert into games (subject_id, played_at, mode, map, seed, players, result, wave, xp, replay_id) values (1, ${longAgo}, 'campaign', 's', 5, '["Ana"]', 'lost', 3, 30, 1)`,
+    );
+    old.close();
+    const accounts = new Accounts({ dbPath: path, publicUrl: "http://server", clientOrigins: [origin], env: { AUTH_FAKE: "1" } });
+    expect(profileOf(accounts, "ana-session")).toMatchObject({ name: "Ana", xp: 30, linked: ["fake"], decks: {} });
+    expect(accounts.history("ana-session").body).toMatchObject([{ wave: 3, replayId: 1 }]);
+    expect(accounts.replay(1).body).toEqual({ initialState: { tick: 0 }, history: [] });
+    expect(accounts.me("guest-session").status).toBe(200);
+    accounts.purge(start + (RETENTION.emptyGuestDays + 1) * day);
+    expect(accounts.me("guest-session").status).toBe(401);
+    expect(accounts.me("ana-session").status).toBe(200);
+    accounts.close();
+  });
+
+  it("a guest who never played goes after a few days, one who played after a month without playing, an account never", async () => {
+    const accounts = memoryAccounts();
+    const empty = guestAt(accounts, start);
+    const player = guestAt(accounts, start);
+    playAt(accounts, player, start + 10 * day);
+    const account = guestAt(accounts, start);
+    await linkDirect(accounts, account);
+    accounts.purge(start + (RETENTION.emptyGuestDays + 1) * day);
+    expect(accounts.me(empty).status).toBe(401);
+    expect(accounts.me(player).status).toBe(200);
+    accounts.purge(start + (10 + RETENTION.idleGuestDays + 1) * day);
+    expect(accounts.me(player).status).toBe(401);
+    expect(accounts.me(account).status).toBe(200);
+  });
+
+  it("a session unused for months stops working, and the account can be opened again by logging in", async () => {
+    const accounts = memoryAccounts();
+    const idle = guestAt(accounts, start);
+    await linkDirect(accounts, idle);
+    accounts.purge(start + (RETENTION.idleSessionDays - 1) * day);
+    expect(accounts.me(idle).status).toBe(200);
+    accounts.purge(start + (RETENTION.idleSessionDays + 1) * day);
+    expect(accounts.me(idle).status).toBe(401);
+    const otherBrowser = guestAt(accounts, start);
+    await linkDirect(accounts, otherBrowser);
+    expect(accounts.me(otherBrowser).status).toBe(200);
   });
 });
 
